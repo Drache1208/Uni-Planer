@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Uni-Planer Online</title>
+<meta name="theme-color" content="#fbfbf8">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Uni-Planer">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Schibsted+Grotesk:wght@400;500;700&display=swap">
 <style>
 /* Layout: helle, luftige Karten auf fast weißem Grund; Seitenleiste links, Ansichten rechts */
@@ -95,6 +101,14 @@ h1{font-family:var(--font-display); font-weight:700; font-size:clamp(25px,4vw,33
 .vhead{margin-bottom:20px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
 .vhead .grow{flex:1}
 
+#sp-grid{display:grid; background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden}
+.sp-h{padding:8px 4px; text-align:center; font-weight:700; font-size:13px; border-bottom:1px solid var(--border)}
+.sp-h.today{color:var(--accent)}
+.sp-axis,.sp-col{position:relative; border-right:1px solid var(--border)}
+.sp-col:last-child{border-right:none}
+.sp-hour{position:absolute; left:0; right:0; border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent); font-size:10.5px; color:var(--muted); padding:1px 3px; pointer-events:none}
+.sp-ev{position:absolute; left:3px; right:3px; border-radius:8px; padding:4px 6px; font-size:12px; line-height:1.25; color:var(--ink); background:color-mix(in srgb,var(--sc,var(--accent)) 24%,var(--surface)); border-left:3px solid var(--sc,var(--accent)); overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sp-ev .tm{font-weight:700; font-size:11px; display:block}
 [hidden]{display:none !important}
 .banner{display:none; background:color-mix(in srgb,var(--warn) 12%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px}
 .banner.show{display:block}
@@ -344,6 +358,7 @@ div[data-block] form.card{margin-bottom:14px}
     <div class="side-h">Lernplanung</div>
     <button type="button" class="nav-btn" data-nav="lernwoche" id="nav-lernwoche">Lernwoche</button>
     <button type="button" class="nav-btn" data-nav="lernmonat" id="nav-lernmonat">Lernmonat</button>
+    <button type="button" class="nav-btn" data-nav="stundenplan" id="nav-stundenplan">Stundenplan</button>
     <div class="side-h">Laborarbeit</div>
     <button type="button" class="nav-btn" data-nav="labor" id="nav-labor">Arbeitszeiten</button>
     <div class="side-h">Englisch</div>
@@ -420,6 +435,7 @@ div[data-block] form.card{margin-bottom:14px}
       <ul class="list" id="todo-done-list"></ul>
     </details>
   </div>
+  <div id="week-stats"></div>
 </section>
 
 <!-- Eine Vorlesung -->
@@ -454,14 +470,44 @@ div[data-block] form.card{margin-bottom:14px}
       <label class="f" for="ex-t1an">Letzte Anmeldung <input type="date" id="ex-t1an"></label>
       <label class="f" for="ex-t1ab">Letzte Abmeldung <input type="date" id="ex-t1ab"></label>
     </div>
+    <label style="display:flex; gap:8px; align-items:center; font-size:14px"><input type="checkbox" id="ex-reg1" style="width:17px; height:17px"> Zur Klausur angemeldet (1. Termin)</label>
     <div class="fh">2. Termin</div>
     <div class="frow">
       <label class="f" for="ex-t2">Termin <input type="date" id="ex-t2"></label>
       <label class="f" for="ex-t2an">Letzte Anmeldung <input type="date" id="ex-t2an"></label>
       <label class="f" for="ex-t2ab">Letzte Abmeldung <input type="date" id="ex-t2ab"></label>
     </div>
+    <label style="display:flex; gap:8px; align-items:center; font-size:14px"><input type="checkbox" id="ex-reg2" style="width:17px; height:17px"> Zur Klausur angemeldet (2. Termin)</label>
     <button class="primary" type="submit">Klausurtermine speichern</button>
   </form>
+  <div class="card" data-block="cards" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh-row"><div class="fh">Karteikarten</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div id="kk-practice" style="display:grid; gap:12px; text-align:center" hidden>
+      <div class="fh" id="kk-kind"></div>
+      <div id="kk-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
+      <div id="kk-a" style="color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere" hidden></div>
+      <div class="frow" id="kk-showrow" style="justify-content:center"><button type="button" class="primary" id="kk-show" style="flex:none">Antwort zeigen</button></div>
+      <div class="frow" id="kk-rate" hidden style="justify-content:center; gap:8px">
+        <button type="button" class="ghost" style="color:var(--danger); flex:none" id="kr-hard">Kann ich noch nicht</button>
+        <button type="button" class="ghost" style="color:var(--warn); flex:none" id="kr-mid">Mittel</button>
+        <button type="button" class="ghost" style="color:var(--ok); flex:none" id="kr-easy">Kann ich</button>
+      </div>
+      <button type="button" class="ghost" id="kk-stopx" style="justify-self:center">Üben beenden</button>
+    </div>
+    <p class="sub" id="kk-status" style="margin:0"></p>
+    <div class="frow" id="kk-ctl">
+      <button type="button" class="primary" id="kk-start" style="flex:none">Üben</button>
+    </div>
+    <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
+      <label class="f" for="kk-qin">Frage <input type="text" id="kk-qin" maxlength="300" placeholder="z. B. Welche Zellen präsentieren Antigene über MHC-II?"></label>
+      <label class="f" for="kk-ain">Antwort <textarea id="kk-ain" rows="2" maxlength="1000" placeholder="z. B. Dendritische Zellen, Makrophagen, B-Zellen"></textarea></label>
+      <button class="primary" type="submit">Karte hinzufügen</button>
+    </form>
+    <details>
+      <summary style="cursor:pointer; font-weight:600" id="kk-list-sum">Alle Karten</summary>
+      <ul class="list" id="kk-list" style="margin-top:10px"></ul>
+    </details>
+  </div>
   <form class="card" id="grade-form" autocomplete="off" data-block="grade" style="margin-bottom:24px">
     <div class="fh-row"><div class="fh">Note &amp; ECTS</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <div class="frow">
@@ -560,6 +606,22 @@ div[data-block] form.card{margin-bottom:14px}
   </div>
 </section>
 
+<!-- Stundenplan -->
+<section id="view-plan" hidden>
+  <div class="cal-ctl">
+    <h1>Stundenplan</h1>
+    <button type="button" id="sp-today">Heute</button>
+    <button type="button" id="sp-prev" aria-label="Vorige Woche">‹</button>
+    <button type="button" id="sp-next" aria-label="Nächste Woche">›</button>
+  </div>
+  <p class="sub cal-sub" id="sp-sub"></p>
+  <div id="sp-grid"></div>
+  <div class="empty" id="sp-empty" hidden>
+    <div class="big">Keine Termine in dieser Woche</div>
+    Importiere deinen Stundenplan als .ics-Datei im Lernmonat – deine Vorlesungen erscheinen dann hier als Wochenraster mit Uhrzeiten.
+  </div>
+</section>
+
 <!-- Laborarbeit -->
 <section id="view-labor" hidden>
   <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-punch"></button></div>
@@ -605,6 +667,18 @@ div[data-block] form.card{margin-bottom:14px}
     <span id="vok-done-sub"></span>
     <div style="margin-top:14px"><button type="button" class="ghost" id="vok-extra" hidden>Endlos üben: alle gelernten Vokabeln wiederholen</button></div>
   </div>
+  <details class="card" style="margin-bottom:24px; padding-top:16px">
+    <summary style="cursor:pointer; font-weight:600">Eigene Vokabeln hinzufügen <span id="myvok-n"></span></summary>
+    <form id="myvok-add" autocomplete="off" style="display:grid; gap:10px; margin-top:12px">
+      <div class="frow">
+        <label class="f" for="mv-en" style="flex:1">Englisch <input type="text" id="mv-en" maxlength="80" placeholder="z. B. pellet"></label>
+        <label class="f" for="mv-de" style="flex:1">Deutsch <input type="text" id="mv-de" maxlength="80" placeholder="z. B. Zellsediment"></label>
+      </div>
+      <button class="primary" type="submit">Hinzufügen</button>
+      <p class="sub" style="margin:0">Eigene Vokabeln kommen bevorzugt als nächste neue Karten dran und laufen dann im normalen Wiederholungs-Rhythmus mit.</p>
+    </form>
+    <div id="myvok-list" class="sub" style="margin-top:10px; display:grid; gap:6px"></div>
+  </details>
   <details class="card" style="margin-bottom:24px">
     <summary style="cursor:pointer; font-weight:600">Alle Vokabeln nach Kategorie</summary>
     <div id="vok-lists" style="margin-top:12px; display:grid; gap:14px"></div>
@@ -626,6 +700,7 @@ div[data-block] form.card{margin-bottom:14px}
       <div class="frow">
         <button type="button" class="ghost" id="sync-in">Anmelden</button>
         <button type="button" class="ghost" id="sync-up">Neues Konto erstellen</button>
+        <button type="button" class="ghost" id="sync-forgot">Passwort vergessen?</button>
       </div>
       <p class="sub" style="margin:0">Mit demselben Konto auf iPad, Handy und Laptop anmelden – Aufgaben, Termine, Lernpläne, Vokabeln und deine Fotos sind dann überall synchron.</p>
     </div>
@@ -696,6 +771,11 @@ div[data-block] form.card{margin-bottom:14px}
   <div class="card" id="grades-card" style="display:grid; gap:11px; margin-bottom:24px" hidden>
     <div class="fh">Notenübersicht</div>
     <div id="grades-list" class="sub" style="margin:0; display:grid; gap:7px"></div>
+    <div class="frow" style="align-items:flex-end">
+      <label class="f" for="goal-in" style="flex:0 1 180px">Wunschschnitt <input type="number" id="goal-in" min="1" max="4" step="0.1" placeholder="z. B. 2,0"></label>
+      <button type="button" class="ghost" id="goal-save" style="flex:none">Speichern &amp; berechnen</button>
+    </div>
+    <p class="sub" id="goal-out" style="margin:0" hidden></p>
   </div>
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
     <div class="fh">Banner – Fotostreifen oben auf jeder Ansicht</div>
@@ -893,6 +973,7 @@ var VOCAB = [
 ];
 var VOK_IV = [1, 3, 7, 14, 30, 60];
 var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
+var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {};
 var now = new Date();
 var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
 var wCursor = startOfWeek(now);
@@ -902,6 +983,7 @@ var h = (location.hash || "").slice(1);
 if (h === "monat" || h === "woche" || h === "todos" || h === "design" || h === "labor" || h === "vokabeln") view = h;
 else if (h === "lernmonat") view = "monat";
 else if (h === "lernwoche") view = "woche";
+else if (h === "stundenplan" || h === "plan") view = "plan";
 
 var $ = function(id){ return document.getElementById(id); };
 function esc(s){
@@ -996,7 +1078,7 @@ function findIn(arr, id){
 }
 function collArray(name){
   return name === "todos" ? todos : name === "events" ? events : name === "study" ? study
-    : name === "work" ? work : name === "courses" ? courses : [];
+    : name === "work" ? work : name === "courses" ? courses : name === "cards" ? cards : [];
 }
 function rawBody(collName, id){
   var it = findIn(collArray(collName), id);
@@ -1081,6 +1163,7 @@ function renderSidebar(){
     "todos": view === "todos",
     "lernwoche": view === "woche",
     "lernmonat": view === "monat",
+    "stundenplan": view === "plan",
     "labor": view === "labor",
     "vokabeln": view === "vokabeln",
     "design": view === "design"
@@ -1207,6 +1290,7 @@ function renderTodosView(){
   } else {
     $("today-cal").innerHTML = "";
   }
+  renderWeekStats();
 }
 
 function renderSwatches(c){
@@ -1230,6 +1314,7 @@ function renderFachView(){
   document.querySelector('#view-fach [data-block="exam"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="grade"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="plan"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="cards"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="lectures"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="ptermine"]').hidden = !isPrivat;
   if (isPrivat) renderPrivatTermine(c.id);
@@ -1240,8 +1325,8 @@ function renderFachView(){
   if (doneN) subParts.push(doneN + " erledigt");
   var ex = c.exam || {};
   var cdKey = (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) ? "t1" : ((ex.t2 && diffDays(parseISO(ex.t2)) >= 0) ? "t2" : "");
-  if (ex.t1) subParts.push("1. Termin: " + fmtShort(ex.t1) + (cdKey === "t1" ? daysLeftLabel(ex.t1) : ""));
-  if (ex.t2) subParts.push("2. Termin: " + fmtShort(ex.t2) + (cdKey === "t2" ? daysLeftLabel(ex.t2) : ""));
+  if (ex.t1) subParts.push("1. Termin: " + fmtShort(ex.t1) + (cdKey === "t1" ? daysLeftLabel(ex.t1) : "") + (ex.reg1 ? " · ✓ angemeldet" : ""));
+  if (ex.t2) subParts.push("2. Termin: " + fmtShort(ex.t2) + (cdKey === "t2" ? daysLeftLabel(ex.t2) : "") + (ex.reg2 ? " · ✓ angemeldet" : ""));
   if (c.grade > 0) subParts.push("Note: " + c.grade.toLocaleString("de-DE"));
   $("fach-sub").textContent = subParts.join(" · ");
   if (mine.length){
@@ -1261,6 +1346,9 @@ function renderFachView(){
     $("ex-t2").value = ex.t2 || "";
     $("ex-t2an").value = ex.t2an || "";
     $("ex-t2ab").value = ex.t2ab || "";
+    $("ex-reg1").checked = !!ex.reg1;
+    $("ex-reg2").checked = !!ex.reg2;
+    kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
     $("fach-notes").value = c.notes || "";
@@ -1287,6 +1375,7 @@ function renderFachView(){
       + '</div><button type="button" class="del" data-coll="study">Löschen</button></li>';
   }).join("");
   renderSwatches(c);
+  renderKk(c);
 
   var lecs = open.filter(function(t){ return t.typ === "Vorlesung"; }).sort(function(a,b){
     return a.title.localeCompare(b.title, "de", {numeric:true});
@@ -1538,6 +1627,7 @@ function render(){
   $("view-design").hidden = view !== "design";
   $("view-labor").hidden = view !== "labor";
   $("view-vokabeln").hidden = view !== "vokabeln";
+  $("view-plan").hidden = view !== "plan";
   if (view === "todos"){ renderTodosView(); applyLayout("todos"); }
   else if (view === "fach"){ renderFachView(); applyLayout("fach"); }
   else if (view === "monat") renderMonat();
@@ -1545,6 +1635,7 @@ function render(){
   else if (view === "design") renderDesignView();
   else if (view === "labor") renderLabor();
   else if (view === "vokabeln") renderVokabeln();
+  else if (view === "plan") renderPlan();
   renderDayPanel();
 }
 
@@ -1570,6 +1661,7 @@ document.addEventListener("click", function(ev){
     var v = nav.dataset.nav;
     if (v === "lernwoche") view = "woche";
     else if (v === "lernmonat") view = "monat";
+    else if (v === "stundenplan") view = "plan";
     else view = v;
     selectedDay = null;
     render();
@@ -1822,7 +1914,8 @@ $("exam-form").addEventListener("submit", function(ev){
   col("courses").doc(fachId).update({
     exam: {
       t1: $("ex-t1").value || "", t1an: $("ex-t1an").value || "", t1ab: $("ex-t1ab").value || "",
-      t2: $("ex-t2").value || "", t2an: $("ex-t2an").value || "", t2ab: $("ex-t2ab").value || ""
+      t2: $("ex-t2").value || "", t2an: $("ex-t2an").value || "", t2ab: $("ex-t2ab").value || "",
+      reg1: $("ex-reg1").checked, reg2: $("ex-reg2").checked
     }
   }).then(function(){ toast("Klausurtermine gespeichert."); })
     .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
@@ -1940,7 +2033,13 @@ function renderDesignView(){
   }
   syncStatus();
   var graded = courses.filter(function(c){ return c.grade > 0; }).sort(courseOrder);
-  $("grades-card").hidden = !graded.length;
+  var anyFach = courses.some(function(c){ return (c.group || "") !== "Privat"; });
+  $("grades-card").hidden = !graded.length && !anyFach;
+  if (document.activeElement !== $("goal-in")) $("goal-in").value = (zielDoc.avg >= 1 && zielDoc.avg <= 4) ? zielDoc.avg : "";
+  var gtxt = gradeGoalText();
+  $("goal-out").hidden = !gtxt;
+  $("goal-out").textContent = gtxt;
+  if (!graded.length) $("grades-list").innerHTML = '<span>Noch keine Noten eingetragen – du kannst unten trotzdem schon deinen Wunschschnitt festlegen.</span>';
   if (graded.length){
     $("grades-list").innerHTML = graded.map(function(c){
       return '<div style="display:flex; gap:8px; flex-wrap:wrap"><span style="flex:1; min-width:0; color:var(--ink)">' + esc(c.name) + '</span>'
@@ -2130,7 +2229,7 @@ function makeLocalDb(){
     if (raw) store = JSON.parse(raw);
   } catch(e){ storageOk = false; }
   if (!store || typeof store !== "object") store = {};
-  ["courses","todos","events","study","work","vocab","settings"].forEach(function(k){ if (!store[k]) store[k] = {}; });
+  ["courses","todos","events","study","work","vocab","cards","settings"].forEach(function(k){ if (!store[k]) store[k] = {}; });
   if (!Object.keys(store.courses).length){
     var SEM = "1. Semester Immunologie Master";
     [["zellbiologie-immunologie","Zellbiologie und Immunologie","k5",SEM,1],
@@ -2255,7 +2354,7 @@ function makeLocalDownloads(){
 }
 
 /* ---- Firebase-Synchronisierung (eigenes Konto) ---- */
-var SYNC_COLLS = ["courses","todos","events","study","work","vocab","settings"];
+var SYNC_COLLS = ["courses","todos","events","study","work","vocab","cards","settings"];
 var syncHook = { store: null, persist: null, emit: null };
 var syncCfg = null, syncAuth = null, syncTimer = null;
 var syncBusy = false, syncAgain = false, syncLastOk = 0, syncLastErr = "";
@@ -2460,6 +2559,17 @@ function syncStatus(msg){
   $("sync-in").addEventListener("click", function(){ doAuth("signInWithPassword"); });
   $("sync-up").addEventListener("click", function(){ doAuth("signUp"); });
   $("sync-pw").addEventListener("keydown", function(ev){ if (ev.key === "Enter") doAuth("signInWithPassword"); });
+  $("sync-forgot").addEventListener("click", function(){
+    if (!syncCfg){ toast("Bitte zuerst die Firebase-Zugangsdaten eintragen (Anleitung unten)."); return; }
+    var email = $("sync-email").value.trim();
+    if (!email){ toast("Bitte oben deine E-Mail eintragen, dann nochmal klicken."); return; }
+    syncFetch(authUrl("sendOobCode"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestType: "PASSWORD_RESET", email: email })
+    }).then(function(){
+      toast("E-Mail zum Zurücksetzen ist unterwegs – schau auch im Spam-Ordner.");
+    }).catch(function(e){ toast(syncErrDe(e)); });
+  });
   $("sync-out").addEventListener("click", function(){
     syncAuth = null; syncSave("uni-planer.sync.auth", null);
     toast("Abgemeldet – deine Einträge bleiben auf diesem Gerät.");
@@ -2470,6 +2580,9 @@ function syncStatus(msg){
   window.addEventListener("online", function(){ syncNow(false); });
   setInterval(function(){ syncNow(false); }, 5 * 60 * 1000);
   setTimeout(function(){ syncNow(false); }, 1200);
+  if ("serviceWorker" in navigator && location.protocol === "https:"){
+    try { navigator.serviceWorker.register("sw.js"); } catch(e){}
+  }
   syncStatus();
 })();
 
@@ -2500,6 +2613,7 @@ function parseIcs(text){
     var key = line.slice(0, i).split(";")[0].toUpperCase();
     var val = line.slice(i + 1);
     if (key === "DTSTART") cur.start = parseIcsStamp(val);
+    else if (key === "DTEND") cur.end = parseIcsStamp(val);
     else if (key === "SUMMARY") cur.summary = unescapeIcs(val);
     else if (key === "LOCATION" && !cur.loc) cur.loc = unescapeIcs(val);
     else if (key === "RRULE") cur.rrule = val;
@@ -2595,6 +2709,7 @@ $("pomo-start").addEventListener("click", function(){
         pomoTimer = null;
         pomoLeft = pomoTotal;
         toast(pomoTotal >= 600 ? "Fokus-Block geschafft – Zeit für eine Pause!" : "Pause vorbei – weiter geht's!");
+        if (pomoTotal >= 600) logFokus(Math.round(pomoTotal / 60));
       }
       pomoRender();
     }, 500);
@@ -2616,6 +2731,322 @@ if (pomoSaved >= 1 && pomoSaved <= 240 && pomoSaved !== 25){
 } else {
   pomoRender();
 }
+
+/* ---- Stundenplan-Ansicht ---- */
+var spCursor = startOfWeek(new Date());
+function spEventsOn(dIso){
+  return events.filter(function(e){ return e.date === dIso && !e.folder && (e.imported || e.courseId) && e.typ !== "Klausur"; })
+    .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
+}
+function hmToMin(t){
+  var m = /^(\d{1,2}):(\d{2})/.exec(t || "");
+  return m ? (+m[1]) * 60 + (+m[2]) : -1;
+}
+function renderPlan(){
+  var mon = startOfWeek(spCursor);
+  var tIso = iso(today0());
+  var days = [], hasWe = false, all = [];
+  for (var i = 0; i < 7; i++){
+    var dIso = iso(addDays(mon, i));
+    var list = spEventsOn(dIso);
+    days.push(list);
+    if (i >= 5 && list.length) hasWe = true;
+    all = all.concat(list);
+  }
+  var nDays = hasWe ? 7 : 5;
+  var sw = semWeekOf(mon);
+  var sun = addDays(mon, nDays - 1);
+  $("sp-sub").textContent = "KW " + isoWeek(mon) + (sw ? " · Semesterwoche " + sw : "") + " · " + mon.getDate() + ". " + MON_K[mon.getMonth()] + " – " + sun.getDate() + ". " + MON_K[sun.getMonth()];
+  $("sp-empty").hidden = !!all.length;
+  var grid = $("sp-grid");
+  grid.style.display = all.length ? "" : "none";
+  if (!all.length){ grid.innerHTML = ""; return; }
+  var h0 = 8, h1 = 18;
+  all.forEach(function(e){
+    var s = hmToMin(e.time);
+    if (s >= 0){
+      h0 = Math.min(h0, Math.floor(s / 60));
+      var en = hmToMin(e.timeEnd);
+      h1 = Math.max(h1, Math.ceil((en > s ? en : s + 90) / 60));
+    }
+  });
+  if (h1 > 24) h1 = 24;
+  var pxm = 0.85;
+  var colH = Math.round((h1 - h0) * 60 * pxm);
+  grid.style.gridTemplateColumns = "44px repeat(" + nDays + ", 1fr)";
+  var html = '<div class="sp-h"></div>';
+  for (var di = 0; di < nDays; di++){
+    var dd = addDays(mon, di);
+    html += '<div class="sp-h' + (iso(dd) === tIso ? " today" : "") + '">' + WTAGE[dd.getDay()] + ' <span style="font-weight:400">' + dd.getDate() + '.</span></div>';
+  }
+  html += '<div class="sp-axis" style="height:' + colH + 'px">';
+  for (var hh = h0; hh < h1; hh++){
+    html += '<div class="sp-hour" style="top:' + Math.round((hh - h0) * 60 * pxm) + 'px">' + hh + '</div>';
+  }
+  html += '</div>';
+  for (di = 0; di < nDays; di++){
+    html += '<div class="sp-col" style="height:' + colH + 'px">';
+    for (hh = h0; hh < h1; hh++){
+      html += '<div class="sp-hour" style="top:' + Math.round((hh - h0) * 60 * pxm) + 'px"></div>';
+    }
+    var lanes = [];
+    days[di].forEach(function(e){
+      var s = hmToMin(e.time);
+      if (s < 0) s = h0 * 60;
+      var en = hmToMin(e.timeEnd);
+      if (!(en > s)) en = s + 90;
+      var lane = 0;
+      while (lane < lanes.length && lanes[lane] > s) lane++;
+      lanes[lane] = en;
+      var c = courseById(e.courseId);
+      var top = Math.round((s - h0 * 60) * pxm);
+      var hpx = Math.max(30, Math.round((en - s) * pxm) - 2);
+      html += '<div class="sp-ev" style="top:' + top + 'px; height:' + hpx + 'px; left:' + (3 + lane * 12) + 'px; z-index:' + (1 + lane) + ';' + (c ? " --sc:" + courseColor(c) : "") + '">'
+        + '<span class="tm">' + (e.time ? esc(e.time) + (e.timeEnd ? "–" + esc(e.timeEnd) : "") : "") + '</span>'
+        + esc(e.title) + '</div>';
+    });
+    html += '</div>';
+  }
+  grid.innerHTML = html;
+}
+$("sp-prev").addEventListener("click", function(){ spCursor = addDays(spCursor, -7); renderPlan(); });
+$("sp-next").addEventListener("click", function(){ spCursor = addDays(spCursor, 7); renderPlan(); });
+$("sp-today").addEventListener("click", function(){ spCursor = startOfWeek(new Date()); renderPlan(); });
+
+/* ---- Karteikarten pro Fach ---- */
+var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false;
+function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
+function kkDueList(cid){
+  var tIso = iso(today0());
+  var due = kkCardsFor(cid).filter(function(k){ return !k.due || k.due <= tIso; });
+  due.sort(function(a,b){
+    var ar = a.lastDay === tIso ? 1 : 0, br = b.lastDay === tIso ? 1 : 0;
+    if (ar !== br) return ar - br;
+    if ((a.due || "") !== (b.due || "")) return (a.due || "") < (b.due || "") ? -1 : 1;
+    return (a.seenAt || 0) - (b.seenAt || 0);
+  });
+  return due;
+}
+function renderKk(c){
+  if (!$("kk-status")) return;
+  var my = kkCardsFor(c.id);
+  var due = kkDueList(c.id);
+  $("kk-status").textContent = my.length
+    ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " heute fällig" : "für heute alles wiederholt")
+    : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.";
+  $("kk-start").textContent = due.length ? "Üben (" + due.length + ")" : "Extra-Runde üben";
+  $("kk-start").disabled = !my.length;
+  $("kk-list-sum").textContent = "Alle Karten · " + my.length;
+  $("kk-list").innerHTML = my.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
+    return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
+      + '<div class="main-c"><div class="t">' + esc(k.q) + '</div><div class="meta"><span>' + esc(k.a) + '</span>'
+      + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
+      + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
+  }).join("");
+  var cur = null;
+  if (kkMode){
+    if (kkCurrent) cur = findIn(cards, kkCurrent);
+    if (!cur){
+      if (due.length) cur = due[0];
+      else if (kkExtra && my.length) cur = my[Math.floor(Math.random() * my.length)];
+      kkCurrent = cur ? cur.id : null;
+      kkShowing = false;
+    }
+  }
+  if (!kkMode || !cur){
+    if (kkMode && !cur) toast("Alle Karten für heute geschafft!");
+    kkMode = false;
+    $("kk-practice").hidden = true;
+    $("kk-ctl").hidden = false;
+    return;
+  }
+  $("kk-practice").hidden = false;
+  $("kk-ctl").hidden = true;
+  var tIso = iso(today0());
+  $("kk-kind").textContent = !cur.rating ? "Neue Karte" : (cur.due && cur.due <= tIso ? (cur.lastDay === tIso ? "Gleich nochmal" : "Wiederholung") : "Extra-Runde");
+  $("kk-q").textContent = cur.q;
+  $("kk-a").textContent = cur.a;
+  $("kk-a").hidden = !kkShowing;
+  $("kk-showrow").hidden = kkShowing;
+  $("kk-rate").hidden = !kkShowing;
+}
+function rateKk(rating){
+  if (needDb() || !kkCurrent) return;
+  var k = findIn(cards, kkCurrent);
+  if (!k){ kkCurrent = null; return; }
+  var tIso = iso(today0());
+  var sameDay = k.lastDay === tIso;
+  var level = k.level || 0, days;
+  if (rating === "easy"){
+    if (!sameDay) level = Math.min(level + 1, VOK_IV.length - 1);
+    days = VOK_IV[level];
+  } else if (rating === "mid"){
+    level = Math.max(1, level);
+    days = 3;
+  } else {
+    level = 0;
+    days = 0;
+  }
+  var patch = { level: level, rating: rating, due: iso(addDays(today0(), days)), lastDay: tIso, seenAt: Date.now() };
+  Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
+  col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  kkCurrent = null;
+  kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+}
+$("kk-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb() || !fachId) return;
+  var q = $("kk-qin").value.trim(), a = $("kk-ain").value.trim();
+  if (!q || !a){ toast("Bitte Frage und Antwort eintragen."); return; }
+  addDoc("cards", { courseId: fachId, q: q, a: a, level: 0, rating: "", due: iso(today0()), lastDay: "", seenAt: 0, createdAt: Date.now() }, function(){
+    $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qin").focus();
+  });
+});
+$("kk-start").addEventListener("click", function(){
+  kkMode = true;
+  kkExtra = !kkDueList(fachId).length;
+  kkCurrent = null; kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+$("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; var c = courseById(fachId); if (c) renderKk(c); });
+$("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
+$("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
+$("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
+
+/* ---- Wochenrückblick ---- */
+function logFokus(mins){
+  if (!db) return;
+  var fIso = iso(today0());
+  var days = (fokusDoc && fokusDoc.days && typeof fokusDoc.days === "object") ? fokusDoc.days : {};
+  days[fIso] = (days[fIso] || 0) + mins;
+  var cut = iso(addDays(today0(), -120));
+  Object.keys(days).forEach(function(k){ if (k < cut) delete days[k]; });
+  fokusDoc = { days: days };
+  db.doc("settings/fokus").set(fokusDoc).catch(function(){});
+}
+function renderWeekStats(){
+  var el = $("week-stats");
+  if (!el) return;
+  var ws = startOfWeek(new Date());
+  var wsMs = ws.getTime(), wsIso = iso(ws), tIso = iso(today0());
+  var tDone = todos.filter(function(t){ return t.done && (t.doneAt || 0) >= wsMs; }).length;
+  var sDone = study.filter(function(s){ return s.done && (s.doneAt || 0) >= wsMs; }).length;
+  var vok = vocab.filter(function(p){ return (p.seenAt || 0) >= wsMs; }).length;
+  var kk = cards.filter(function(k){ return (k.seenAt || 0) >= wsMs; }).length;
+  var fok = 0, fd = (fokusDoc && fokusDoc.days) || {};
+  Object.keys(fd).forEach(function(k){ if (k >= wsIso) fok += fd[k] || 0; });
+  var lab = 0;
+  work.forEach(function(w){ if (w.date >= wsIso && w.date <= tIso) lab += workHours(w); });
+  var parts = [];
+  if (tDone) parts.push("<strong>" + tDone + "</strong> Aufgaben erledigt");
+  if (sDone) parts.push("<strong>" + sDone + "</strong> Lernblöcke geschafft");
+  if (fok) parts.push("<strong>" + (fok >= 90 ? (Math.round(fok / 6) / 10).toLocaleString("de-DE") + " h" : fok + " min") + "</strong> fokussiert gelernt");
+  if (vok) parts.push("<strong>" + vok + "</strong> Vokabeln geübt" + ((vokStats.streak || 0) > 1 ? " (Serie: " + vokStats.streak + " Tage)" : ""));
+  if (kk) parts.push("<strong>" + kk + "</strong> Karteikarten wiederholt");
+  if (lab) parts.push("<strong>" + fmtH(lab) + "</strong> im Labor");
+  el.innerHTML = parts.length
+    ? '<div class="card" style="display:grid; gap:8px; margin-top:24px"><div class="fh">Diese Woche geschafft</div><p class="sub" style="margin:0">' + parts.join(" · ") + '</p></div>'
+    : "";
+}
+
+/* ---- Noten-Ziel ---- */
+function gradeGoalText(){
+  var g = zielDoc && zielDoc.avg;
+  if (!(g >= 1 && g <= 4)) return "";
+  var sum = 0, wsum = 0, remW = 0, remN = 0;
+  courses.forEach(function(c){
+    if ((c.group || "") === "Privat") return;
+    var w = c.ects > 0 ? c.ects : 1;
+    if (c.grade > 0){ sum += c.grade * w; wsum += w; }
+    else { remW += w; remN++; }
+  });
+  var gTxt = g.toLocaleString("de-DE");
+  if (!remN){
+    if (!wsum) return "";
+    var avg = Math.round(sum / wsum * 100) / 100;
+    return "Alle Fächer sind benotet – dein Schnitt steht fest: " + avg.toLocaleString("de-DE") + ".";
+  }
+  var need = (g * (wsum + remW) - sum) / remW;
+  if (need < 0.95) return "Ein Schnitt von " + gTxt + " ist rechnerisch nicht mehr erreichbar – dafür müsstest du in den restlichen Fächern besser als 1,0 sein.";
+  if (need >= 4) return "Sehr entspannt: Selbst mit 4,0 in den restlichen " + remN + " Fächern erreichst du deinen Wunschschnitt von " + gTxt + ".";
+  return "Für einen Schnitt von " + gTxt + " brauchst du in den restlichen " + remN + " Fächern im Schnitt eine " + Math.max(1, Math.round(need * 100) / 100).toLocaleString("de-DE") + " (ECTS-gewichtet).";
+}
+$("goal-save").addEventListener("click", function(){
+  if (needDb()) return;
+  var v = parseFloat(String($("goal-in").value).replace(",", "."));
+  if (!(v >= 1 && v <= 4)){ toast("Bitte einen Wunschschnitt zwischen 1,0 und 4,0 eintragen."); return; }
+  v = Math.round(v * 10) / 10;
+  zielDoc = { avg: v };
+  db.doc("settings/ziel").set(zielDoc)
+    .then(function(){ toast("Ziel gespeichert."); renderDesignView(); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+
+/* ---- Eigene Vokabeln ---- */
+function vw(i){ return i >= 10000 ? customVocab[i] : VOCAB[i]; }
+function vocUnseen(){
+  var seen = {};
+  vocab.forEach(function(p){ seen[p.idx] = 1; });
+  var n = 0;
+  Object.keys(customVocab).forEach(function(k){ if (!seen[k]) n++; });
+  for (var i = 0; i < VOCAB.length; i++) if (!seen[i]) n++;
+  return n;
+}
+function renderMyVok(){
+  var el = $("myvok-list");
+  if (!el) return;
+  var keys = Object.keys(customVocab).map(Number).sort(function(a,b){ return a - b; });
+  $("myvok-n").textContent = keys.length ? "· " + keys.length : "";
+  el.innerHTML = keys.length ? keys.map(function(ix){
+    return '<div style="display:flex; gap:8px; align-items:center"><span style="flex:1; min-width:0; overflow-wrap:anywhere"><strong style="color:var(--ink)">' + esc(customVocab[ix][0]) + '</strong> – ' + esc(customVocab[ix][1]) + '</span>'
+      + '<button type="button" class="ghost myvok-del" data-ix="' + ix + '" style="flex:none; padding:3px 10px; font-size:12.5px">Löschen</button></div>';
+  }).join("") : '<span>Noch keine eigenen Vokabeln.</span>';
+}
+$("myvok-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb()) return;
+  var en = $("mv-en").value.trim(), de = $("mv-de").value.trim();
+  if (!en || !de){ toast("Bitte beide Felder ausfüllen."); return; }
+  var words = {};
+  Object.keys(customVocab).forEach(function(k){ words[k] = customVocab[k]; });
+  var nx = (myVocabDoc && myVocabDoc.next >= 10000) ? myVocabDoc.next : 10000;
+  while (words[nx]) nx++;
+  words[nx] = [en, de];
+  myVocabDoc = { words: words, next: nx + 1 };
+  customVocab[nx] = [en, de];
+  db.doc("settings/myvocab").set(myVocabDoc)
+    .then(function(){
+      $("mv-en").value = ""; $("mv-de").value = ""; $("mv-en").focus();
+      toast("Vokabel hinzugefügt – sie kommt bei den nächsten neuen Karten dran.");
+      renderVokabeln(); renderSidebar();
+    })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+$("myvok-list").addEventListener("click", function(ev){
+  var b = ev.target.closest(".myvok-del");
+  if (!b || needDb()) return;
+  if (!b.classList.contains("arm")){
+    b.classList.add("arm");
+    b.textContent = "Wirklich?";
+    setTimeout(function(){ b.classList.remove("arm"); b.textContent = "Löschen"; }, 3000);
+    return;
+  }
+  var ix = +b.dataset.ix;
+  delete customVocab[ix];
+  var words = {};
+  Object.keys(customVocab).forEach(function(k){ words[k] = customVocab[k]; });
+  myVocabDoc = { words: words, next: (myVocabDoc && myVocabDoc.next) || (ix + 1) };
+  db.doc("settings/myvocab").set(myVocabDoc).catch(function(){});
+  col("vocab").doc("v" + ix).delete().catch(function(){});
+  if (vokCurrent === ix){ vokCurrent = null; vokShowing = false; }
+  var pi = vokPractice.indexOf(ix);
+  if (pi >= 0) vokPractice.splice(pi, 1);
+  renderVokabeln(); renderSidebar();
+});
 
 function semWeekOf(d){
   var s = parseISO(semesterDoc.start);
@@ -2828,7 +3259,7 @@ function vokBadge(){
     if (p.due && p.due <= tIso) reviews++;
     if (p.intro === tIso) introToday++;
   });
-  var newLeft = Math.min(Math.max(0, 10 - introToday), Math.max(0, VOCAB.length - vocab.length));
+  var newLeft = Math.min(Math.max(0, 10 - introToday), vocUnseen());
   return reviews + newLeft;
 }
 function renderVokabeln(){
@@ -2846,13 +3277,16 @@ function renderVokabeln(){
   var introToday = vocab.filter(function(p){ return p.intro === tIso; }).length;
   var newAllowed = Math.max(0, 10 - introToday);
   var news = [];
+  Object.keys(customVocab).map(Number).sort(function(a,b){ return a - b; }).forEach(function(ci){
+    if (news.length < newAllowed && progByIdx[ci] === undefined) news.push(ci);
+  });
   for (var i = 0; i < VOCAB.length && news.length < newAllowed; i++){
     if (progByIdx[i] === undefined) news.push(i);
   }
   var cnt = { easy: 0, mid: 0, hard: 0 };
   vocab.forEach(function(p){ if (cnt[p.rating] !== undefined) cnt[p.rating]++; });
   $("vok-sub").textContent = "Kann ich: " + cnt.easy + " · Mittel: " + cnt.mid + " · Kann ich noch nicht: " + cnt.hard
-    + " · Noch nie gesehen: " + Math.max(0, VOCAB.length - vocab.length)
+    + " · Noch nie gesehen: " + vocUnseen()
     + ((vokStats.streak || 0) > 0 ? " · Übungsserie: " + vokStats.streak + (vokStats.streak === 1 ? " Tag" : " Tage") : "");
 
   if (vokCurrent !== null){
@@ -2871,7 +3305,7 @@ function renderVokabeln(){
     }
   }
   var card = $("vok-card"), doneBox = $("vok-done");
-  if (vokCurrent === null || !VOCAB[vokCurrent]){
+  if (vokCurrent === null || !vw(vokCurrent)){
     vokCurrent = null;
     card.hidden = true;
     doneBox.hidden = false;
@@ -2882,7 +3316,7 @@ function renderVokabeln(){
   } else {
     card.hidden = false;
     doneBox.hidden = true;
-    var w = VOCAB[vokCurrent];
+    var w = vw(vokCurrent);
     var cpr = progByIdx[vokCurrent];
     var kind;
     if (cpr === undefined) kind = "Neue Vokabel (" + (introToday + 1) + " von 10 heute)";
@@ -2895,18 +3329,19 @@ function renderVokabeln(){
     $("vok-actions").hidden = vokShowing;
     $("vok-rate").hidden = !vokShowing;
     $("vok-progress").textContent = reviews.length + " Wiederholungen offen · heute noch "
-      + Math.min(newAllowed, Math.max(0, VOCAB.length - vocab.length)) + " neue"
+      + Math.min(newAllowed, vocUnseen()) + " neue"
       + (vokEndless ? " · Endlos-Üben: " + vokPractice.length + " Karten bis zum Neumischen" : "");
     $("vok-stop").hidden = kind !== "Extra-Runde";
   }
   var groups = { hard: [], mid: [], easy: [] };
-  vocab.forEach(function(p){ if (groups[p.rating] && VOCAB[p.idx]) groups[p.rating].push(p.idx); });
+  vocab.forEach(function(p){ if (groups[p.rating] && vw(p.idx)) groups[p.rating].push(p.idx); });
   var names = { hard: "Kann ich noch nicht", mid: "Mittel", easy: "Kann ich" };
   $("vok-lists").innerHTML = ["hard","mid","easy"].map(function(k){
     if (!groups[k].length) return "";
     return '<div><div class="fh" style="margin-bottom:6px">' + names[k] + ' · ' + groups[k].length + '</div><p class="sub" style="margin:0">'
-      + groups[k].map(function(ix){ return esc(VOCAB[ix][0]) + " – " + esc(VOCAB[ix][1]); }).join(" · ") + '</p></div>';
+      + groups[k].map(function(ix){ return esc(vw(ix)[0]) + " – " + esc(vw(ix)[1]); }).join(" · ") + '</p></div>';
   }).join("") || '<p class="sub" style="margin:0">Noch keine Vokabeln bewertet.</p>';
+  renderMyVok();
 }
 function rateVocab(rating){
   if (needDb() || vokCurrent === null) return;
@@ -2954,7 +3389,7 @@ function rateVocab(rating){
   renderSidebar();
 }
 function refillPractice(){
-  vokPractice = vocab.filter(function(p){ return VOCAB[p.idx]; }).map(function(p){ return p.idx; });
+  vokPractice = vocab.filter(function(p){ return vw(p.idx); }).map(function(p){ return p.idx; });
   for (var i = vokPractice.length - 1; i > 0; i--){
     var r = Math.floor(Math.random() * (i + 1));
     var tmp = vokPractice[i];
@@ -3063,8 +3498,9 @@ function renderUpcoming(){
     [["t1an","Anmeldung","1. Termin"],["t1ab","Abmeldung","1. Termin"]].forEach(function(k){
       var d = parseISO(ex[k[0]]);
       if (!d) return;
+      if (k[0] === "t1an" && ex.reg1) return;
       var dd = diffDays(d);
-      if (dd >= 0 && dd <= horizon) items.push({ days: dd, kind: "frist", date: ex[k[0]], txt: "Letzte " + k[1] + " " + c.name + " (" + k[2] + ")" });
+      if (dd >= 0 && dd <= horizon) items.push({ days: dd, kind: "frist", date: ex[k[0]], txt: "Letzte " + k[1] + " " + c.name + " (" + k[2] + ")" + (k[0] === "t1an" ? " – noch nicht angemeldet" : "") });
     });
   });
   items.sort(function(a,b){ return a.days - b.days; });
@@ -3239,8 +3675,8 @@ $("csv-btn").addEventListener("click", function(){
 $("backup-btn").addEventListener("click", function(){
   var data = JSON.stringify({
     exportiert: new Date().toISOString(),
-    courses: courses, todos: todos, events: events, study: study, work: work, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
-    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc }
+    courses: courses, todos: todos, events: events, study: study, work: work, cards: cards, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
+    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc }
   }, null, 2);
   saveFile("uni-planer-backup-" + iso(today0()) + ".json", data, "Backup gespeichert.");
 });
@@ -3256,7 +3692,7 @@ $("restore-file").addEventListener("change", function(){
     var data;
     try { data = JSON.parse(fr.result); } catch(e){ toast("Keine gültige Backup-Datei."); inp.value = ""; return; }
     var writes = [];
-    ["courses","todos","events","study","work","vocab"].forEach(function(cn){
+    ["courses","todos","events","study","work","vocab","cards"].forEach(function(cn){
       (Array.isArray(data[cn]) ? data[cn] : []).forEach(function(row){
         if (!row || typeof row !== "object" || !row.id) return;
         var body = {};
@@ -3279,6 +3715,10 @@ $("restore-file").addEventListener("change", function(){
         if (data.settings.layout) db.doc("settings/layout").set(data.settings.layout).catch(function(){});
         if (data.settings.design) db.doc("settings/design").set(data.settings.design).catch(function(){});
         if (data.settings.semester) db.doc("settings/semester").set(data.settings.semester).catch(function(){});
+        if (data.settings.vokstats) db.doc("settings/vokstats").set(data.settings.vokstats).catch(function(){});
+        if (data.settings.myvocab) db.doc("settings/myvocab").set(data.settings.myvocab).catch(function(){});
+        if (data.settings.ziel) db.doc("settings/ziel").set(data.settings.ziel).catch(function(){});
+        if (data.settings.fokus) db.doc("settings/fokus").set(data.settings.fokus).catch(function(){});
       }
       toast(ok + " Einträge wiederhergestellt.");
       inp.value = "";
@@ -3318,6 +3758,7 @@ $("import-file").addEventListener("change", function(){
           title: title0,
           date: dt,
           time: ev.start.time || "",
+          timeEnd: (ev.end && ev.end.time) || "",
           typ: /klausur|pr(ü|ue)fung|exam/i.test(ev.summary) ? "Klausur" : "Termin",
           courseId: courseIdByName(ev.summary),
           imported: true,
@@ -3401,7 +3842,8 @@ render();
         t1ab: typeof ex.t1ab === "string" ? ex.t1ab : (typeof ex.ab === "string" ? ex.ab : ""),
         t2: typeof ex.t2 === "string" ? ex.t2 : "",
         t2an: typeof ex.t2an === "string" ? ex.t2an : "",
-        t2ab: typeof ex.t2ab === "string" ? ex.t2ab : ""
+        t2ab: typeof ex.t2ab === "string" ? ex.t2ab : "",
+        reg1: !!ex.reg1, reg2: !!ex.reg2
       },
       createdAt: b.createdAt || 0
     };
@@ -3418,7 +3860,7 @@ render();
   sub("events", function(id, b){
     return {
       id: id, title: String(b.title || ""), date: typeof b.date === "string" ? b.date : "",
-      time: typeof b.time === "string" ? b.time : "", typ: String(b.typ || "Termin"),
+      time: typeof b.time === "string" ? b.time : "", timeEnd: typeof b.timeEnd === "string" ? b.timeEnd : "", typ: String(b.typ || "Termin"),
       courseId: String(b.courseId || ""), imported: !!b.imported,
       folder: typeof b.folder === "string" ? b.folder : "",
       seriesId: typeof b.seriesId === "string" ? b.seriesId : "",
@@ -3452,15 +3894,34 @@ render();
       seenAt: typeof b.seenAt === "number" ? b.seenAt : 0
     };
   }, function(v){ vocab = v.filter(function(p){ return p.idx >= 0; }); });
+  sub("cards", function(id, b){
+    return {
+      id: id, courseId: String(b.courseId || ""), q: String(b.q || ""), a: String(b.a || ""),
+      level: typeof b.level === "number" ? b.level : 0,
+      rating: typeof b.rating === "string" ? b.rating : "",
+      due: typeof b.due === "string" ? b.due : "",
+      lastDay: typeof b.lastDay === "string" ? b.lastDay : "",
+      seenAt: typeof b.seenAt === "number" ? b.seenAt : 0,
+      createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+    };
+  }, function(v){ cards = v; });
   sub("settings", function(id, b){
     return { id: id, data: b };
   }, function(v){
-    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {};
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {};
     v.forEach(function(d){
       if (d.id === "layout") layoutDoc = d.data || {};
       if (d.id === "design") designDoc = d.data || {};
       if (d.id === "semester") semesterDoc = d.data || {};
       if (d.id === "vokstats") vokStats = d.data || {};
+      if (d.id === "myvocab") myVocabDoc = d.data || {};
+      if (d.id === "ziel") zielDoc = d.data || {};
+      if (d.id === "fokus") fokusDoc = d.data || {};
+    });
+    customVocab = {};
+    Object.keys((myVocabDoc && myVocabDoc.words) || {}).forEach(function(k){
+      var w = myVocabDoc.words[k], n = Number(k);
+      if (n >= 10000 && Array.isArray(w) && w.length >= 2) customVocab[n] = [String(w[0]), String(w[1])];
     });
     applyDesign();
   });
