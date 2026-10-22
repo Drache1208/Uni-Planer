@@ -109,6 +109,9 @@ h1{font-family:var(--font-display); font-weight:700; font-size:clamp(25px,4vw,33
 .sp-hour{position:absolute; left:0; right:0; border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent); font-size:10.5px; color:var(--muted); padding:1px 3px; pointer-events:none}
 .sp-ev{position:absolute; left:3px; right:3px; border-radius:8px; padding:4px 6px; font-size:12px; line-height:1.25; color:var(--ink); background:color-mix(in srgb,var(--sc,var(--accent)) 24%,var(--surface)); border-left:3px solid var(--sc,var(--accent)); overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .sp-ev .tm{font-weight:700; font-size:11px; display:block}
+.clpsd > :not(:first-child){display:none !important}
+[data-clps] > .fh-row, [data-clps] > .fh{cursor:pointer}
+.clps-c{color:var(--muted); font-size:12px; font-weight:600; margin-left:8px; user-select:none; -webkit-user-select:none; flex:none}
 [hidden]{display:none !important}
 .banner{display:none; background:color-mix(in srgb,var(--warn) 12%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px}
 .banner.show{display:block}
@@ -503,6 +506,14 @@ div[data-block] form.card{margin-bottom:14px}
       <label class="f" for="kk-ain">Antwort <textarea id="kk-ain" rows="2" maxlength="1000" placeholder="z. B. Dendritische Zellen, Makrophagen, B-Zellen"></textarea></label>
       <button class="primary" type="submit">Karte hinzufügen</button>
     </form>
+    <details>
+      <summary style="cursor:pointer; font-weight:600">Karteikarten aus Datei importieren</summary>
+      <div style="display:grid; gap:10px; margin-top:10px">
+        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile im Format <b>Frage;;Antwort</b> (auch Frage;Antwort oder Tab-getrennt). Damit nicht alles auf einmal kommt, werden neue Karten auf ca. 15 pro Tag verteilt.</p>
+        <label class="f" for="kk-file">Datei wählen <input type="file" id="kk-file" accept=".txt,.csv,text/plain,text/csv"></label>
+        <p class="sub" id="kk-imp-status" style="margin:0"></p>
+      </div>
+    </details>
     <details>
       <summary style="cursor:pointer; font-weight:600" id="kk-list-sum">Alle Karten</summary>
       <ul class="list" id="kk-list" style="margin-top:10px"></ul>
@@ -2732,6 +2743,37 @@ if (pomoSaved >= 1 && pomoSaved <= 240 && pomoSaved !== 25){
   pomoRender();
 }
 
+/* ---- Bloecke ein-/ausklappen ---- */
+var clpsState = {};
+try { clpsState = JSON.parse(localStorage.getItem("uni-planer.clps") || "{}") || {}; } catch(e){}
+function slugTxt(s){ return String(s).toLowerCase().replace(/[^a-z0-9äöüß]+/g, "-").slice(0, 40); }
+function initCollapse(){
+  var els = document.querySelectorAll("#view-todos [data-block], #view-fach [data-block], #view-design .card, #view-labor form.card");
+  Array.prototype.forEach.call(els, function(box){
+    var head = box.querySelector(".fh-row, .fh");
+    if (!head || head.parentNode !== box || box.firstElementChild !== head) return;
+    var sec = box.closest("section");
+    var key = (sec ? sec.id : "x") + ":" + (box.dataset.block || slugTxt(head.textContent));
+    box.dataset.clps = key;
+    var c = document.createElement("span");
+    c.className = "clps-c";
+    var dh = head.querySelector(".drag-handle");
+    if (dh) head.insertBefore(c, dh); else head.appendChild(c);
+    var on = !!clpsState[key];
+    if (on) box.classList.add("clpsd");
+    c.textContent = on ? "▸ aufklappen" : "▾";
+    head.addEventListener("click", function(ev){
+      if (ev.target.closest(".drag-handle, input, button, select, textarea, a, label")) return;
+      var now = !box.classList.contains("clpsd");
+      box.classList.toggle("clpsd", now);
+      c.textContent = now ? "▸ aufklappen" : "▾";
+      if (now) clpsState[key] = 1; else delete clpsState[key];
+      try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
+    });
+  });
+}
+initCollapse();
+
 /* ---- Stundenplan-Ansicht ---- */
 var spCursor = startOfWeek(new Date());
 function spEventsOn(dIso){
@@ -2916,6 +2958,60 @@ $("kk-stopx").addEventListener("click", function(){ kkMode = false; kkExtra = fa
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
+
+/* ---- Karteikarten-Import ---- */
+function parseCardsFile(text){
+  var out = [];
+  String(text).split(/\r?\n/).forEach(function(line){
+    line = line.trim();
+    if (!line) return;
+    var q = "", a = "", i;
+    if ((i = line.indexOf("\t")) > 0){ q = line.slice(0, i); a = line.slice(i + 1); }
+    else if ((i = line.indexOf(";;")) > 0){ q = line.slice(0, i); a = line.slice(i + 2); }
+    else if ((i = line.indexOf(";")) > 0){ q = line.slice(0, i); a = line.slice(i + 1); }
+    else return;
+    q = q.trim(); a = a.trim();
+    if (q && a && q.length <= 300 && a.length <= 1000) out.push([q, a]);
+  });
+  return out;
+}
+$("kk-file").addEventListener("change", function(){
+  var inp = $("kk-file");
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (needDb() || !fachId){ inp.value = ""; return; }
+  if (f.size > 1024 * 1024){ toast("Datei zu groß – maximal 1 MB."); inp.value = ""; return; }
+  var st = $("kk-imp-status");
+  var fr = new FileReader();
+  fr.onerror = function(){ st.textContent = "Datei konnte nicht gelesen werden."; inp.value = ""; };
+  fr.onload = function(){
+    var pairs = parseCardsFile(fr.result);
+    if (!pairs.length){ st.textContent = "Keine Karten gefunden – bitte Format Frage;;Antwort prüfen."; inp.value = ""; return; }
+    if (pairs.length > 500){ st.textContent = "Zu viele Karten (" + pairs.length + ") – maximal 500 pro Import."; inp.value = ""; return; }
+    var have = {};
+    kkCardsFor(fachId).forEach(function(k){ have[k.q.toLowerCase()] = 1; });
+    var fresh = pairs.filter(function(p){ return !have[p[0].toLowerCase()]; });
+    var dup = pairs.length - fresh.length;
+    if (!fresh.length){ st.textContent = "Alle " + pairs.length + " Karten sind schon vorhanden."; inp.value = ""; return; }
+    st.textContent = "Importiere " + fresh.length + " Karten …";
+    var i2 = 0;
+    (function next(){
+      if (i2 >= fresh.length){
+        st.textContent = fresh.length + " Karten importiert" + (dup ? " (" + dup + " Duplikate übersprungen)" : "") + ". Neue Karten starten verteilt über die nächsten Tage.";
+        inp.value = "";
+        var c = courseById(fachId);
+        if (c) renderKk(c);
+        return;
+      }
+      var p = fresh[i2];
+      var dueDay = iso(addDays(today0(), Math.floor(i2 / 15)));
+      i2++;
+      col("cards").add({ courseId: fachId, q: p[0], a: p[1], level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
+        .then(next, function(e){ st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
+    })();
+  };
+  fr.readAsText(f);
+});
 
 /* ---- Wochenrückblick ---- */
 function logFokus(mins){
