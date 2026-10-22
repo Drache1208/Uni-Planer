@@ -384,6 +384,7 @@ div[data-block] form.card{margin-bottom:14px}
   <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
   <div class="upcoming" id="upcoming"></div>
   <div id="today-box"></div>
+  <div id="sched-box"></div>
   <div id="today-cal"></div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add">
     <div class="fh-row"><div class="fh">Neue Aufgabe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
@@ -1176,10 +1177,25 @@ function renderTodosView(){
       + tbList.map(function(t){ return todoRow(t, true); }).join("").replace(/id="cb-/g, 'id="tbcb-').replace(/id="sd-/g, 'id="tbsd-')
       + '</ul></section>'
     : "");
+  function schedOn(dIso){
+    return events.filter(function(e){ return e.date === dIso && e.imported; })
+      .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
+  }
+  var spList = schedOn(tbIso), spLabel = "heute";
+  if (!spList.length){ spList = schedOn(tmIso); spLabel = "morgen"; }
+  $("sched-box").innerHTML = spList.length
+    ? '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Stundenplan ' + spLabel + '</div><ul class="list" style="gap:6px">'
+      + spList.map(function(e){
+          var c = courseById(e.courseId);
+          return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "\u2013") + '</span><span class="t">' + esc(e.title) + '</span>'
+            + (c ? '<span style="display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.5px"><span style="width:10px; height:10px; border-radius:50%; background:' + courseColor(c) + '; flex:none"></span>' + esc(c.name) + '</span>' : '<span class="tag typ">Vorlesung</span>')
+            + '</li>';
+        }).join("") + '</ul></div>'
+    : "";
   var itT = itemsOn(tbIso);
   var calRows = [];
   itT.exams.forEach(function(x){ calRows.push({ tm: "", txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
-  itT.events.forEach(function(e){ calRows.push({ tm: e.time, txt: e.title, cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : "Termin" }); });
+  itT.events.forEach(function(e){ if (e.imported) return; calRows.push({ tm: e.time, txt: e.title, cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : "Termin" }); });
   itT.work.forEach(function(w){ calRows.push({ tm: w.from ? w.from + (w.to ? "–" + w.to : "") : "", txt: "Laborarbeit" + (w.note ? ": " + w.note : ""), cls: "labor", tag: "Labor" }); });
   itT.study.forEach(function(s){ if (!s.done) calRows.push({ tm: s.time, txt: s.title, cls: "typ", tag: "Lernen" }); });
   if (calRows.length){
@@ -1904,7 +1920,7 @@ function applyDesign(){
   }
   var body = document.body;
   if (designDoc.bgUrl){
-    body.style.backgroundImage = "linear-gradient(color-mix(in srgb, var(--bg) 80%, transparent), color-mix(in srgb, var(--bg) 80%, transparent)), " + cssUrl(designDoc.bgUrl);
+    body.style.backgroundImage = "linear-gradient(color-mix(in srgb, var(--bg) 62%, transparent), color-mix(in srgb, var(--bg) 62%, transparent)), " + cssUrl(designDoc.bgUrl);
     body.style.backgroundSize = "cover";
     body.style.backgroundPosition = "center";
     body.style.backgroundAttachment = "fixed";
@@ -3044,7 +3060,7 @@ function renderUpcoming(){
     if (examPick){
       items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")" });
     }
-    [["t1an","Anmeldung","1. Termin"],["t1ab","Abmeldung","1. Termin"],["t2an","Anmeldung","2. Termin"],["t2ab","Abmeldung","2. Termin"]].forEach(function(k){
+    [["t1an","Anmeldung","1. Termin"],["t1ab","Abmeldung","1. Termin"]].forEach(function(k){
       var d = parseISO(ex[k[0]]);
       if (!d) return;
       var dd = diffDays(d);
