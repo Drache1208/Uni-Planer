@@ -1,0 +1,3456 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uni-Planer Online</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Schibsted+Grotesk:wght@400;500;700&display=swap">
+<style>
+/* Layout: helle, luftige Karten auf fast weißem Grund; Seitenleiste links, Ansichten rechts */
+:root{
+  --bg:#fbfbf8;
+  --surface:#ffffff;
+  --ink:#232a30;
+  --muted:#6b7680;
+  --border:#e9ece8;
+  --accent:#3457d1;
+  --accent-ink:#ffffff;
+  --danger:#c03a32;
+  --warn:#9a6700;
+  --ok:#2e8b57;
+  --shadow:0 1px 2px rgba(30,40,50,.04), 0 4px 18px rgba(30,40,50,.05);
+  --k0:#e03131; --k1:#f76707; --k2:#dba514; --k3:#2f9e44; --k4:#0ca678; --k5:#1971c2; --k6:#7048e8; --k7:#d6336c;
+  --p0:#efa3b1; --p1:#f3bd98; --p2:#e8d58b; --p3:#abd8a0; --p4:#9ed4cc; --p5:#a3c3ec; --p6:#c3b2e3; --p7:#eab0d3;
+  --font-display:"Bricolage Grotesque",Georgia,serif;
+  --font-body:"Schibsted Grotesk",-apple-system,"Segoe UI",sans-serif;
+}
+*, *::before, *::after{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16191d; --surface:#1f252b; --ink:#e9edef; --muted:#9ba7b0; --border:#30383f;
+    --accent:#7da2f0; --accent-ink:#101624;
+    --danger:#f0867e; --warn:#e0a94f; --ok:#6fc492;
+    --shadow:none;
+    --k0:#ff8787; --k1:#ffa94d; --k2:#ffd43b; --k3:#69db7c; --k4:#63e6be; --k5:#74c0fc; --k6:#b197fc; --k7:#faa2c1;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16191d; --surface:#1f252b; --ink:#e9edef; --muted:#9ba7b0; --border:#30383f;
+  --accent:#7da2f0; --accent-ink:#101624;
+  --danger:#f0867e; --warn:#e0a94f; --ok:#6fc492;
+  --shadow:none;
+  --k0:#ff8787; --k1:#ffa94d; --k2:#ffd43b; --k3:#69db7c; --k4:#63e6be; --k5:#74c0fc; --k6:#b197fc; --k7:#faa2c1;
+  color-scheme:dark;
+}
+body{
+  margin:0;
+  background:var(--bg); color:var(--ink);
+  font-family:var(--font-body); font-size:15px; line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 56px;
+}
+.app{display:flex; gap:36px; max-width:1140px; margin:0 auto; align-items:flex-start}
+
+/* ---- Seitenleiste ---- */
+aside{
+  width:252px; flex:none; padding:26px 16px;
+  margin-block:32px 24px;
+  position:sticky; top:calc(env(safe-area-inset-top,0px) + 16px);
+  max-height:calc(100dvh - 48px); overflow-y:auto;
+  background:color-mix(in srgb, var(--surface) 90%, transparent);
+  -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+  border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow);
+}
+.brand{font-family:var(--font-display); font-weight:700; font-size:23px; letter-spacing:-.01em; margin-bottom:20px}
+.brand em{font-style:normal; color:var(--accent)}
+nav{display:grid; gap:2px; margin-bottom:20px}
+.nav-btn{
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+  width:100%; text-align:left; padding:8px 12px; border-radius:10px;
+  background:none; border:none; cursor:pointer; color:var(--ink); font-weight:500; font-size:14px;
+}
+.nav-btn:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.nav-btn[aria-current="true"]{background:color-mix(in srgb,var(--accent) 13%,transparent); color:var(--accent); font-weight:700}
+.side-h{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; margin:0 12px 6px}
+nav .side-h{margin-top:14px}
+#course-list{display:grid; gap:2px; margin-bottom:12px}
+.course-item .dot{width:10px; height:10px; border-radius:50%; background:var(--cc); flex:none}
+.course-item .nm{flex:1; min-width:0; overflow-wrap:anywhere; text-align:left; line-height:1.35}
+.count{font-size:11.5px; color:var(--muted); background:color-mix(in srgb,var(--ink) 7%,transparent); border-radius:999px; padding:0 7px; font-variant-numeric:tabular-nums}
+#course-add{display:flex; gap:6px; padding:0 2px}
+#course-add input{flex:1; min-width:0}
+#course-add button{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  width:34px; flex:none; cursor:pointer; font-size:18px; line-height:1; color:var(--muted);
+}
+#course-add button:hover{color:var(--accent); border-color:var(--accent)}
+
+/* ---- Hauptbereich ---- */
+main{flex:1; min-width:0; padding-block:40px 0}
+h1{font-family:var(--font-display); font-weight:700; font-size:clamp(25px,4vw,33px); margin:0; letter-spacing:-.01em; text-wrap:balance}
+.sub{color:var(--muted); margin:5px 0 0; font-size:14px}
+.sub strong{color:var(--danger); font-weight:600}
+.vhead{margin-bottom:20px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.vhead .grow{flex:1}
+
+[hidden]{display:none !important}
+.banner{display:none; background:color-mix(in srgb,var(--warn) 12%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px}
+.banner.show{display:block}
+
+.card,form.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow)}
+form.card{display:grid; gap:11px; margin-bottom:24px}
+.fh{font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:700}
+.frow{display:flex; gap:10px; flex-wrap:wrap}
+.frow>*{flex:1 1 130px; min-width:0}
+label.f{display:grid; gap:4px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:500}
+input,select,button{font:inherit; color:inherit}
+input[type=text],input[type=date],input[type=time],select{
+  background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:8px 11px; width:100%;
+}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+button.primary{
+  background:var(--accent); color:var(--accent-ink); border:none; border-radius:10px;
+  padding:9px 20px; font-weight:700; cursor:pointer; justify-self:start;
+}
+button.primary:hover{filter:brightness(1.08)}
+button.ghost{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:6px 13px; cursor:pointer; color:var(--muted); font-size:13.5px;
+}
+button.ghost:hover{color:var(--ink)}
+button.ghost.arm{background:var(--danger); color:#fff; border-color:var(--danger); font-weight:600}
+
+/* ---- Farben wählen ---- */
+.paltabs{display:flex; gap:6px}
+.paltab{background:var(--bg); border:1px solid var(--border); border-radius:999px; padding:4px 14px; cursor:pointer; font-size:13px; color:var(--muted)}
+.paltab[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink); font-weight:600}
+#swatches{display:flex; gap:14px; flex-wrap:wrap; padding:4px 2px}
+.sw{width:28px; height:28px; border-radius:50%; background:var(--sc); border:none; cursor:pointer; flex:none}
+.sw:hover{transform:scale(1.08)}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--ink)}
+@media (prefers-reduced-motion: reduce){ .sw:hover{transform:none} }
+
+/* ---- To-Do-Listen ---- */
+section.grp{margin-bottom:24px}
+.grp h2{
+  font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--muted); margin:0 0 8px; font-weight:700; display:flex; gap:8px; align-items:baseline;
+}
+.grp h2 .n{font-weight:500}
+.grp.late h2{color:var(--danger)}
+.grp.today h2{color:var(--warn)}
+ul.list{list-style:none; margin:0; padding:0; display:grid; gap:9px}
+li.todo{
+  display:flex; flex-wrap:wrap; gap:12px; row-gap:6px; align-items:center;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:11px 13px;
+  box-shadow:var(--shadow);
+}
+.late li.todo{border-left:3px solid var(--danger)}
+.today li.todo{border-left:3px solid var(--warn)}
+.datebox{min-width:50px; text-align:center; font-variant-numeric:tabular-nums; line-height:1.15; color:var(--muted); flex:none}
+.datebox .d{font-size:18px; font-weight:700; color:var(--ink); font-family:var(--font-display)}
+.datebox .m{font-size:11px; text-transform:uppercase; letter-spacing:.05em}
+.late .datebox .d{color:var(--danger)}
+.main-c{flex:1; min-width:0}
+.main-c .t{font-weight:500; overflow-wrap:anywhere}
+.meta{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:2px; font-size:12px; color:var(--muted)}
+.tag{border-radius:5px; padding:1px 8px; font-weight:600; font-size:11.5px}
+.tag.fach{color:color-mix(in srgb,var(--fc) 55%,var(--ink)); background:color-mix(in srgb,var(--fc) 22%,transparent)}
+.tag.typ{border:1px solid var(--border); color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-size:10.5px}
+.tag.klausur{border:none; color:var(--danger); background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.tag.frist{border:none; color:var(--warn); background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.rel{white-space:nowrap}
+.rel.over{color:var(--danger); font-weight:600}
+.rel.soon{color:var(--warn); font-weight:600}
+input.done-cb{width:20px; height:20px; accent-color:var(--ok); flex:none; cursor:pointer}
+button.del{
+  background:none; border:1px solid transparent; border-radius:7px; color:var(--muted);
+  cursor:pointer; padding:4px 9px; font-size:13px; flex:none;
+}
+button.del:hover{color:var(--danger); border-color:var(--border)}
+button.del.arm{background:var(--danger); color:#fff; font-weight:600}
+details.donebox{margin-top:28px; border-top:1px solid var(--border); padding-top:12px}
+details.donebox summary{cursor:pointer; color:var(--muted); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.06em}
+details.donebox ul{margin-top:10px}
+details.donebox li.todo{opacity:.62; box-shadow:none}
+details.donebox .main-c .t{text-decoration:line-through}
+.empty{
+  background:var(--surface); border:1px dashed var(--border); border-radius:14px;
+  padding:34px 20px; text-align:center; color:var(--muted); margin-bottom:24px;
+}
+.empty .big{font-family:var(--font-display); font-size:19px; color:var(--ink); margin-bottom:6px}
+
+/* ---- Kalender ---- */
+.cal-ctl{display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap}
+.cal-ctl h1{font-size:clamp(20px,3.5vw,27px); flex:1; min-width:150px}
+.cal-ctl button{background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:6px 13px; cursor:pointer; font-weight:600}
+.cal-ctl button:hover{border-color:var(--accent); color:var(--accent)}
+.cal-sub{margin:0 0 14px}
+.cal-head{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; text-align:center}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:22px}
+.cell{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  min-height:88px; padding:5px 7px; cursor:pointer; min-width:0; overflow:hidden;
+  display:flex; flex-direction:column; gap:3px; text-align:left; box-shadow:var(--shadow);
+}
+.cell:hover{border-color:var(--accent)}
+.cell.out{opacity:.45; box-shadow:none}
+.cell.sel{outline:2px solid var(--accent); outline-offset:-1px}
+.cell .num{font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--muted)}
+.cell.today .num{color:var(--accent-ink); background:var(--accent); border-radius:999px; width:21px; height:21px; display:inline-flex; align-items:center; justify-content:center}
+.chips{display:flex; flex-direction:column; gap:2px; min-width:0}
+.chipev{
+  font-size:11px; border-radius:5px; padding:0 5px; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  background:color-mix(in srgb,var(--cc) 18%,transparent);
+  color:color-mix(in srgb,var(--cc) 55%,var(--ink)); font-weight:600;
+}
+.chipev.more{background:none; color:var(--muted); font-weight:500}
+@media (max-width:620px){
+  .cell{min-height:58px; padding:3px 5px}
+  .chips{flex-direction:row; flex-wrap:wrap; gap:3px}
+  .chipev{width:7px; height:7px; border-radius:50%; padding:0; flex:none; background:var(--cc)}
+  .chipev .lbl{display:none}
+  .chipev.more{width:auto; height:auto; border-radius:5px; font-size:10px; background:none}
+}
+
+/* ---- Wochenliste ---- */
+.wday{background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:9px; overflow:hidden; box-shadow:var(--shadow)}
+.wday.today{border-left:3px solid var(--accent)}
+.wday-h{
+  display:flex; gap:10px; align-items:baseline; padding:10px 15px; cursor:pointer;
+  background:none; border:none; width:100%; text-align:left;
+}
+.wday-h:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.wday-h .wd{font-weight:700; font-family:var(--font-display); font-size:15px}
+.wday.today .wd{color:var(--accent)}
+.wday-h .dt{color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums}
+.wday-h .free{margin-left:auto; color:var(--muted); font-size:12.5px; font-style:italic}
+.wday ul{list-style:none; margin:0; padding:2px 15px 11px; display:grid; gap:7px}
+.wit{display:flex; flex-wrap:wrap; gap:9px; row-gap:4px; align-items:center; font-size:14px; min-width:0}
+.wit .tm{font-variant-numeric:tabular-nums; color:var(--muted); font-size:12.5px; min-width:42px; flex:none}
+.wit .t{min-width:0; overflow-wrap:anywhere}
+.wit.done .t{text-decoration:line-through; opacity:.6}
+.wit input.done-cb{width:17px; height:17px}
+
+/* ---- Tages-Panel ---- */
+#day-panel{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:26px; box-shadow:var(--shadow)}
+#day-panel h2{font-family:var(--font-display); font-size:18px; margin:0 0 10px}
+#dp-items{list-style:none; margin:0 0 14px; padding:0; display:grid; gap:8px}
+#dp-items li{display:flex; flex-wrap:wrap; gap:10px; row-gap:4px; align-items:center; min-width:0}
+#dp-items .tm{font-variant-numeric:tabular-nums; color:var(--muted); font-size:13px; min-width:42px; flex:none}
+#dp-items .tm-edit{width:96px; flex:none; padding:4px 6px; font-size:13px}
+#dp-items .t{flex:1; min-width:0; overflow-wrap:anywhere}
+#dp-items li.done .t{text-decoration:line-through; opacity:.6}
+#dp-empty{color:var(--muted); font-size:14px; margin:0 0 14px; font-style:italic}
+#event-add,#study-add{border-top:1px solid var(--border); padding-top:13px; display:grid; gap:11px}
+#study-add{margin-top:14px}
+
+/* ---- Banner, Gestaltung & Verschieben ---- */
+.upcoming{display:grid; gap:7px; margin-bottom:22px}
+.upcoming:empty{display:none}
+.up-item{display:flex; flex-wrap:wrap; gap:9px; align-items:center; font-size:13.5px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:7px 12px; box-shadow:var(--shadow)}
+.up-item strong{white-space:nowrap}
+.pbar{height:7px; border-radius:999px; background:color-mix(in srgb,var(--ink) 9%,transparent); overflow:hidden; margin-top:10px; max-width:380px}
+.pbar>span{display:block; height:100%; background:var(--ok); border-radius:999px}
+.sdwrap{display:grid; gap:2px; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; flex:none}
+.sdwrap input{padding:3px 6px; font-size:12.5px; width:134px}
+.wk-h{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700; margin:0 0 8px}
+.wk-h .sum{margin-left:auto; font-variant-numeric:tabular-nums; color:var(--ink)}
+section.wkgrp{margin-bottom:22px}
+.tag.labor{border:none; color:color-mix(in srgb,var(--k6) 55%,var(--ink)); background:color-mix(in srgb,var(--k6) 20%,transparent)}
+.toast-act{margin-left:10px; background:none; border:1px solid color-mix(in srgb,var(--bg) 45%,transparent); color:var(--bg); border-radius:6px; padding:2px 10px; cursor:pointer; font-weight:600; font-size:13px}
+li.todo[data-coll="todos"] .t{cursor:text}
+.t-edit{width:100%; padding:4px 8px; font-size:14px}
+li.todo[data-coll="todos"] .datebox{cursor:pointer; border-radius:8px}
+li.todo[data-coll="todos"] .datebox:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.d-edit{width:138px; padding:4px 6px; font-size:12.5px}
+.cell.wknd{background:color-mix(in srgb,var(--ink) 3%,var(--surface))}
+input[type=search]{background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:8px 11px; width:100%}
+textarea{background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:9px 11px; width:100%; font:inherit; color:inherit; resize:vertical; min-height:110px; line-height:1.5}
+li[data-move]{cursor:grab}
+.pl-wd{display:flex; gap:5px; align-items:center; font-size:13px; flex:none; border:1px solid var(--border); border-radius:999px; padding:4px 11px; cursor:pointer}
+.pl-wd input{width:15px; height:15px; accent-color:var(--accent)}
+.pl-wd:has(input:checked){background:color-mix(in srgb,var(--danger) 10%,transparent); border-color:color-mix(in srgb,var(--danger) 40%,transparent)}
+.pl-wd.buf:has(input:checked){background:color-mix(in srgb,var(--warn) 12%,transparent); border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+#todo-search{max-width:300px; margin-bottom:12px}
+#banner{height:150px; border-radius:16px; background-size:cover; background-position:center; margin-bottom:24px; box-shadow:var(--shadow)}
+#banner-preview{height:90px; border-radius:10px; background-size:cover; background-position:center; border:1px dashed var(--border)}
+input[type=file]{font-size:13px; color:var(--muted); background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:7px 10px; width:100%}
+.frow .ghost{align-self:end}
+.fh-row{display:flex; align-items:center; gap:8px}
+.fh-row .fh{flex:1}
+div[data-block] > .fh-row{margin-bottom:8px}
+.drag-handle{cursor:grab; color:var(--muted); font-size:15px; user-select:none; padding:0 6px; touch-action:none}
+.drag-handle:hover{color:var(--ink)}
+[data-block]{margin-bottom:24px}
+div[data-block] form.card{margin-bottom:14px}
+.dragging{opacity:.45}
+.drop-target{outline:2px dashed var(--accent); outline-offset:3px; border-radius:12px}
+
+#toast{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  background:var(--ink); color:var(--bg); border-radius:10px; padding:10px 16px; font-size:14px;
+  opacity:0; pointer-events:none; transition:opacity .25s; max-width:90vw; z-index:20;
+}
+#toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){ #toast{transition:none} }
+
+/* ---- Mobil: Seitenleiste wird Kopfleiste ---- */
+@media (max-width:760px){
+  .app{flex-direction:column; gap:0}
+  aside{position:static; width:auto; max-height:none; overflow:visible; margin-block:16px 14px; padding:16px 14px}
+  .brand{margin-bottom:10px}
+  nav{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; align-items:center}
+  nav .side-h{width:100%; margin:8px 2px 2px}
+  .nav-btn{width:auto; border:1px solid var(--border); border-radius:999px; padding:5px 13px; font-size:13px}
+  .side-h{margin:0 2px 6px}
+  #course-list{display:flex; flex-wrap:nowrap; overflow-x:auto; gap:6px; margin-bottom:8px; padding-bottom:4px}
+  #course-list .side-h{display:none}
+  .course-item{border:1px solid var(--border); border-radius:999px; padding:6px 13px; font-size:13px; width:auto; flex:none}
+  .course-item .nm{white-space:nowrap}
+  #pomo{display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 12px; margin-top:10px}
+  #pomo .fh{width:auto}
+  #pomo #pomo-time{font-size:20px}
+  #pomo label.f{flex:1 1 130px; min-width:0}
+  #sem-info{margin:-6px 0 10px}
+  #course-add{max-width:320px; margin-bottom:4px}
+  main{padding-block:22px 0}
+}
+
+/* ---- Touch-Geräte: größere Ziele, kein Eingabe-Zoom ---- */
+@media (pointer: coarse){
+  input[type=text], input[type=date], input[type=time], input[type=number], input[type=search], select, textarea{font-size:16px}
+  input.done-cb{width:24px; height:24px}
+  button.del{padding:7px 12px}
+  .nav-btn{padding:9px 13px}
+  .drag-handle{padding:0 10px}
+  .cal-ctl button{padding:8px 14px}
+  button.primary{padding:11px 20px}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+<aside>
+  <div class="brand">Uni-<em>Planer</em></div>
+  <p class="sub" id="sem-info" hidden style="margin:-12px 0 16px; font-size:12.5px"></p>
+  <nav aria-label="Ansichten">
+    <button type="button" class="nav-btn" data-nav="todos" id="nav-todos">Alle To-Dos <span class="count" id="nav-todos-n" hidden></span></button>
+    <div class="side-h">Lernplanung</div>
+    <button type="button" class="nav-btn" data-nav="lernwoche" id="nav-lernwoche">Lernwoche</button>
+    <button type="button" class="nav-btn" data-nav="lernmonat" id="nav-lernmonat">Lernmonat</button>
+    <div class="side-h">Laborarbeit</div>
+    <button type="button" class="nav-btn" data-nav="labor" id="nav-labor">Arbeitszeiten</button>
+    <div class="side-h">Englisch</div>
+    <button type="button" class="nav-btn" data-nav="vokabeln" id="nav-vokabeln">Vokabeln <span class="count" id="nav-vok-n" hidden></span></button>
+  </nav>
+  <div id="course-list"></div>
+  <form id="course-add" autocomplete="off">
+    <input type="text" id="course-in" placeholder="Neue Vorlesung …" maxlength="60" aria-label="Neue Vorlesung anlegen">
+    <button type="submit" aria-label="Vorlesung anlegen">+</button>
+  </form>
+  <nav aria-label="Einstellungen" style="margin-top:18px">
+    <button type="button" class="nav-btn" data-nav="design" id="nav-design">Einstellungen</button>
+  </nav>
+  <div class="card" id="pomo" style="margin-top:14px; display:grid; gap:8px; padding:12px 14px">
+    <div class="fh">Fokus-Timer</div>
+    <div id="pomo-time" style="font-family:var(--font-display); font-size:26px; font-weight:700; font-variant-numeric:tabular-nums">25:00</div>
+    <div class="frow" style="gap:6px">
+      <button type="button" class="ghost" id="pomo-start" style="flex:none">Start</button>
+      <button type="button" class="ghost" id="pomo-reset" style="flex:none">Zurück</button>
+    </div>
+    <div class="paltabs">
+      <button type="button" class="paltab" id="pomo-25" aria-pressed="true">25 min</button>
+      <button type="button" class="paltab" id="pomo-5" aria-pressed="false">5 min</button>
+    </div>
+    <label class="f" for="pomo-min">Eigene Dauer (Minuten)
+      <input type="number" id="pomo-min" min="1" max="240" step="1" placeholder="z. B. 45">
+    </label>
+  </div>
+</aside>
+
+<main>
+<div class="banner" id="offline-banner">Dein Browser blockiert lokalen Speicher – Einträge können nicht dauerhaft gespeichert werden.</div>
+
+<div id="banner" hidden></div>
+
+<!-- Alle To-Dos -->
+<section id="view-todos" hidden>
+  <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
+  <div class="upcoming" id="upcoming"></div>
+  <div id="today-box"></div>
+  <div id="today-cal"></div>
+  <form class="card" id="todo-add" autocomplete="off" data-block="add">
+    <div class="fh-row"><div class="fh">Neue Aufgabe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <label class="f" for="todo-title">Aufgabe
+      <input type="text" id="todo-title" placeholder="z. B. Übungsblatt 3 abgeben" required maxlength="200">
+    </label>
+    <div class="frow">
+      <label class="f" for="todo-fach">Vorlesung
+        <select id="todo-fach"><option value="">– keine –</option></select>
+      </label>
+      <label class="f" for="todo-due">Fällig am
+        <input type="date" id="todo-due">
+      </label>
+      <label class="f" for="todo-typ">Art
+        <select id="todo-typ">
+          <option>Abgabe</option><option>Klausur</option><option>Lernen</option>
+          <option>Vorlesung</option><option selected>Sonstiges</option>
+        </select>
+      </label>
+    </div>
+    <button class="primary" id="todo-add-btn" type="submit">Hinzufügen</button>
+  </form>
+  <div data-block="list">
+    <div class="fh-row"><div class="fh">Aufgabenliste</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <input type="search" id="todo-search" placeholder="Aufgaben durchsuchen …" aria-label="Aufgaben durchsuchen">
+    <div id="todo-groups"></div>
+    <div class="empty" id="todo-empty" hidden>
+      <div class="big">Noch keine To-Dos</div>
+      Trag oben deine erste Aufgabe ein – die Liste sortiert sich dann von selbst nach Fälligkeit.
+    </div>
+    <details class="donebox" id="todo-donebox" hidden>
+      <summary id="todo-done-sum">Erledigt</summary>
+      <ul class="list" id="todo-done-list"></ul>
+    </details>
+  </div>
+</section>
+
+<!-- Eine Vorlesung -->
+<section id="view-fach" hidden>
+  <div class="vhead">
+    <div class="grow"><h1 id="fach-title"></h1><p class="sub" id="fach-sub"></p><div class="pbar" id="fach-pbar" hidden><span id="fach-pfill"></span></div></div>
+    <button type="button" class="ghost" id="fach-del">Vorlesung löschen</button>
+  </div>
+  <div class="card" data-block="ptermine" style="display:grid; gap:11px; margin-bottom:24px" hidden>
+    <div class="fh-row"><div class="fh">Private Termine</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <form id="ptermin-add" autocomplete="off" style="display:grid; gap:10px">
+      <div class="frow">
+        <label class="f" for="pt-title" style="flex:2 1 180px">Titel <input type="text" id="pt-title" required maxlength="200" placeholder="z. B. Volleyball"></label>
+        <label class="f" for="pt-date">Datum <input type="date" id="pt-date" required></label>
+        <label class="f" for="pt-from">Uhrzeit <input type="time" id="pt-from"></label>
+        <label class="f" for="pt-folder">Ordner
+          <input type="text" id="pt-folder" list="pt-folders" maxlength="40" placeholder="Sport, Familie …">
+          <datalist id="pt-folders">
+            <option value="Sport"><option value="Arbeit"><option value="Freunde"><option value="Familie"><option value="Gesundheit"><option value="Haushalt">
+          </datalist>
+        </label>
+      </div>
+      <button class="primary" type="submit">Eintragen</button>
+    </form>
+    <div id="ptermin-list"></div>
+  </div>
+  <form class="card" id="exam-form" autocomplete="off" data-block="exam">
+    <div class="fh-row"><div class="fh">Klausur</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="fh">1. Termin</div>
+    <div class="frow">
+      <label class="f" for="ex-t1">Termin <input type="date" id="ex-t1"></label>
+      <label class="f" for="ex-t1an">Letzte Anmeldung <input type="date" id="ex-t1an"></label>
+      <label class="f" for="ex-t1ab">Letzte Abmeldung <input type="date" id="ex-t1ab"></label>
+    </div>
+    <div class="fh">2. Termin</div>
+    <div class="frow">
+      <label class="f" for="ex-t2">Termin <input type="date" id="ex-t2"></label>
+      <label class="f" for="ex-t2an">Letzte Anmeldung <input type="date" id="ex-t2an"></label>
+      <label class="f" for="ex-t2ab">Letzte Abmeldung <input type="date" id="ex-t2ab"></label>
+    </div>
+    <button class="primary" type="submit">Klausurtermine speichern</button>
+  </form>
+  <form class="card" id="grade-form" autocomplete="off" data-block="grade" style="margin-bottom:24px">
+    <div class="fh-row"><div class="fh">Note &amp; ECTS</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="frow">
+      <label class="f" for="gr-note">Note <input type="number" id="gr-note" min="1" max="5" step="0.1" placeholder="z. B. 1.7"></label>
+      <label class="f" for="gr-ects">ECTS <input type="number" id="gr-ects" min="0" max="60" step="1" placeholder="z. B. 6"></label>
+    </div>
+    <button class="primary" type="submit">Speichern</button>
+  </form>
+  <form class="card" id="plan-form" autocomplete="off" data-block="plan" style="margin-bottom:24px">
+    <div class="fh-row"><div class="fh">Lernplan</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="frow">
+      <label class="f" for="pl-count">Anzahl Vorlesungen <input type="number" id="pl-count" min="1" max="99" step="1" placeholder="z. B. 12"></label>
+      <label class="f" for="pl-days">Lerntage <input type="number" id="pl-days" min="1" max="60" step="1" placeholder="automatisch"></label>
+      <label class="f" for="pl-review">Wiederholungstage <input type="number" id="pl-review" min="0" max="30" step="1" value="2"></label>
+    </div>
+    <div class="fh" style="font-weight:500">Wochentage ausschließen</div>
+    <div class="frow" style="gap:6px">
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-1">Mo</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-2">Di</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-3">Mi</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-4">Do</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-5">Fr</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-6">Sa</label>
+      <label class="pl-wd"><input type="checkbox" id="pl-wd-0">So</label>
+    </div>
+    <div class="fh" style="font-weight:500">Puffertage an Wochentagen (bleiben im Plan frei)</div>
+    <div class="frow" style="gap:6px">
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-1">Mo</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-2">Di</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-3">Mi</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-4">Do</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-5">Fr</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-6">Sa</label>
+      <label class="pl-wd buf"><input type="checkbox" id="pl-bwd-0">So</label>
+    </div>
+    <label style="display:flex; gap:8px; align-items:center; font-size:14px">
+      <input type="checkbox" id="pl-skipwork" checked style="width:17px; height:17px"> Tage mit Laborarbeit aussparen
+    </label>
+    <div class="frow">
+      <button class="primary" type="submit">Lernplan erstellen</button>
+      <button type="button" class="ghost" id="pl-clear">Lernplan löschen</button>
+    </div>
+    <p class="sub" id="pl-status" style="margin:0">Plant die Lerntage als durchgehenden Block direkt vor den Wiederholungstagen bis zur Klausur. Ausgeschlossene Tage und Puffer-Wochentage werden übersprungen; ein neuer Plan ersetzt den alten.</p>
+    <ul class="list" id="plan-list"></ul>
+  </form>
+  <div class="card" data-block="notes" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh-row"><div class="fh">Brainstorming &amp; Notizen</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <textarea id="fach-notes" rows="6" maxlength="20000" placeholder="Ideen, offene Fragen, Merkzettel zu diesem Fach …"></textarea>
+    <p class="sub" style="margin:0" id="notes-status">Wird automatisch gespeichert.</p>
+  </div>
+  <div class="card" id="color-card" style="display:grid; gap:11px" data-block="color">
+    <div class="fh-row"><div class="fh">Name &amp; Farbe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <form id="rename-form" autocomplete="off" style="display:flex; gap:8px; flex-wrap:wrap">
+      <input type="text" id="rename-in" maxlength="60" aria-label="Name der Vorlesung" style="flex:1 1 180px; min-width:0">
+      <button class="primary" type="submit">Umbenennen</button>
+    </form>
+    <div class="paltabs">
+      <button type="button" class="paltab" id="pal-k">Knallig</button>
+      <button type="button" class="paltab" id="pal-p">Pastell</button>
+    </div>
+    <div id="swatches"></div>
+  </div>
+  <div data-block="lectures">
+    <div class="fh-row"><div class="fh">Vorlesungen bearbeiten</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <form class="card" id="lec-add" autocomplete="off">
+      <label class="f" for="lec-in">Vorlesung zum Bearbeiten vormerken
+        <input type="text" id="lec-in" placeholder="Nummer oder Titel, z. B. 05" maxlength="200">
+      </label>
+      <button class="primary" type="submit">Vormerken</button>
+    </form>
+    <div id="fach-lectures"></div>
+  </div>
+  <div data-block="tasks">
+    <div class="fh-row"><div class="fh">Aufgaben</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <form class="card" id="fach-todo-add" autocomplete="off">
+      <label class="f" for="ftodo-title">Weitere Aufgabe
+        <input type="text" id="ftodo-title" placeholder="z. B. Altklausur rechnen" maxlength="200">
+      </label>
+      <div class="frow">
+        <label class="f" for="ftodo-due">Fällig am
+          <input type="date" id="ftodo-due">
+        </label>
+        <label class="f" for="ftodo-typ">Art
+          <select id="ftodo-typ">
+            <option>Abgabe</option><option>Klausur</option><option>Lernen</option><option selected>Sonstiges</option>
+          </select>
+        </label>
+      </div>
+      <button class="primary" type="submit">Hinzufügen</button>
+    </form>
+    <div id="fach-groups"></div>
+    <details class="donebox" id="fach-donebox" hidden>
+      <summary id="fach-done-sum">Erledigt</summary>
+      <ul class="list" id="fach-done-list"></ul>
+    </details>
+  </div>
+</section>
+
+<!-- Laborarbeit -->
+<section id="view-labor" hidden>
+  <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-punch"></button></div>
+  <form class="card" id="work-add" autocomplete="off">
+    <div class="fh">Arbeitszeit eintragen oder planen</div>
+    <div class="frow">
+      <label class="f" for="wk-date">Datum <input type="date" id="wk-date" required></label>
+      <label class="f" for="wk-from">Von <input type="time" id="wk-from"></label>
+      <label class="f" for="wk-to">Bis <input type="time" id="wk-to"></label>
+      <label class="f" for="wk-note" style="flex:2 1 160px">Notiz <input type="text" id="wk-note" maxlength="120" placeholder="z. B. Zellkultur, Western Blot"></label>
+    </div>
+    <button class="primary" type="submit">Eintragen</button>
+  </form>
+  <div id="work-list"></div>
+  <div class="empty" id="work-empty" hidden>
+    <div class="big">Noch keine Arbeitszeiten</div>
+    Trag oben ein, wann du gearbeitet hast oder arbeiten willst – zukünftige Einträge gelten als geplant,
+    die Stunden werden pro Woche summiert und erscheinen auch in Lernwoche und Lernmonat.
+  </div>
+</section>
+
+<!-- Englisch-Vokabeln -->
+<section id="view-vokabeln" hidden>
+  <div class="vhead"><div class="grow"><h1>Englisch-Vokabeln</h1><p class="sub" id="vok-sub"></p></div></div>
+  <div class="card" id="vok-card" style="display:grid; gap:14px; margin-bottom:24px; text-align:center; padding:30px 18px">
+    <div class="fh" id="vok-kind"></div>
+    <div id="vok-word" style="font-family:var(--font-display); font-size:clamp(26px,5vw,36px); font-weight:700; overflow-wrap:anywhere"></div>
+    <div id="vok-answer" style="font-size:19px; color:var(--muted)" hidden></div>
+    <div class="frow" id="vok-actions" style="justify-content:center">
+      <button type="button" class="primary" id="vok-show" style="justify-self:center; flex:none">Antwort zeigen</button>
+    </div>
+    <div class="frow" id="vok-rate" hidden style="justify-content:center; gap:8px">
+      <button type="button" class="ghost" id="vr-hard" style="color:var(--danger); flex:none">Kann ich noch nicht</button>
+      <button type="button" class="ghost" id="vr-mid" style="color:var(--warn); flex:none">Mittel</button>
+      <button type="button" class="ghost" id="vr-easy" style="color:var(--ok); flex:none">Kann ich</button>
+    </div>
+    <p class="sub" id="vok-progress" style="margin:0"></p>
+    <button type="button" class="ghost" id="vok-stop" hidden style="justify-self:center">Endlos-Üben beenden</button>
+    <p class="sub" style="margin:0; font-size:12px">Tastatur: Leertaste zeigt die Antwort · 1 = noch nicht · 2 = mittel · 3 = kann ich</p>
+  </div>
+  <div class="empty" id="vok-done" hidden>
+    <div class="big">Für heute geschafft!</div>
+    <span id="vok-done-sub"></span>
+    <div style="margin-top:14px"><button type="button" class="ghost" id="vok-extra" hidden>Endlos üben: alle gelernten Vokabeln wiederholen</button></div>
+  </div>
+  <details class="card" style="margin-bottom:24px">
+    <summary style="cursor:pointer; font-weight:600">Alle Vokabeln nach Kategorie</summary>
+    <div id="vok-lists" style="margin-top:12px; display:grid; gap:14px"></div>
+  </details>
+  <p class="sub">An jedem Übungstag kommen genau 10 neue Vokabeln dazu. „Kann ich noch nicht“ → kommt in derselben Runde gleich nochmal, „Mittel“ → in 3 Tagen, „Kann ich“ → in wachsenden Abständen (3, 7, 14, 30, 60 Tage). Nach der Runde kannst du endlos weiterüben (alle gelernten Vokabeln, immer neu gemischt) – das verändert die Lernabstände nicht zusätzlich.</p>
+</section>
+
+<!-- Einstellungen -->
+<section id="view-design" hidden>
+  <div class="vhead"><div class="grow"><h1>Einstellungen</h1><p class="sub">Darstellung, eigene Fotos, Export und Aufräumen.</p></div></div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Synchronisierung – eigenes Konto (ohne Claude)</div>
+    <p class="sub" style="margin:0" id="sync-state">…</p>
+    <div id="sync-login" style="display:grid; gap:10px" hidden>
+      <div class="frow">
+        <label class="f" for="sync-email">E-Mail <input type="email" id="sync-email" autocomplete="username" inputmode="email"></label>
+        <label class="f" for="sync-pw">Passwort <input type="password" id="sync-pw" autocomplete="current-password"></label>
+      </div>
+      <div class="frow">
+        <button type="button" class="ghost" id="sync-in">Anmelden</button>
+        <button type="button" class="ghost" id="sync-up">Neues Konto erstellen</button>
+      </div>
+      <p class="sub" style="margin:0">Mit demselben Konto auf iPad, Handy und Laptop anmelden – Aufgaben, Termine, Lernpläne, Vokabeln und deine Fotos sind dann überall synchron.</p>
+    </div>
+    <div id="sync-on" style="display:grid; gap:10px" hidden>
+      <div class="frow">
+        <button type="button" class="ghost" id="sync-now">Jetzt synchronisieren</button>
+        <button type="button" class="ghost" id="sync-out">Abmelden</button>
+      </div>
+      <p class="sub" style="margin:0">Synchronisiert automatisch: kurz nach jeder Änderung, beim Öffnen der Seite und alle 5 Minuten. „Abmelden“ stoppt nur den Abgleich – deine Einträge bleiben auf dem Gerät.</p>
+    </div>
+    <details id="sync-setup">
+      <summary style="cursor:pointer; font-weight:600">Einrichtung Teil 1: Firebase-Konto (einmalig, ca. 10 Minuten)</summary>
+      <ol class="sub" style="margin:8px 0 0; padding-left:20px; display:grid; gap:6px">
+        <li>Öffne <b>console.firebase.google.com</b> und melde dich mit einem Google-Konto an.</li>
+        <li>„Projekt erstellen“ → Name z.&nbsp;B. <b>uni-planer</b> → Google Analytics kannst du ausschalten → erstellen.</li>
+        <li>Links im Menü <b>Authentication</b> → „Jetzt starten“ → Anmeldemethode <b>E-Mail/Passwort</b> aktivieren → speichern.</li>
+        <li>Links im Menü <b>Realtime Database</b> → „Datenbank erstellen“ → Standort <b>Belgien (europe-west1)</b> → „Im gesperrten Modus starten“ → aktivieren.</li>
+        <li>Oben auf den Reiter <b>Regeln</b> → den vorhandenen Text komplett durch den folgenden ersetzen und auf <b>Veröffentlichen</b> klicken:
+          <pre style="white-space:pre-wrap; background:color-mix(in srgb,var(--ink) 6%,transparent); padding:10px; border-radius:8px; font-size:12.5px; margin:6px 0 0">{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null &amp;&amp; auth.uid === $uid",
+        ".write": "auth != null &amp;&amp; auth.uid === $uid"
+      }
+    }
+  }
+}</pre></li>
+        <li>Im Reiter <b>Daten</b> steht oben die Adresse <b>https://…firebasedatabase.app</b> – das ist die <b>Datenbank-URL</b> für unten.</li>
+        <li>Zahnrad neben „Projektübersicht“ (oben links) → <b>Projekteinstellungen</b> → unter „Allgemein“ steht der <b>Web-API-Schlüssel</b>.</li>
+        <li>Beide Werte hier eintragen und speichern – danach oben einmal <b>„Neues Konto erstellen“</b>. Der Web-API-Schlüssel ist kein Geheimnis; deine Daten schützt das Passwort zusammen mit den Regeln aus Schritt&nbsp;5.</li>
+      </ol>
+      <div class="frow" style="margin-top:10px">
+        <label class="f" for="sync-key" style="flex:1">Web-API-Schlüssel <input id="sync-key" autocomplete="off" spellcheck="false"></label>
+        <label class="f" for="sync-url" style="flex:1">Datenbank-URL <input id="sync-url" autocomplete="off" spellcheck="false" placeholder="https://….firebasedatabase.app"></label>
+      </div>
+      <button type="button" class="ghost" id="sync-cfg-save">Zugangsdaten speichern</button>
+    </details>
+    <details>
+      <summary style="cursor:pointer; font-weight:600">Einrichtung Teil 2: Eigene Webadresse über GitHub (einmalig)</summary>
+      <ol class="sub" style="margin:8px 0 0; padding-left:20px; display:grid; gap:6px">
+        <li>Öffne <b>github.com</b> und erstelle ein kostenloses Konto.</li>
+        <li>Oben rechts <b>+</b> → „New repository“ → Name <b>uni-planer</b> → „Public“ → Haken bei „Add a README file“ → „Create repository“.</li>
+        <li>„Add file“ → „Upload files“ → die Datei <b>Uni-Planer-Online.html</b> vom Desktop hineinziehen → „Commit changes“.</li>
+        <li>„Settings“ → links <b>Pages</b> → bei „Branch“ <b>main</b> und „/ (root)“ wählen → „Save“.</li>
+        <li>Nach 1–2 Minuten ist dein Planer erreichbar unter <b>https://DEIN-NAME.github.io/uni-planer/Uni-Planer-Online.html</b>. Diese Adresse auf iPad und Handy öffnen und über „Zum Home-Bildschirm hinzufügen“ wie eine App anheften.</li>
+        <li>Neue Version später einspielen: dieselbe Datei einfach noch einmal hochladen – sie ersetzt die alte. Im Repository liegt nur der Seiten-Code; deine Einträge liegen geschützt hinter deinem Login bei Firebase.</li>
+      </ol>
+    </details>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Darstellung</div>
+    <div class="paltabs">
+      <button type="button" class="paltab" id="theme-sys">System</button>
+      <button type="button" class="paltab" id="theme-light">Hell</button>
+      <button type="button" class="paltab" id="theme-dark">Dunkel</button>
+    </div>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Semester</div>
+    <div class="frow">
+      <label class="f" for="sem-start">Semesterbeginn <input type="date" id="sem-start"></label>
+      <label class="f" for="sem-end">Semesterende <input type="date" id="sem-end"></label>
+    </div>
+    <button type="button" class="ghost" id="sem-save">Semester speichern</button>
+    <p class="sub" style="margin:0">Mit gesetztem Zeitraum zeigt die Seitenleiste die aktuelle Semesterwoche und die Lernwoche trägt die SW-Nummer im Titel.</p>
+  </div>
+  <div class="card" id="grades-card" style="display:grid; gap:11px; margin-bottom:24px" hidden>
+    <div class="fh">Notenübersicht</div>
+    <div id="grades-list" class="sub" style="margin:0; display:grid; gap:7px"></div>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Banner – Fotostreifen oben auf jeder Ansicht</div>
+    <div id="banner-preview"></div>
+    <div class="frow">
+      <label class="f" for="banner-file">Foto wählen
+        <input type="file" id="banner-file" accept="image/*">
+      </label>
+      <button type="button" class="ghost" id="banner-remove" hidden>Banner entfernen</button>
+    </div>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Hintergrund – Foto hinter der ganzen Seite (leicht aufgehellt)</div>
+    <div class="frow">
+      <label class="f" for="bg-file">Foto wählen
+        <input type="file" id="bg-file" accept="image/*">
+      </label>
+      <button type="button" class="ghost" id="bg-remove" hidden>Hintergrund entfernen</button>
+    </div>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Export &amp; Sicherung</div>
+    <div class="frow">
+      <button type="button" class="ghost" id="csv-btn">Termine als CSV exportieren</button>
+      <button type="button" class="ghost" id="backup-btn">Backup speichern (.json)</button>
+    </div>
+    <label class="f" for="restore-file">Backup wiederherstellen
+      <input type="file" id="restore-file" accept=".json,application/json">
+    </label>
+    <p class="sub" style="margin:0">Die CSV-Datei lässt sich in Google Kalender über „Einstellungen → Importieren“ einlesen. Das Backup enthält alle Vorlesungen, Aufgaben, Termine und Lernblöcke.</p>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Aufräumen</div>
+    <div class="frow">
+      <button type="button" class="ghost" id="clean-done">Alle erledigten Aufgaben löschen</button>
+      <button type="button" class="ghost" id="clean-imported">Alle importierten Termine löschen</button>
+    </div>
+  </div>
+  <p class="sub" id="design-note" hidden>Foto-Upload ist gerade nicht verfügbar – bitte Seite neu laden.</p>
+</section>
+
+<!-- Monat (Kalender oder Lernplanung) -->
+<section id="view-monat" hidden>
+  <div class="cal-ctl">
+    <h1 id="m-title"></h1>
+    <button type="button" id="m-plan"></button>
+    <button type="button" id="m-today">Heute</button>
+    <button type="button" id="m-prev" aria-label="Voriger Monat">‹</button>
+    <button type="button" id="m-next" aria-label="Nächster Monat">›</button>
+  </div>
+  <p class="sub cal-sub" id="m-sub"></p>
+  <details class="card" id="import-box" style="margin-bottom:22px" open>
+    <summary style="cursor:pointer; font-weight:600">Termine aus Kalenderdatei (.ics) importieren</summary>
+    <div style="display:grid; gap:10px; margin-top:12px">
+      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (bis zu 30 Wiederholungen).</p>
+      <label class="f" for="import-file">Datei wählen
+        <input type="file" id="import-file" accept=".ics,text/calendar">
+      </label>
+      <p class="sub" id="import-status" style="margin:0"></p>
+    </div>
+  </details>
+  <div class="cal-head"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+  <div class="cal-grid" id="m-grid"></div>
+</section>
+
+<!-- Woche (Kalender oder Lernplanung) -->
+<section id="view-woche" hidden>
+  <div class="cal-ctl">
+    <h1 id="w-title"></h1>
+    <button type="button" id="w-plan"></button>
+    <button type="button" id="w-today">Heute</button>
+    <button type="button" id="w-prev" aria-label="Vorige Woche">‹</button>
+    <button type="button" id="w-next" aria-label="Nächste Woche">›</button>
+  </div>
+  <p class="sub cal-sub" id="w-sub"></p>
+  <div id="w-list"></div>
+</section>
+
+<!-- Tages-Panel (unter Monat/Woche) -->
+<section id="day-panel" hidden>
+  <h2 id="dp-title"></h2>
+  <ul id="dp-items"></ul>
+  <p id="dp-empty" hidden>Noch nichts eingetragen.</p>
+  <form id="event-add" autocomplete="off">
+    <div class="fh">Neuer Termin an diesem Tag</div>
+    <div class="frow">
+      <label class="f" for="ev-title" style="flex:2 1 200px">Titel
+        <input type="text" id="ev-title" placeholder="z. B. Genetik-Klausur" required maxlength="200">
+      </label>
+      <label class="f" for="ev-time">Uhrzeit
+        <input type="time" id="ev-time">
+      </label>
+      <label class="f" for="ev-typ">Art
+        <select id="ev-typ"><option>Klausur</option><option selected>Termin</option></select>
+      </label>
+      <label class="f" for="ev-fach">Vorlesung
+        <select id="ev-fach"><option value="">– keine –</option></select>
+      </label>
+      <label class="f" for="ev-rep">Wiederholen
+        <select id="ev-rep"><option value="">Nie</option><option value="w">Wöchentlich</option></select>
+      </label>
+      <label class="f" for="ev-rep-end">Wiederholen bis
+        <input type="date" id="ev-rep-end">
+      </label>
+    </div>
+    <button class="primary" type="submit">Eintragen</button>
+  </form>
+  <form id="study-add" autocomplete="off" hidden>
+    <div class="fh">Lernblock an diesem Tag einplanen</div>
+    <div class="frow">
+      <label class="f" for="st-title" style="flex:2 1 200px">Thema
+        <input type="text" id="st-title" placeholder="z. B. Genetik VL 03–05 wiederholen" required maxlength="200">
+      </label>
+      <label class="f" for="st-time">Uhrzeit
+        <input type="time" id="st-time">
+      </label>
+      <label class="f" for="st-fach">Vorlesung
+        <select id="st-fach"><option value="">– keine –</option></select>
+      </label>
+      <label class="f" for="st-rep">Wiederholen
+        <select id="st-rep"><option value="">Nie</option><option value="w">Wöchentlich</option></select>
+      </label>
+      <label class="f" for="st-rep-end">Wiederholen bis
+        <input type="date" id="st-rep-end">
+      </label>
+    </div>
+    <button class="primary" type="submit">Einplanen</button>
+  </form>
+</section>
+</main>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+var MON_K = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+var WTAGE = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+
+var db = null;
+var courses = [], todos = [], events = [], study = [], work = [];
+var loaded = false;
+var view = "todos", fachId = null, selectedDay = null;
+var palTab = null, fachFormFor = null;
+var layoutDoc = {}, designDoc = {}, semesterDoc = {}, assetsNs = null, assetsReady = null, dragInfo = null;
+var hideSchedule = false;
+try { hideSchedule = localStorage.getItem("uni-planer.hideplan") === "1"; } catch(e){}
+
+/* Englisch-Vokabeln: allgemein-akademisch (nach Coxheads Academic Word List) + Labor/Research */
+var VOCAB = [
+["achieve","erreichen"],["assess","beurteilen, bewerten"],["approach","Ansatz, Herangehensweise"],["appropriate","angemessen"],
+["assume","annehmen"],["available","verfügbar"],["benefit","Nutzen, Vorteil"],["concept","Konzept, Begriff"],
+["conclude","schlussfolgern"],["consider","berücksichtigen, erwägen"],["consistent","einheitlich, konsistent"],["constraint","Einschränkung"],
+["contribute","beitragen"],["crucial","entscheidend"],["demonstrate","zeigen, nachweisen"],["derive","ableiten"],
+["determine","bestimmen, ermitteln"],["distinct","deutlich verschieden"],["emphasize","betonen"],["enhance","verbessern, steigern"],
+["establish","festlegen, etablieren"],["estimate","schätzen"],["evaluate","auswerten, bewerten"],["evidence","Beleg, Nachweis"],
+["feasible","machbar"],["furthermore","außerdem"],["however","jedoch"],["hence","daher"],
+["indicate","anzeigen, hindeuten auf"],["initial","anfänglich"],["involve","beinhalten, umfassen"],["maintain","aufrechterhalten"],
+["moreover","darüber hinaus"],["nevertheless","dennoch"],["obtain","erhalten, gewinnen"],["occur","auftreten, vorkommen"],
+["particular","bestimmt, speziell"],["precise","genau, präzise"],["predict","vorhersagen"],["preliminary","vorläufig"],
+["previous","vorherig"],["provide","bereitstellen, liefern"],["purpose","Zweck, Ziel"],["reliable","zuverlässig"],
+["remain","bleiben"],["require","erfordern"],["significant","bedeutsam, signifikant"],["subsequent","nachfolgend"],
+["sufficient","ausreichend"],["therefore","daher, folglich"],["thereby","dadurch"],["whereas","wohingegen"],
+["approximately","ungefähr"],["regarding","bezüglich"],["despite","trotz"],["although","obwohl"],
+["due to","aufgrund von"],["in terms of","in Bezug auf"],["to what extent","inwiefern"],["affect","beeinflussen"],
+["cause","verursachen"],["compare","vergleichen"],["decrease","abnehmen, verringern"],["increase","zunehmen, erhöhen"],
+["improve","verbessern"],["measure","messen"],["observe","beobachten"],["prevent","verhindern"],
+["reduce","reduzieren, senken"],["suggest","nahelegen, vorschlagen"],["support","stützen, belegen"],["issue","Thema, Problem"],
+["aim","Ziel"],["objective","Zielsetzung"],["outcome","Ergebnis, Resultat"],["feature","Merkmal"],
+["property","Eigenschaft"],["pattern","Muster"],["range","Bereich, Spanne"],["ratio","Verhältnis"],
+["rate","Rate, Geschwindigkeit"],["scope","Umfang"],["source","Quelle"],["task","Aufgabe"],
+["value","Wert"],["assumption","Annahme"],["comparison","Vergleich"],["conclusion","Schlussfolgerung"],
+["description","Beschreibung"],["explanation","Erklärung"],["limitation","Einschränkung, Grenze"],["procedure","Verfahren, Ablauf"],
+["summary","Zusammenfassung"],["accurate","genau, exakt"],["threshold","Schwellenwert"],["bias","Verzerrung, Voreingenommenheit"],
+["hypothesis","Hypothese"],["assay","Testverfahren, Nachweis"],["sample","Probe"],["specimen","Probe, Exemplar"],
+["trial","Studie, Versuch"],["control group","Kontrollgruppe"],["mean","Mittelwert"],["standard deviation","Standardabweichung"],
+["significance","Signifikanz"],["correlation","Zusammenhang, Korrelation"],["data set","Datensatz"],["raw data","Rohdaten"],
+["finding","Befund, Ergebnis"],["replicate","replizieren, Wiederholung"],["yield","Ausbeute; ergeben"],["dilution","Verdünnung"],
+["solution","Lösung"],["solvent","Lösungsmittel"],["compound","(chemische) Verbindung"],["concentration","Konzentration"],
+["buffer","Pufferlösung"],["reagent","Reagenz"],["incubation","Inkubation, Bebrütung"],["contamination","Verunreinigung"],
+["sterile","steril, keimfrei"],["supernatant","Überstand"],["pellet","Sediment, Pellet"],["centrifugation","Zentrifugation"],
+["staining","Färbung"],["magnification","Vergrößerung"],["tissue","Gewebe"],["strain","(Bakterien-)Stamm"],
+["pathway","Signalweg, Stoffwechselweg"],["receptor","Rezeptor"],["antibody","Antikörper"],["antigen","Antigen"],
+["pathogen","Krankheitserreger"],["host","Wirt"],["immune response","Immunantwort"],["inflammation","Entzündung"],
+["vaccine","Impfstoff"],["efficacy","Wirksamkeit"],["adverse effect","Nebenwirkung"],["dose","Dosis"],
+["binding affinity","Bindungsaffinität"],["gene expression","Genexpression"],["mutation","Mutation"],["fume hood","(Labor-)Abzug"],
+["safety goggles","Schutzbrille"],["hazard","Gefahr(enquelle)"],["flask","Kolben"],["beaker","Becherglas"],
+["balance","Waage"],["dissolve","auflösen"],["evaporate","verdampfen"],["precipitate","Niederschlag; ausfallen"],
+["filter","filtrieren"],["peer review","Fachbegutachtung"],["manuscript","Manuskript"],["draft","Entwurf"],
+["abstract","Kurzzusammenfassung"],["citation","Quellenangabe, Zitat"],["appendix","Anhang"],["thesis","Abschlussarbeit"],
+["supervisor","Betreuer/in"],["deadline","Abgabefrist"],["funding","Finanzierung, Fördermittel"],["grant","Förderung, Stipendium"],
+["questionnaire","Fragebogen"],["consent","Einwilligung"],["outline","Gliederung"],["literature review","Literaturübersicht"]
+];
+var VOK_IV = [1, 3, 7, 14, 30, 60];
+var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
+var now = new Date();
+var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+var wCursor = startOfWeek(now);
+var busy = {};
+
+var h = (location.hash || "").slice(1);
+if (h === "monat" || h === "woche" || h === "todos" || h === "design" || h === "labor" || h === "vokabeln") view = h;
+else if (h === "lernmonat") view = "monat";
+else if (h === "lernwoche") view = "woche";
+
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function toast(msg, action){
+  var t = $("toast");
+  t.textContent = msg;
+  t.style.pointerEvents = action ? "auto" : "none";
+  if (action){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "toast-act";
+    b.textContent = action.label;
+    b.addEventListener("click", function(){
+      t.classList.remove("show");
+      action.fn();
+    });
+    t.appendChild(b);
+  }
+  t.classList.add("show");
+  clearTimeout(toast._h);
+  toast._h = setTimeout(function(){ t.classList.remove("show"); }, action ? 6000 : 3500);
+}
+function failMsg(e){ return (e && e.message) ? e.message : String(e); }
+function cssUrl(u){
+  return 'url("' + String(u || "").replace(/[\\"'()\s]/g, "") + '")';
+}
+
+/* ---- Datum ---- */
+function iso(d){
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function parseISO(s){
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  var p = s.split("-");
+  return new Date(+p[0], +p[1]-1, +p[2]);
+}
+function plausibleISO(v){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v || "")) return false;
+  var y = +String(v).slice(0, 4);
+  return y >= 2000 && y <= 2100;
+}
+function today0(){
+  var n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+function addDays(d, n){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()+n); }
+function diffDays(due){ return Math.round((due - today0()) / 86400000); }
+function startOfWeek(d){
+  var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return addDays(t, -((t.getDay()+6)%7));
+}
+function isoWeek(d){
+  var t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  t.setDate(t.getDate() + 3 - ((t.getDay()+6)%7));
+  var w1 = new Date(t.getFullYear(), 0, 4);
+  return 1 + Math.round(((t - w1)/86400000 - 3 + ((w1.getDay()+6)%7)) / 7);
+}
+function fmtShort(s){
+  var d = parseISO(s);
+  return d ? d.getDate() + ". " + MON_K[d.getMonth()] : "";
+}
+function daysLeftLabel(s){
+  var d = parseISO(s);
+  if (!d) return "";
+  var n = diffDays(d);
+  if (n > 1) return " – in " + n + " Tagen";
+  if (n === 1) return " – morgen";
+  if (n === 0) return " – heute!";
+  return "";
+}
+
+/* ---- Nachschlagen ---- */
+function courseById(id){
+  for (var i=0;i<courses.length;i++) if (courses[i].id === id) return courses[i];
+  return null;
+}
+function courseColor(c){
+  if (c && typeof c.colorId === "string" && /^[kp][0-7]$/.test(c.colorId)) return "var(--" + c.colorId + ")";
+  var legacy = ["k5","k6","k4","k1","k3","k7"];
+  return "var(--" + legacy[(c && typeof c.color === "number") ? c.color % 6 : 0] + ")";
+}
+function courseOrder(a,b){
+  return (a.order || 999) - (b.order || 999) || a.name.localeCompare(b.name,"de");
+}
+function findIn(arr, id){
+  for (var i=0;i<arr.length;i++) if (arr[i].id === id) return arr[i];
+  return null;
+}
+function collArray(name){
+  return name === "todos" ? todos : name === "events" ? events : name === "study" ? study
+    : name === "work" ? work : name === "courses" ? courses : [];
+}
+function rawBody(collName, id){
+  var it = findIn(collArray(collName), id);
+  if (!it) return null;
+  var b = {};
+  Object.keys(it).forEach(function(k){ if (k !== "id") b[k] = it[k]; });
+  return b;
+}
+
+/* ---- Bausteine ---- */
+function fachTag(courseId){
+  var c = courseById(courseId);
+  if (!c) return "";
+  return '<span class="tag fach" style="--fc:' + courseColor(c) + '">' + esc(c.name) + '</span>';
+}
+function todoRow(t, showFach){
+  var due = parseISO(t.due);
+  var dateCell = due
+    ? '<div class="datebox"><div class="d">' + due.getDate() + '</div><div class="m">' + MON_K[due.getMonth()] + '</div></div>'
+    : '<div class="datebox"><div class="d">–</div></div>';
+  var meta = "";
+  if (showFach) meta += fachTag(t.courseId);
+  if (t.typ === "Klausur") meta += '<span class="tag klausur">Klausur</span>';
+  else if (t.typ && t.typ !== "Sonstiges") meta += '<span class="tag typ">' + esc(t.typ) + '</span>';
+  if (due && !t.done){
+    var d = diffDays(due), lbl, cls = "rel";
+    if (d < 0){ lbl = (d === -1 ? "seit gestern überfällig" : (-d) + " Tage überfällig"); cls += " over"; }
+    else if (d === 0){ lbl = "heute fällig"; cls += " soon"; }
+    else if (d === 1){ lbl = "morgen"; cls += " soon"; }
+    else if (d <= 7){ lbl = WTAGE[due.getDay()]; }
+    else { lbl = "in " + d + " Tagen"; }
+    meta += '<span class="' + cls + '">' + lbl + '</span>';
+  }
+  return '<li class="todo" data-id="' + esc(t.id) + '" data-coll="todos">'
+    + '<input type="checkbox" class="done-cb" id="cb-' + esc(t.id) + '"' + (t.done ? " checked" : "") + ' aria-label="Erledigt">'
+    + dateCell
+    + '<div class="main-c"><div class="t">' + esc(t.title) + '</div>'
+    + (meta ? '<div class="meta">' + meta + '</div>' : '')
+    + '</div>'
+    + (t.done ? '' : '<label class="sdwrap">Lerntag<input type="date" class="study-date" id="sd-' + esc(t.id) + '" value="' + esc(t.studyDate || "") + '"></label>')
+    + '<button type="button" class="del" data-coll="todos">Löschen</button></li>';
+}
+function byDue(a,b){
+  var da = a.due || "9999", dbb = b.due || "9999";
+  if (da !== dbb) return da < dbb ? -1 : 1;
+  return (a.createdAt||0) - (b.createdAt||0);
+}
+function renderGroups(arr, el, showFach){
+  var groups = { late:[], today:[], week:[], later:[], none:[] };
+  arr.forEach(function(t){
+    var due = parseISO(t.due);
+    if (!due){ groups.none.push(t); return; }
+    var d = diffDays(due);
+    if (d < 0) groups.late.push(t);
+    else if (d === 0) groups.today.push(t);
+    else if (d <= 7) groups.week.push(t);
+    else groups.later.push(t);
+  });
+  var defs = [["late","Überfällig"],["today","Heute"],["week","Diese Woche"],["later","Später"],["none","Ohne Termin"]];
+  var out = "";
+  defs.forEach(function(d){
+    var g = groups[d[0]];
+    if (!g.length) return;
+    g.sort(byDue);
+    out += '<section class="grp ' + d[0] + '"><h2>' + d[1] + ' <span class="n">· ' + g.length + '</span></h2><ul class="list">'
+        + g.map(function(t){ return todoRow(t, showFach); }).join("") + '</ul></section>';
+  });
+  el.innerHTML = out;
+}
+function renderDone(arr, boxId, sumId, listId, showFach){
+  var box = $(boxId);
+  if (!arr.length){ box.hidden = true; $(listId).innerHTML = ""; return; }
+  box.hidden = false;
+  arr.sort(function(a,b){ return (b.doneAt||0) - (a.doneAt||0); });
+  $(sumId).textContent = "Erledigt · " + arr.length;
+  $(listId).innerHTML = arr.map(function(t){ return todoRow(t, showFach); }).join("");
+}
+
+/* ---- Seitenleiste ---- */
+function renderSidebar(){
+  var states = {
+    "todos": view === "todos",
+    "lernwoche": view === "woche",
+    "lernmonat": view === "monat",
+    "labor": view === "labor",
+    "vokabeln": view === "vokabeln",
+    "design": view === "design"
+  };
+  Object.keys(states).forEach(function(v){
+    $("nav-" + v).setAttribute("aria-current", String(states[v]));
+  });
+  var openAll = todos.filter(function(t){ return !t.done; }).length;
+  var nn = $("nav-todos-n");
+  nn.hidden = !openAll;
+  nn.textContent = openAll;
+  var vb = vokBadge();
+  var vn = $("nav-vok-n");
+  vn.hidden = !vb;
+  vn.textContent = vb;
+
+  var groups = {};
+  courses.forEach(function(c){
+    var g = c.group || "";
+    (groups[g] = groups[g] || []).push(c);
+  });
+  var gNames = Object.keys(groups).sort(function(a,b){
+    if (!a) return 1;
+    if (!b) return -1;
+    return a.localeCompare(b,"de");
+  });
+  var html = "";
+  gNames.forEach(function(g){
+    html += '<div class="side-h">' + (g ? esc(g) : "Vorlesungen") + '</div>';
+    groups[g].sort(courseOrder).forEach(function(c){
+      var n = todos.filter(function(t){ return !t.done && t.courseId === c.id; }).length;
+      html += '<button type="button" class="nav-btn course-item" draggable="true" data-course="' + esc(c.id) + '" aria-current="' + String(view==="fach" && fachId===c.id) + '" style="--cc:' + courseColor(c) + '">'
+        + '<span class="dot"></span><span class="nm">' + esc(c.name) + '</span>'
+        + (n ? '<span class="count">' + n + '</span>' : '')
+        + '</button>';
+    });
+  });
+  $("course-list").innerHTML = html || '<div class="side-h">Vorlesungen</div><p class="sub" style="margin:0 10px 8px">Noch keine – unten anlegen.</p>';
+  renderSemInfo();
+}
+
+/* ---- Fach-Auswahlfelder ---- */
+var fachSelSig = null;
+function syncFachSelects(){
+  var sig = courses.map(function(c){ return c.id + ":" + c.name; }).join("|");
+  if (sig === fachSelSig) return;
+  fachSelSig = sig;
+  ["todo-fach","ev-fach","st-fach"].forEach(function(id){
+    var sel = $(id), old = sel.value;
+    var html = '<option value="">– keine –</option>';
+    courses.slice().sort(courseOrder).forEach(function(c){
+      html += '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
+    });
+    sel.innerHTML = html;
+    if (courseById(old)) sel.value = old;
+  });
+}
+
+/* ---- Ansichten ---- */
+var searchQ = "";
+function matchesSearch(t){
+  if (!searchQ) return true;
+  if (t.title.toLowerCase().indexOf(searchQ) >= 0) return true;
+  var c = courseById(t.courseId);
+  return !!(c && c.name.toLowerCase().indexOf(searchQ) >= 0);
+}
+function renderTodosView(){
+  var open = todos.filter(function(t){ return !t.done && matchesSearch(t); });
+  var done = todos.filter(function(t){ return t.done && matchesSearch(t); });
+  renderGroups(open, $("todo-groups"), true);
+  renderDone(done, "todo-donebox", "todo-done-sum", "todo-done-list", true);
+  $("todo-empty").hidden = !(loaded && todos.length === 0);
+  var late = open.filter(function(t){ var d = parseISO(t.due); return d && diffDays(d) < 0; }).length;
+  var s = $("todos-summary");
+  if (!loaded) s.textContent = "Lade …";
+  else s.innerHTML = (open.length === 1 ? "1 offene Aufgabe" : open.length + " offene Aufgaben")
+    + (late ? " · <strong>" + late + " überfällig</strong>" : "");
+  renderUpcoming();
+  var tbIso = iso(today0()), tmIso = iso(addDays(today0(), 1));
+  function dayList(dIso){
+    return todos.filter(function(t){ return !t.done && (t.due === dIso || t.studyDate === dIso); }).sort(byDue);
+  }
+  var tbList = dayList(tbIso), tbLabel = "Heute";
+  if (!tbList.length){
+    tbList = dayList(tmIso);
+    tbLabel = "Morgen";
+  }
+  var doneToday = todos.some(function(t){ return t.done && (t.due === tbIso || t.studyDate === tbIso); });
+  var celebrate = (tbLabel === "Morgen" && doneToday)
+    ? '<p class="sub" style="margin:0 0 10px; color:var(--ok); font-weight:600">Alles für heute erledigt – stark!</p>'
+    : "";
+  $("today-box").innerHTML = celebrate + (tbList.length
+    ? '<section class="grp today"><h2>' + tbLabel + ' <span class="n">· ' + tbList.length + '</span></h2><ul class="list">'
+      + tbList.map(function(t){ return todoRow(t, true); }).join("").replace(/id="cb-/g, 'id="tbcb-').replace(/id="sd-/g, 'id="tbsd-')
+      + '</ul></section>'
+    : "");
+  var itT = itemsOn(tbIso);
+  var calRows = [];
+  itT.exams.forEach(function(x){ calRows.push({ tm: "", txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
+  itT.events.forEach(function(e){ calRows.push({ tm: e.time, txt: e.title, cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : "Termin" }); });
+  itT.work.forEach(function(w){ calRows.push({ tm: w.from ? w.from + (w.to ? "–" + w.to : "") : "", txt: "Laborarbeit" + (w.note ? ": " + w.note : ""), cls: "labor", tag: "Labor" }); });
+  itT.study.forEach(function(s){ if (!s.done) calRows.push({ tm: s.time, txt: s.title, cls: "typ", tag: "Lernen" }); });
+  if (calRows.length){
+    calRows.sort(function(a,b){ return (a.tm || "99") < (b.tm || "99") ? -1 : 1; });
+    $("today-cal").innerHTML = '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Heute im Kalender</div><ul class="list" style="gap:6px">'
+      + calRows.map(function(r){
+          return '<li class="wit"><span class="tm">' + (r.tm ? esc(r.tm) : "–") + '</span><span class="t">' + esc(r.txt) + '</span><span class="tag ' + r.cls + '">' + r.tag + '</span></li>';
+        }).join("") + '</ul></div>';
+  } else {
+    $("today-cal").innerHTML = "";
+  }
+}
+
+function renderSwatches(c){
+  var tab = palTab || ((c.colorId || "k").charAt(0) === "p" ? "p" : "k");
+  $("pal-k").setAttribute("aria-pressed", String(tab === "k"));
+  $("pal-p").setAttribute("aria-pressed", String(tab === "p"));
+  var cur = courseColor(c);
+  var html = "";
+  for (var i=0;i<8;i++){
+    var id = tab + i;
+    html += '<button type="button" class="sw" data-colorid="' + id + '" style="--sc:var(--' + id + ')" aria-pressed="' + String(cur === "var(--" + id + ")") + '" aria-label="Farbe ' + (i+1) + '"></button>';
+  }
+  $("swatches").innerHTML = html;
+}
+
+function renderFachView(){
+  var c = courseById(fachId);
+  if (!c){ view = "todos"; render(); return; }
+  $("fach-title").textContent = c.name;
+  var isPrivat = (c.group || "") === "Privat";
+  document.querySelector('#view-fach [data-block="exam"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="grade"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="plan"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="lectures"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="ptermine"]').hidden = !isPrivat;
+  if (isPrivat) renderPrivatTermine(c.id);
+  var mine = todos.filter(function(t){ return t.courseId === c.id; });
+  var open = mine.filter(function(t){ return !t.done; });
+  var doneN = mine.length - open.length;
+  var subParts = [open.length === 1 ? "1 offene Aufgabe" : open.length + " offene Aufgaben"];
+  if (doneN) subParts.push(doneN + " erledigt");
+  var ex = c.exam || {};
+  var cdKey = (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) ? "t1" : ((ex.t2 && diffDays(parseISO(ex.t2)) >= 0) ? "t2" : "");
+  if (ex.t1) subParts.push("1. Termin: " + fmtShort(ex.t1) + (cdKey === "t1" ? daysLeftLabel(ex.t1) : ""));
+  if (ex.t2) subParts.push("2. Termin: " + fmtShort(ex.t2) + (cdKey === "t2" ? daysLeftLabel(ex.t2) : ""));
+  if (c.grade > 0) subParts.push("Note: " + c.grade.toLocaleString("de-DE"));
+  $("fach-sub").textContent = subParts.join(" · ");
+  if (mine.length){
+    $("fach-pbar").hidden = false;
+    $("fach-pfill").style.width = Math.round(doneN / mine.length * 100) + "%";
+  } else {
+    $("fach-pbar").hidden = true;
+  }
+
+  if (fachFormFor !== fachId){
+    fachFormFor = fachId;
+    palTab = null;
+    $("rename-in").value = c.name;
+    $("ex-t1").value = ex.t1 || "";
+    $("ex-t1an").value = ex.t1an || "";
+    $("ex-t1ab").value = ex.t1ab || "";
+    $("ex-t2").value = ex.t2 || "";
+    $("ex-t2an").value = ex.t2an || "";
+    $("ex-t2ab").value = ex.t2ab || "";
+    $("gr-note").value = c.grade > 0 ? c.grade : "";
+    $("gr-ects").value = c.ects > 0 ? c.ects : "";
+    $("fach-notes").value = c.notes || "";
+    $("notes-status").textContent = "Wird automatisch gespeichert.";
+    var pl = c.plan || {};
+    $("pl-count").value = pl.count > 0 ? pl.count : "";
+    $("pl-days").value = pl.days > 0 ? pl.days : "";
+    $("pl-review").value = (typeof pl.review === "number") ? pl.review : 2;
+    [0,1,2,3,4,5,6].forEach(function(wd){
+      $("pl-wd-" + wd).checked = Array.isArray(pl.exDays) ? pl.exDays.indexOf(wd) >= 0 : false;
+      $("pl-bwd-" + wd).checked = Array.isArray(pl.bufDays) ? pl.bufDays.indexOf(wd) >= 0 : false;
+    });
+    $("pl-skipwork").checked = pl.skipWork !== false;
+  }
+  var myStudy = study.filter(function(s){ return s.courseId === c.id && !s.done; })
+    .sort(function(a,b){ return (a.date || "") < (b.date || "") ? -1 : 1; });
+  $("plan-list").innerHTML = myStudy.map(function(s){
+    var sd = parseISO(s.date);
+    return '<li class="todo" data-id="' + esc(s.id) + '" data-coll="study">'
+      + '<input type="checkbox" class="done-cb" id="fst-' + esc(s.id) + '" aria-label="Erledigt">'
+      + (sd ? '<div class="datebox"><div class="d">' + sd.getDate() + '</div><div class="m">' + MON_K[sd.getMonth()] + '</div></div>' : '')
+      + '<div class="main-c"><div class="t">' + esc(s.title) + '</div>'
+      + (sd && !s.done ? '<div class="meta"><span class="rel">' + WTAGE[sd.getDay()] + (diffDays(sd) >= 0 ? " – in " + diffDays(sd) + " Tagen" : "") + '</span></div>' : '')
+      + '</div><button type="button" class="del" data-coll="study">Löschen</button></li>';
+  }).join("");
+  renderSwatches(c);
+
+  var lecs = open.filter(function(t){ return t.typ === "Vorlesung"; }).sort(function(a,b){
+    return a.title.localeCompare(b.title, "de", {numeric:true});
+  });
+  $("fach-lectures").innerHTML = lecs.length
+    ? '<section class="grp"><h2>Vorlesungen zu bearbeiten <span class="n">· ' + lecs.length + '</span></h2><ul class="list">'
+      + lecs.map(function(t){ return todoRow(t, false); }).join("") + '</ul></section>'
+    : '<p class="sub" style="margin:0 0 20px">Keine Vorlesungen vorgemerkt – oben eine Nummer eintragen, z. B. „05“.</p>';
+
+  renderGroups(open.filter(function(t){ return t.typ !== "Vorlesung"; }), $("fach-groups"), false);
+  renderDone(mine.filter(function(t){ return t.done; }), "fach-donebox", "fach-done-sum", "fach-done-list", false);
+
+  var maxN = 0;
+  mine.forEach(function(t){
+    var m = /Vorlesung (\d+)/.exec(t.title);
+    if (m) maxN = Math.max(maxN, +m[1]);
+  });
+  $("lec-in").placeholder = "Nummer oder Titel, z. B. " + String(maxN + 1).padStart(2,"0");
+}
+
+/* ---- Kalender-Daten ---- */
+function examItemsOn(isoDay){
+  var out = [];
+  courses.forEach(function(c){
+    var ex = c.exam || {};
+    if (ex.t1 === isoDay) out.push({ kind:"exam", courseId:c.id, title:"Klausur " + c.name + " – 1. Termin" });
+    if (ex.t2 === isoDay) out.push({ kind:"exam", courseId:c.id, title:"Klausur " + c.name + " – 2. Termin" });
+    if (ex.t1an === isoDay) out.push({ kind:"frist", courseId:c.id, title:"Letzte Anmeldung (1. Termin): " + c.name });
+    if (ex.t1ab === isoDay) out.push({ kind:"frist", courseId:c.id, title:"Letzte Abmeldung (1. Termin): " + c.name });
+    if (ex.t2an === isoDay) out.push({ kind:"frist", courseId:c.id, title:"Letzte Anmeldung (2. Termin): " + c.name });
+    if (ex.t2ab === isoDay) out.push({ kind:"frist", courseId:c.id, title:"Letzte Abmeldung (2. Termin): " + c.name });
+  });
+  return out;
+}
+function itemsOn(isoDay){
+  return {
+    exams: examItemsOn(isoDay),
+    events: events.filter(function(e){ return e.date === isoDay && !(hideSchedule && e.imported); })
+      .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; }),
+    study: study.filter(function(s){ return s.date === isoDay; })
+      .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; }),
+    studyTodos: todos.filter(function(t){ return !t.done && t.studyDate === isoDay; }).sort(byDue),
+    work: work.filter(function(w){ return w.date === isoDay; })
+      .sort(function(a,b){ return (a.from||"99") < (b.from||"99") ? -1 : 1; }),
+    todos: todos.filter(function(t){ return !t.done && t.due === isoDay; }).sort(byDue)
+  };
+}
+function chipList(isoDay){
+  var it = itemsOn(isoDay), out = [];
+  it.exams.forEach(function(x){
+    out.push({ title:x.title, col: x.kind === "exam" ? "var(--danger)" : "var(--warn)" });
+  });
+  it.events.forEach(function(e){
+    var c = courseById(e.courseId);
+    out.push({ title:e.title, col: e.typ === "Klausur" ? "var(--danger)" : (c ? courseColor(c) : "var(--accent)") });
+  });
+  it.study.forEach(function(s){
+    if (s.done) return;
+    var c = courseById(s.courseId);
+    out.push({ title:s.title, col: c ? courseColor(c) : "var(--ok)" });
+  });
+  it.studyTodos.forEach(function(t){
+    var c = courseById(t.courseId);
+    out.push({ title:"Lernen: " + t.title, col: c ? courseColor(c) : "var(--ok)" });
+  });
+  it.work.forEach(function(w){
+    out.push({ title:"Labor" + (w.from ? " " + w.from : "") + (w.note ? " – " + w.note : ""), col: "var(--k6)" });
+  });
+  it.todos.forEach(function(t){
+    var c = courseById(t.courseId);
+    out.push({ title:t.title, col: c ? courseColor(c) : "var(--muted)" });
+  });
+  return out;
+}
+
+function renderMonat(){
+  $("m-title").textContent = "Lernmonat · " + MONATE[mCursor.getMonth()] + " " + mCursor.getFullYear();
+  $("m-plan").textContent = hideSchedule ? "Stundenplan einblenden" : "Stundenplan ausblenden";
+  $("m-sub").textContent = "Tag anklicken, um Termine, Klausuren oder Lernblöcke einzutragen.";
+  var first = new Date(mCursor.getFullYear(), mCursor.getMonth(), 1);
+  var offset = (first.getDay()+6)%7;
+  var dim = new Date(mCursor.getFullYear(), mCursor.getMonth()+1, 0).getDate();
+  var weeks = Math.ceil((offset + dim) / 7);
+  var start = addDays(first, -offset);
+  var tIso = iso(today0());
+  var html = "";
+  for (var i=0; i<weeks*7; i++){
+    var d = addDays(start, i);
+    var dIso = iso(d);
+    var inMonth = d.getMonth() === mCursor.getMonth();
+    var all = chipList(dIso);
+    var chips = "";
+    var maxShow = 3;
+    all.slice(0, maxShow).forEach(function(x){
+      chips += '<span class="chipev" style="--cc:' + x.col + '"><span class="lbl">' + esc(x.title) + '</span></span>';
+    });
+    if (all.length > maxShow) chips += '<span class="chipev more">+' + (all.length - maxShow) + '</span>';
+    html += '<button type="button" class="cell' + (inMonth?"":" out") + ((d.getDay()===0||d.getDay()===6)?" wknd":"") + (dIso===tIso?" today":"") + (dIso===selectedDay?" sel":"")
+      + '" data-date="' + dIso + '"><span class="num">' + d.getDate() + '</span>'
+      + (chips ? '<span class="chips">' + chips + '</span>' : '') + '</button>';
+  }
+  $("m-grid").innerHTML = html;
+}
+
+function renderWoche(){
+  var end = addDays(wCursor, 6);
+  var sameMonth = wCursor.getMonth() === end.getMonth();
+  $("w-title").textContent = "Lernwoche · KW " + isoWeek(wCursor) + " · "
+    + wCursor.getDate() + "." + (sameMonth ? "" : " " + MON_K[wCursor.getMonth()]) + "–"
+    + end.getDate() + ". " + MON_K[end.getMonth()] + " " + end.getFullYear();
+  $("w-sub").textContent = "Tag anklicken, um Termine, Klausuren oder Lernblöcke einzutragen.";
+  $("w-plan").textContent = hideSchedule ? "Stundenplan einblenden" : "Stundenplan ausblenden";
+  var swN = semWeekOf(wCursor);
+  if (swN) $("w-title").textContent += " · SW " + swN;
+  var wsIso = iso(wCursor), weIso = iso(addDays(wCursor, 6));
+  var blocksW = study.filter(function(s){ return s.date >= wsIso && s.date <= weIso; });
+  if (blocksW.length){
+    var dW = blocksW.filter(function(s){ return s.done; }).length;
+    $("w-sub").textContent += " Lernblöcke diese Woche: " + dW + " von " + blocksW.length + " erledigt.";
+  }
+  var tIso = iso(today0());
+  var html = "";
+  for (var i=0;i<7;i++){
+    var d = addDays(wCursor, i);
+    var dIso = iso(d);
+    var it = itemsOn(dIso);
+    var rows = "";
+    it.exams.forEach(function(x){
+      rows += '<li class="wit"><span class="tm">–</span><span class="t">' + esc(x.title) + '</span>'
+        + '<span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span></li>';
+    });
+    it.events.forEach(function(e){
+      rows += '<li class="wit" draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
+        + '<span class="tm">' + (e.time ? esc(e.time) : "–") + '</span>'
+        + '<span class="t">' + esc(e.title) + '</span>'
+        + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '')
+        + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
+        + fachTag(e.courseId)
+        + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
+    });
+    it.study.forEach(function(s){
+      rows += '<li class="wit' + (s.done ? " done" : "") + '" draggable="true" data-move="date" data-id="' + esc(s.id) + '" data-coll="study">'
+        + '<input type="checkbox" class="done-cb" id="wst-' + esc(s.id) + '"' + (s.done ? " checked" : "") + ' aria-label="Erledigt">'
+        + '<span class="tm">' + (s.time ? esc(s.time) : "–") + '</span>'
+        + '<span class="t">' + esc(s.title) + '</span>'
+        + '<span class="tag typ">Lernen</span>'
+        + fachTag(s.courseId)
+        + '<button type="button" class="del" data-coll="study">Löschen</button></li>';
+    });
+    it.studyTodos.forEach(function(t){
+      rows += '<li class="wit" draggable="true" data-move="studyDate" data-id="' + esc(t.id) + '" data-coll="todos">'
+        + '<input type="checkbox" class="done-cb" id="wsd-' + esc(t.id) + '" aria-label="Erledigt">'
+        + '<span class="t">' + esc(t.title) + '</span>'
+        + '<span class="tag typ">Lernen</span>'
+        + fachTag(t.courseId) + '</li>';
+    });
+    it.work.forEach(function(w){
+      rows += '<li class="wit" draggable="true" data-move="date" data-id="' + esc(w.id) + '" data-coll="work">'
+        + '<span class="tm">' + (w.from ? esc(w.from) + (w.to ? "–" + esc(w.to) : "") : "–") + '</span>'
+        + '<span class="t">Laborarbeit' + (w.note ? ": " + esc(w.note) : "") + '</span>'
+        + '<span class="tag labor">Labor</span>'
+        + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
+    });
+    it.todos.forEach(function(t){
+      rows += '<li class="wit" draggable="true" data-move="due" data-id="' + esc(t.id) + '" data-coll="todos">'
+        + '<input type="checkbox" class="done-cb" id="wcb-' + esc(t.id) + '" aria-label="Erledigt">'
+        + '<span class="t">' + esc(t.title) + '</span>'
+        + (t.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '')
+        + fachTag(t.courseId) + '</li>';
+    });
+    html += '<div class="wday' + (dIso===tIso?" today":"") + '">'
+      + '<button type="button" class="wday-h" data-date="' + dIso + '">'
+      + '<span class="wd">' + WTAGE[d.getDay()] + '</span>'
+      + '<span class="dt">' + d.getDate() + '. ' + MON_K[d.getMonth()] + '</span>'
+      + (rows ? "" : '<span class="free">frei</span>')
+      + '</button>'
+      + (rows ? '<ul>' + rows + '</ul>' : '')
+      + '</div>';
+  }
+  $("w-list").innerHTML = html;
+}
+
+function renderDayPanel(){
+  var panel = $("day-panel");
+  var show = (view === "monat" || view === "woche") && !!selectedDay;
+  panel.hidden = !show;
+  if (!show) return;
+  $("event-add").hidden = false;
+  $("study-add").hidden = false;
+  var d = parseISO(selectedDay);
+  $("dp-title").textContent = WTAGE[d.getDay()] + ", " + d.getDate() + ". " + MONATE[d.getMonth()] + " " + d.getFullYear();
+  var it = itemsOn(selectedDay);
+  var html = "";
+  it.exams.forEach(function(x){
+    html += '<li><span class="tm">–</span><span class="t">' + esc(x.title) + '</span>'
+      + '<span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span>'
+      + '<span class="sub" style="margin:0">im Fach ändern</span></li>';
+  });
+  it.events.forEach(function(e){
+    html += '<li draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
+      + '<input type="time" class="tm-edit" id="tm-' + esc(e.id) + '" value="' + esc(e.time || "") + '" aria-label="Uhrzeit ändern">'
+      + '<span class="t">' + esc(e.title) + '</span>'
+      + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '<span class="tag typ">Termin</span>')
+      + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
+      + fachTag(e.courseId)
+      + (e.seriesId ? '<button type="button" class="del" data-seriesdel="1" data-coll="events">Serie löschen</button>' : '')
+      + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
+  });
+  it.study.forEach(function(s){
+    html += '<li draggable="true" data-move="date" data-id="' + esc(s.id) + '" data-coll="study" class="' + (s.done ? "done" : "") + '">'
+      + '<input type="checkbox" class="done-cb" id="dst-' + esc(s.id) + '"' + (s.done ? " checked" : "") + ' aria-label="Erledigt">'
+      + '<input type="time" class="tm-edit" id="dstm-' + esc(s.id) + '" value="' + esc(s.time || "") + '" aria-label="Uhrzeit ändern">'
+      + '<span class="t">' + esc(s.title) + '</span>'
+      + '<span class="tag typ">Lernen</span>'
+      + fachTag(s.courseId)
+      + (s.seriesId ? '<button type="button" class="del" data-seriesdel="1" data-coll="study">Serie löschen</button>' : '')
+      + '<button type="button" class="del" data-coll="study">Löschen</button></li>';
+  });
+  it.studyTodos.forEach(function(t){
+    html += '<li draggable="true" data-move="studyDate" data-id="' + esc(t.id) + '" data-coll="todos">'
+      + '<input type="checkbox" class="done-cb" id="dsd-' + esc(t.id) + '" aria-label="Erledigt">'
+      + '<span class="t">' + esc(t.title) + '</span>'
+      + '<span class="tag typ">Lernen</span>' + fachTag(t.courseId) + '</li>';
+  });
+  it.work.forEach(function(w){
+    html += '<li draggable="true" data-move="date" data-id="' + esc(w.id) + '" data-coll="work">'
+      + '<span class="tm">' + (w.from ? esc(w.from) + (w.to ? "–" + esc(w.to) : "") : "–") + '</span>'
+      + '<span class="t">Laborarbeit' + (w.note ? ": " + esc(w.note) : "") + '</span>'
+      + '<span class="tag labor">Labor</span>'
+      + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
+  });
+  it.todos.forEach(function(t){
+    html += '<li draggable="true" data-move="due" data-id="' + esc(t.id) + '" data-coll="todos">'
+      + '<input type="checkbox" class="done-cb" id="dcb-' + esc(t.id) + '" aria-label="Erledigt">'
+      + '<span class="t">' + esc(t.title) + '</span>'
+      + '<span class="tag typ">fällig</span>' + fachTag(t.courseId) + '</li>';
+  });
+  $("dp-items").innerHTML = html;
+  $("dp-empty").hidden = !!html;
+}
+
+function render(){
+  renderSidebar();
+  syncFachSelects();
+  $("view-todos").hidden = view !== "todos";
+  $("view-fach").hidden = view !== "fach";
+  $("view-monat").hidden = view !== "monat";
+  $("view-woche").hidden = view !== "woche";
+  $("view-design").hidden = view !== "design";
+  $("view-labor").hidden = view !== "labor";
+  $("view-vokabeln").hidden = view !== "vokabeln";
+  if (view === "todos"){ renderTodosView(); applyLayout("todos"); }
+  else if (view === "fach"){ renderFachView(); applyLayout("fach"); }
+  else if (view === "monat") renderMonat();
+  else if (view === "woche") renderWoche();
+  else if (view === "design") renderDesignView();
+  else if (view === "labor") renderLabor();
+  else if (view === "vokabeln") renderVokabeln();
+  renderDayPanel();
+}
+
+/* ---- Schreiboperationen ---- */
+function col(name){ return db ? db.collection(name) : null; }
+function needDb(){
+  if (!db){ toast("Kein Speicher verbunden – Änderung kann nicht gespeichert werden."); return true; }
+  return false;
+}
+function addDoc(collName, data, after){
+  if (needDb()) return;
+  col(collName).add(data).then(function(){ if (after) after(); })
+    .catch(function(e){
+      if (e && e.code === "quota_exceeded") toast("Speicher voll – lösche alte Einträge, um Platz zu schaffen.");
+      else toast("Speichern fehlgeschlagen: " + failMsg(e));
+    });
+}
+
+/* ---- Interaktion ---- */
+document.addEventListener("click", function(ev){
+  var nav = ev.target.closest("[data-nav]");
+  if (nav){
+    var v = nav.dataset.nav;
+    if (v === "lernwoche") view = "woche";
+    else if (v === "lernmonat") view = "monat";
+    else view = v;
+    selectedDay = null;
+    render();
+    return;
+  }
+
+  var ci = ev.target.closest(".course-item");
+  if (ci){ view = "fach"; fachId = ci.dataset.course; render(); return; }
+
+  var dbox = ev.target.closest("li.todo .datebox");
+  if (dbox){
+    var dli = dbox.closest("li.todo");
+    if (dli && dli.dataset.coll === "todos" && !dbox.querySelector("input")){
+      var curDue = (findIn(todos, dli.dataset.id) || {}).due || "";
+      dbox.innerHTML = '<input type="date" class="d-edit" aria-label="Fälligkeitsdatum ändern">';
+      var di = dbox.querySelector("input");
+      di.value = curDue;
+      di.focus();
+      var dDone = false;
+      var dFin = function(save){
+        if (dDone) return;
+        dDone = true;
+        var nv = di.value || "";
+        if (save && db && nv !== curDue && (nv === "" || plausibleISO(nv))){
+          col("todos").doc(dli.dataset.id).update({ due: nv })
+            .then(function(){ toast(nv ? "Fälligkeitsdatum geändert." : "Fälligkeitsdatum entfernt."); })
+            .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
+        } else {
+          render();
+        }
+      };
+      di.addEventListener("change", function(){
+        if (document.activeElement !== di && plausibleISO(di.value)) dFin(true);
+      });
+      di.addEventListener("blur", function(){ dFin(true); });
+      di.addEventListener("keydown", function(ke){
+        if (ke.key === "Escape") dFin(false);
+        else if (ke.key === "Enter"){ ke.preventDefault(); dFin(true); }
+      });
+    }
+    return;
+  }
+
+  var tspan = ev.target.closest(".t");
+  if (tspan){
+    var tli = tspan.closest("[data-id][data-coll]");
+    var editColl = tli ? tli.dataset.coll : "";
+    if ((editColl === "todos" || editColl === "events" || editColl === "study") && !tspan.querySelector("input")){
+      var oldTitle = tspan.textContent;
+      tspan.innerHTML = '<input type="text" class="t-edit" maxlength="200">';
+      var ti = tspan.querySelector("input");
+      ti.value = oldTitle;
+      ti.focus();
+      ti.select();
+      var committed = false;
+      var commit = function(save){
+        if (committed) return;
+        committed = true;
+        var nv = ti.value.trim();
+        if (save && nv && nv !== oldTitle && db){
+          tspan.textContent = nv;
+          col(editColl).doc(tli.dataset.id).update({ title: nv })
+            .then(function(){ toast("Umbenannt."); })
+            .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
+        } else {
+          tspan.textContent = oldTitle;
+        }
+      };
+      ti.addEventListener("keydown", function(ke){
+        if (ke.key === "Enter"){ ke.preventDefault(); commit(true); }
+        else if (ke.key === "Escape") commit(false);
+      });
+      ti.addEventListener("blur", function(){ commit(true); });
+    }
+    return;
+  }
+
+  var pal = ev.target.closest(".paltab");
+  if (pal && (pal.id === "pal-k" || pal.id === "pal-p")){
+    palTab = (pal.id === "pal-p") ? "p" : "k";
+    var cc = courseById(fachId);
+    if (cc) renderSwatches(cc);
+    return;
+  }
+
+  var sw = ev.target.closest(".sw");
+  if (sw){
+    if (needDb()) return;
+    col("courses").doc(fachId).update({ colorId: sw.dataset.colorid })
+      .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+    return;
+  }
+
+  var cell = ev.target.closest(".cell[data-date], .wday-h[data-date]");
+  if (cell){
+    selectedDay = (selectedDay === cell.dataset.date) ? null : cell.dataset.date;
+    render();
+    if (selectedDay){
+      var redMo = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      $("day-panel").scrollIntoView({ behavior: redMo ? "auto" : "smooth", block: "nearest" });
+      try { $("ev-title").focus({ preventScroll: true }); } catch(e2){ $("ev-title").focus(); }
+    }
+    return;
+  }
+
+  if (ev.target.id === "m-plan" || ev.target.id === "w-plan"){
+    hideSchedule = !hideSchedule;
+    try { localStorage.setItem("uni-planer.hideplan", hideSchedule ? "1" : "0"); } catch(e){}
+    render();
+    return;
+  }
+  if (ev.target.id === "m-prev" || ev.target.id === "m-next"){
+    mCursor = new Date(mCursor.getFullYear(), mCursor.getMonth() + (ev.target.id==="m-next"?1:-1), 1);
+    selectedDay = null; render(); return;
+  }
+  if (ev.target.id === "m-today"){ mCursor = new Date(now.getFullYear(), now.getMonth(), 1); selectedDay = iso(today0()); render(); return; }
+  if (ev.target.id === "w-prev" || ev.target.id === "w-next"){
+    wCursor = addDays(wCursor, ev.target.id==="w-next"?7:-7);
+    selectedDay = null; render(); return;
+  }
+  if (ev.target.id === "w-today"){ wCursor = startOfWeek(new Date()); selectedDay = iso(today0()); render(); return; }
+
+  var del = ev.target.closest("button.del, #fach-del");
+  if (del){
+    if (!del.classList.contains("arm")){
+      del.classList.add("arm");
+      var orig = del.textContent;
+      del.textContent = "Wirklich löschen?";
+      setTimeout(function(){ del.classList.remove("arm"); del.textContent = orig; }, 3000);
+      return;
+    }
+    if (needDb()) return;
+    if (del.dataset.seriesdel){
+      var sli = del.closest("[data-id]");
+      var sColl = del.dataset.coll || "events";
+      var sItem = sli ? findIn(collArray(sColl), sli.dataset.id) : null;
+      if (sItem && sItem.seriesId){
+        deleteMany(sColl, collArray(sColl).filter(function(x){ return x.seriesId === sItem.seriesId; }).map(function(x){ return x.id; }), "Einträge der Serie gelöscht.");
+      }
+      return;
+    }
+    if (del.id === "fach-del"){
+      var cid = fachId;
+      var cBody = rawBody("courses", cid);
+      col("courses").doc(cid).delete().then(function(){
+        view = "todos";
+        render();
+        toast("Vorlesung gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
+          col("courses").doc(cid).set(cBody).catch(function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
+        }} : null);
+      }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
+      return;
+    }
+    var li = del.closest("[data-id]");
+    var id = li.dataset.id;
+    if (busy[id]) return;
+    busy[id] = true;
+    var cname = del.dataset.coll || "todos";
+    var body = rawBody(cname, id);
+    col(cname).doc(id).delete()
+      .then(function(){
+        busy[id] = false;
+        toast("Gelöscht.", body ? { label: "Rückgängig", fn: function(){
+          col(cname).doc(id).set(body).catch(function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
+        }} : null);
+      })
+      .catch(function(e){ busy[id] = false; toast("Löschen fehlgeschlagen: " + failMsg(e)); });
+  }
+});
+
+function commitStudyDate(sd){
+  var sli = sd.closest("[data-id]");
+  if (!sli) return;
+  var t = findIn(todos, sli.dataset.id);
+  var nv = sd.value || "";
+  if (!t || nv === (t.studyDate || "")) return;
+  if (nv && !plausibleISO(nv)) return;
+  if (!db){ toast("Kein Speicher verbunden."); return; }
+  col("todos").doc(sli.dataset.id).update({ studyDate: nv })
+    .then(function(){ toast(nv ? "Lerntag zugeordnet – erscheint in Lernwoche und Lernmonat." : "Lerntag entfernt."); })
+    .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
+}
+function commitTime(tm){
+  var eli = tm.closest("[data-id]");
+  if (!eli) return;
+  var collName = eli.dataset.coll || "events";
+  var item = findIn(collArray(collName), eli.dataset.id);
+  var nv = tm.value || "";
+  if (!item || nv === (item.time || "")) return;
+  if (!db){ toast("Kein Speicher verbunden."); return; }
+  col(collName).doc(eli.dataset.id).update({ time: nv })
+    .then(function(){ toast("Uhrzeit geändert."); })
+    .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
+}
+document.addEventListener("focusout", function(ev){
+  if (!ev.target || !ev.target.closest) return;
+  var sdf = ev.target.closest("input.study-date");
+  if (sdf){ commitStudyDate(sdf); return; }
+  var tmf = ev.target.closest("input.tm-edit");
+  if (tmf) commitTime(tmf);
+});
+document.addEventListener("change", function(ev){
+  var sd = ev.target.closest("input.study-date");
+  if (sd){
+    if (document.activeElement !== sd && (!sd.value || plausibleISO(sd.value))) commitStudyDate(sd);
+    return;
+  }
+  var tmEdit = ev.target.closest("input.tm-edit");
+  if (tmEdit){
+    if (document.activeElement !== tmEdit) commitTime(tmEdit);
+    return;
+  }
+  var cb = ev.target.closest("input.done-cb");
+  if (!cb) return;
+  var li = cb.closest("[data-id]");
+  var id = li.dataset.id;
+  var coll = li.dataset.coll || "todos";
+  var item = findIn(coll === "study" ? study : todos, id);
+  if (!db || !item){ cb.checked = !cb.checked; toast("Kein Speicher verbunden."); return; }
+  if (busy[id]){ cb.checked = !cb.checked; return; }
+  busy[id] = true;
+  var nowDone = cb.checked;
+  col(coll).doc(id).update({ done: nowDone, doneAt: nowDone ? Date.now() : null })
+    .then(function(){ busy[id] = false; })
+    .catch(function(e){ busy[id] = false; cb.checked = !nowDone; toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+
+$("course-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  var name = $("course-in").value.trim();
+  if (!name) return;
+  addDoc("courses", { name: name, colorId: "k" + (courses.length % 8), createdAt: Date.now() }, function(){
+    $("course-in").value = "";
+  });
+});
+
+$("rename-form").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb() || !fachId) return;
+  var name = $("rename-in").value.trim();
+  if (!name) return;
+  col("courses").doc(fachId).update({ name: name })
+    .then(function(){ toast("Vorlesung umbenannt."); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+
+$("exam-form").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb() || !fachId) return;
+  col("courses").doc(fachId).update({
+    exam: {
+      t1: $("ex-t1").value || "", t1an: $("ex-t1an").value || "", t1ab: $("ex-t1ab").value || "",
+      t2: $("ex-t2").value || "", t2an: $("ex-t2an").value || "", t2ab: $("ex-t2ab").value || ""
+    }
+  }).then(function(){ toast("Klausurtermine gespeichert."); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+
+function todoSubmit(titleId, dueId, typId, courseId){
+  var title = $(titleId).value.trim();
+  if (!title) return;
+  addDoc("todos", {
+    title: title,
+    courseId: courseId,
+    due: dueId ? ($(dueId).value || "") : "",
+    typ: $(typId).value,
+    done: false, doneAt: null, createdAt: Date.now()
+  }, function(){
+    $(titleId).value = "";
+    if (dueId) $(dueId).value = "";
+    $(titleId).focus();
+  });
+}
+$("todo-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  todoSubmit("todo-title","todo-due","todo-typ", $("todo-fach").value);
+});
+$("todo-search").addEventListener("input", function(){
+  searchQ = $("todo-search").value.trim().toLowerCase();
+  renderTodosView();
+});
+$("fach-todo-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  todoSubmit("ftodo-title","ftodo-due","ftodo-typ", fachId);
+});
+$("lec-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  var v = $("lec-in").value.trim();
+  if (!v) v = $("lec-in").placeholder.replace(/^.*z\. B\. /, "");
+  var title = /^\d{1,3}$/.test(v) ? "Vorlesung " + v.padStart(2,"0") + " bearbeiten" : v;
+  addDoc("todos", {
+    title: title, courseId: fachId, due: "", typ: "Vorlesung",
+    done: false, doneAt: null, createdAt: Date.now()
+  }, function(){ $("lec-in").value = ""; });
+});
+$("event-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (!selectedDay) return;
+  var title = $("ev-title").value.trim();
+  if (!title) return;
+  addSeries("events", {
+    title: title, time: $("ev-time").value || "",
+    typ: $("ev-typ").value, courseId: $("ev-fach").value, createdAt: Date.now()
+  }, repeatDates(selectedDay, $("ev-rep").value, $("ev-rep-end").value), function(){
+    $("ev-title").value = ""; $("ev-time").value = ""; $("ev-rep").value = ""; $("ev-rep-end").value = "";
+  });
+});
+$("study-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (!selectedDay) return;
+  var title = $("st-title").value.trim();
+  if (!title) return;
+  addSeries("study", {
+    title: title, time: $("st-time").value || "",
+    courseId: $("st-fach").value, done: false, doneAt: null, createdAt: Date.now()
+  }, repeatDates(selectedDay, $("st-rep").value, $("st-rep-end").value), function(){
+    $("st-title").value = ""; $("st-time").value = ""; $("st-rep").value = ""; $("st-rep-end").value = "";
+  });
+});
+
+/* ---- Verschieben & Gestaltung ---- */
+function applyLayout(vk){
+  var cont = vk === "fach" ? $("view-fach") : $("view-todos");
+  var arr = (layoutDoc && Array.isArray(layoutDoc[vk])) ? layoutDoc[vk] : null;
+  if (!arr) return;
+  arr.forEach(function(id){
+    var el = cont.querySelector('[data-block="' + id + '"]');
+    if (el) cont.appendChild(el);
+  });
+}
+function saveLayout(vk, arr){
+  if (needDb()) return;
+  var d = {};
+  Object.keys(layoutDoc || {}).forEach(function(k){ d[k] = layoutDoc[k]; });
+  d[vk] = arr;
+  layoutDoc = d;
+  db.doc("settings/layout").set(d)
+    .catch(function(e){ toast("Anordnung konnte nicht gespeichert werden: " + failMsg(e)); });
+}
+function applyDesign(){
+  var b = $("banner");
+  if (designDoc.bannerUrl){
+    b.hidden = false;
+    b.style.backgroundImage = cssUrl(designDoc.bannerUrl);
+  } else {
+    b.hidden = true;
+    b.style.backgroundImage = "";
+  }
+  var body = document.body;
+  if (designDoc.bgUrl){
+    body.style.backgroundImage = "linear-gradient(color-mix(in srgb, var(--bg) 80%, transparent), color-mix(in srgb, var(--bg) 80%, transparent)), " + cssUrl(designDoc.bgUrl);
+    body.style.backgroundSize = "cover";
+    body.style.backgroundPosition = "center";
+    body.style.backgroundAttachment = "fixed";
+  } else {
+    body.style.backgroundImage = "";
+  }
+}
+function renderDesignView(){
+  var p = $("banner-preview");
+  p.style.backgroundImage = designDoc.bannerUrl ? cssUrl(designDoc.bannerUrl) : "";
+  $("banner-remove").hidden = !designDoc.bannerUrl;
+  $("bg-remove").hidden = !designDoc.bgUrl;
+  $("design-note").hidden = assetsReady !== false;
+  if (document.activeElement !== $("sem-start") && document.activeElement !== $("sem-end")){
+    $("sem-start").value = semesterDoc.start || "";
+    $("sem-end").value = semesterDoc.end || "";
+  }
+  syncStatus();
+  var graded = courses.filter(function(c){ return c.grade > 0; }).sort(courseOrder);
+  $("grades-card").hidden = !graded.length;
+  if (graded.length){
+    $("grades-list").innerHTML = graded.map(function(c){
+      return '<div style="display:flex; gap:8px; flex-wrap:wrap"><span style="flex:1; min-width:0; color:var(--ink)">' + esc(c.name) + '</span>'
+        + '<span>' + c.grade.toLocaleString("de-DE") + (c.ects > 0 ? " · " + c.ects + " ECTS" : "") + '</span></div>';
+    }).join("") + '<div style="border-top:1px solid var(--border); padding-top:8px; font-weight:700; color:var(--ink)">Schnitt: ' + gradeAvg() + '</div>';
+  }
+}
+function saveDesign(changes){
+  if (needDb()) return;
+  var d = {};
+  Object.keys(designDoc || {}).forEach(function(k){ d[k] = designDoc[k]; });
+  Object.keys(changes).forEach(function(k){
+    if (changes[k]) d[k] = changes[k]; else delete d[k];
+  });
+  designDoc = d;
+  applyDesign();
+  if (view === "design") renderDesignView();
+  db.doc("settings/design").set(d)
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+}
+function wireUpload(inputId, urlKey, idKey, label){
+  $(inputId).addEventListener("change", function(){
+    var inp = $(inputId);
+    var f = inp.files && inp.files[0];
+    if (!f) return;
+    if (!assetsNs){ toast("Foto-Upload ist gerade nicht verfügbar."); inp.value = ""; return; }
+    if (f.size > 19 * 1024 * 1024){ toast("Das Foto ist zu groß (maximal ca. 19 MB)."); inp.value = ""; return; }
+    toast(label + " wird hochgeladen …");
+    assetsNs.upload(f).then(function(a){
+      var old = designDoc[idKey];
+      if (old) assetsNs.delete(old).catch(function(){});
+      var ch = {};
+      ch[urlKey] = a.url; ch[idKey] = a.id;
+      saveDesign(ch);
+      toast(label + " gespeichert.");
+      inp.value = "";
+    }).catch(function(e){ toast("Upload fehlgeschlagen: " + failMsg(e)); inp.value = ""; });
+  });
+}
+wireUpload("banner-file", "bannerUrl", "bannerId", "Banner");
+wireUpload("bg-file", "bgUrl", "bgId", "Hintergrund");
+$("banner-remove").addEventListener("click", function(){
+  if (designDoc.bannerId && assetsNs) assetsNs.delete(designDoc.bannerId).catch(function(){});
+  saveDesign({ bannerUrl: "", bannerId: "" });
+});
+$("bg-remove").addEventListener("click", function(){
+  if (designDoc.bgId && assetsNs) assetsNs.delete(designDoc.bgId).catch(function(){});
+  saveDesign({ bgUrl: "", bgId: "" });
+});
+
+function reorderCourse(dragId, targetId){
+  if (needDb() || dragId === targetId) return;
+  var dragC = courseById(dragId), tgt = courseById(targetId);
+  if (!dragC || !tgt) return;
+  var list = courses.filter(function(c){
+    return (c.group || "") === (tgt.group || "") && c.id !== dragId;
+  }).sort(courseOrder);
+  list.splice(list.indexOf(tgt), 0, dragC);
+  var writes = list.map(function(c, i){
+    var data = { order: i + 1 };
+    if (c.id === dragId && (dragC.group || "") !== (tgt.group || "")) data.group = tgt.group || "";
+    return col("courses").doc(c.id).update(data);
+  });
+  Promise.all(writes).catch(function(e){ toast("Verschieben fehlgeschlagen: " + failMsg(e)); });
+}
+function dragTarget(el){
+  if (!dragInfo || !el || !el.closest) return null;
+  if (dragInfo.type === "move"){
+    return el.closest(".cell[data-date], .wday-h[data-date]");
+  }
+  if (dragInfo.type === "block"){
+    var b = el.closest("[data-block]");
+    return (b && b !== dragInfo.el) ? b : null;
+  }
+  var c = el.closest(".course-item");
+  return (c && c.dataset.course !== dragInfo.id) ? c : null;
+}
+function cleanupDrag(){
+  dragInfo = null;
+  Array.prototype.forEach.call(document.querySelectorAll(".dragging, .drop-target"), function(n){
+    n.classList.remove("dragging"); n.classList.remove("drop-target");
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-block][draggable="true"]'), function(n){
+    n.removeAttribute("draggable");
+  });
+}
+document.addEventListener("pointerdown", function(ev){
+  var h = ev.target.closest && ev.target.closest(".drag-handle");
+  if (h){
+    var blk = h.closest("[data-block]");
+    if (blk) blk.setAttribute("draggable", "true");
+  }
+});
+document.addEventListener("pointerup", function(){
+  setTimeout(function(){
+    if (!dragInfo) Array.prototype.forEach.call(document.querySelectorAll('[data-block][draggable="true"]'), function(n){
+      n.removeAttribute("draggable");
+    });
+  }, 60);
+});
+document.addEventListener("dragstart", function(ev){
+  var t = ev.target;
+  if (!t || !t.closest) return;
+  var blk = t.closest('[data-block][draggable="true"]');
+  if (blk){
+    dragInfo = { type: "block", el: blk };
+    blk.classList.add("dragging");
+    try { ev.dataTransfer.setData("text/plain", "block"); } catch(e){}
+    ev.dataTransfer.effectAllowed = "move";
+    return;
+  }
+  var mv = t.closest("[data-move][data-id]");
+  if (mv){
+    dragInfo = { type: "move", coll: mv.dataset.coll || "events", id: mv.dataset.id, field: mv.dataset.move };
+    mv.classList.add("dragging");
+    try { ev.dataTransfer.setData("text/plain", "move"); } catch(e){}
+    ev.dataTransfer.effectAllowed = "move";
+    return;
+  }
+  var ci = t.closest(".course-item");
+  if (ci){
+    dragInfo = { type: "course", id: ci.dataset.course };
+    ci.classList.add("dragging");
+    try { ev.dataTransfer.setData("text/plain", "course"); } catch(e){}
+    ev.dataTransfer.effectAllowed = "move";
+  }
+});
+document.addEventListener("dragover", function(ev){
+  if (!dragInfo){
+    if (!(ev.target.closest && ev.target.closest('input[type="file"]'))) ev.preventDefault();
+    return;
+  }
+  var tgt = dragTarget(ev.target);
+  if (tgt){
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
+    tgt.classList.add("drop-target");
+  }
+});
+document.addEventListener("dragleave", function(ev){
+  var tgt = dragTarget(ev.target);
+  if (tgt) tgt.classList.remove("drop-target");
+});
+document.addEventListener("drop", function(ev){
+  if (!dragInfo){
+    if (!(ev.target.closest && ev.target.closest('input[type="file"]'))) ev.preventDefault();
+    cleanupDrag();
+    return;
+  }
+  var tgt = dragTarget(ev.target);
+  if (!tgt){ cleanupDrag(); return; }
+  ev.preventDefault();
+  if (dragInfo.type === "block"){
+    var src = dragInfo.el, parent = src.parentNode;
+    if (parent === tgt.parentNode){
+      var rect = tgt.getBoundingClientRect();
+      var before = ev.clientY < rect.top + rect.height / 2;
+      parent.insertBefore(src, before ? tgt : tgt.nextSibling);
+      var vk = parent.id === "view-fach" ? "fach" : "todos";
+      saveLayout(vk, Array.prototype.map.call(parent.querySelectorAll("[data-block]"), function(n){ return n.dataset.block; }));
+    }
+  } else if (dragInfo.type === "move"){
+    var patch = {};
+    patch[dragInfo.field] = tgt.dataset.date;
+    col(dragInfo.coll).doc(dragInfo.id).update(patch)
+      .then(function(){ toast("Verschoben."); })
+      .catch(function(e2){ toast("Verschieben fehlgeschlagen: " + failMsg(e2)); });
+  } else {
+    reorderCourse(dragInfo.id, tgt.dataset.course);
+  }
+  cleanupDrag();
+});
+document.addEventListener("dragend", cleanupDrag);
+
+Promise.resolve(makeLocalAssets()).then(function(ns){
+  assetsNs = ns;
+  assetsReady = !!ns;
+  if (view === "design") renderDesignView();
+});
+
+
+function makeLocalDb(){
+  var KEY = "uni-planer-daten";
+  var store = null, storageOk = true;
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) store = JSON.parse(raw);
+  } catch(e){ storageOk = false; }
+  if (!store || typeof store !== "object") store = {};
+  ["courses","todos","events","study","work","vocab","settings"].forEach(function(k){ if (!store[k]) store[k] = {}; });
+  if (!Object.keys(store.courses).length){
+    var SEM = "1. Semester Immunologie Master";
+    [["zellbiologie-immunologie","Zellbiologie und Immunologie","k5",SEM,1],
+     ["genetik","Genetik","k6",SEM,2],
+     ["method-statistic-life-science","Method and Statistic of Life Science","k4",SEM,3],
+     ["methods-course","Methods Course","k1",SEM,4],
+     ["good-scientific-practise","Good Scientific Practise","k3",SEM,5],
+     ["immunologie-1","Immunologie I","k7",SEM,6],
+     ["privat","Privat","p5","Privat",1]
+    ].forEach(function(s){
+      store.courses[s[0]] = { name:s[1], colorId:s[2], group:s[3], order:s[4], createdAt: Date.now(), _mt: 1 };
+    });
+  }
+  var listeners = {};
+  function persist(){
+    try { localStorage.setItem(KEY, JSON.stringify(store)); }
+    catch(e){
+      if (storageOk){ storageOk = false; toast("Speichern im Browser nicht möglich – evtl. ist der Speicher voll (große Fotos?)."); }
+    }
+  }
+  function emit(name){
+    (listeners[name] || []).forEach(function(fn){
+      fn({ docs: Object.keys(store[name]).map(function(id){
+        var body = store[name][id];
+        return { id: id, exists: true, data: function(){ return body; } };
+      }) });
+    });
+  }
+  function docRef(name, id){
+    return {
+      set: function(data){
+        data._mt = Date.now();
+        store[name][id] = data; persist(); emit(name); syncMark();
+        return Promise.resolve();
+      },
+      update: function(data){
+        var cur = store[name][id];
+        if (!cur) return Promise.reject({ code: "invalid_argument", message: "Eintrag nicht gefunden" });
+        Object.keys(data).forEach(function(k){ cur[k] = data[k]; });
+        cur._mt = Date.now();
+        persist(); emit(name); syncMark();
+        return Promise.resolve();
+      },
+      "delete": function(){
+        delete store[name][id];
+        if (!store._del) store._del = {};
+        if (!store._del[name]) store._del[name] = {};
+        store._del[name][id] = Date.now();
+        persist(); emit(name); syncMark();
+        return Promise.resolve();
+      }
+    };
+  }
+  function collection(name){
+    return {
+      onSnapshot: function(next){
+        (listeners[name] = listeners[name] || []).push(next);
+        setTimeout(function(){ emit(name); }, 0);
+        return function(){};
+      },
+      add: function(data){
+        var id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+        data._mt = Date.now();
+        store[name][id] = data; persist(); emit(name); syncMark();
+        return Promise.resolve({ id: id });
+      },
+      doc: function(id){ return docRef(name, id); }
+    };
+  }
+  if (!storageOk){
+    var b = document.getElementById("offline-banner");
+    if (b) b.classList.add("show");
+  }
+  syncHook.store = store; syncHook.persist = persist; syncHook.emit = emit;
+  return {
+    collection: collection,
+    doc: function(path){
+      var p = path.split("/");
+      return docRef(p.slice(0, -1).join("/"), p[p.length - 1]);
+    }
+  };
+}
+function makeLocalAssets(){
+  return {
+    upload: function(file){
+      return new Promise(function(res, rej){
+        var fr = new FileReader();
+        fr.onerror = function(){ rej({ message: "Datei konnte nicht gelesen werden" }); };
+        fr.onload = function(){
+          var img = new Image();
+          img.onload = function(){
+            var max = 1600, w = img.width, h = img.height;
+            if (w > max || h > max){ var f = Math.min(max / w, max / h); w = Math.round(w * f); h = Math.round(h * f); }
+            var cv = document.createElement("canvas");
+            cv.width = w; cv.height = h;
+            cv.getContext("2d").drawImage(img, 0, 0, w, h);
+            res({ id: "local-" + Date.now().toString(36), url: cv.toDataURL("image/jpeg", 0.82) });
+          };
+          img.onerror = function(){ rej({ message: "Kein gültiges Bild" }); };
+          img.src = fr.result;
+        };
+        fr.readAsDataURL(file);
+      });
+    },
+    "delete": function(){ return Promise.resolve(); }
+  };
+}
+function makeLocalDownloads(){
+  return {
+    save: function(opt){
+      var blob = opt.data instanceof Blob ? opt.data : new Blob([opt.data], { type: "application/octet-stream" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = opt.filename || "datei";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+      return Promise.resolve({ status: "saved" });
+    }
+  };
+}
+
+/* ---- Firebase-Synchronisierung (eigenes Konto) ---- */
+var SYNC_COLLS = ["courses","todos","events","study","work","vocab","settings"];
+var syncHook = { store: null, persist: null, emit: null };
+var syncCfg = null, syncAuth = null, syncTimer = null;
+var syncBusy = false, syncAgain = false, syncLastOk = 0, syncLastErr = "";
+try { syncCfg = JSON.parse(localStorage.getItem("uni-planer.sync.cfg") || "null"); } catch(e){}
+try { syncAuth = JSON.parse(localStorage.getItem("uni-planer.sync.auth") || "null"); } catch(e){}
+function syncSave(k, v){
+  try { if (v) localStorage.setItem(k, JSON.stringify(v)); else localStorage.removeItem(k); } catch(e){}
+}
+function syncMark(){
+  if (!syncCfg || !syncAuth) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(function(){ syncNow(false); }, 2500);
+}
+function syncDbUrl(){
+  return String(syncCfg.dbUrl || "").replace(/\/+$/, "") + "/users/" + syncAuth.uid + "/planner.json?auth=" + encodeURIComponent(syncAuth.idToken);
+}
+function authUrl(ep){
+  return "https://identitytoolkit.googleapis.com/v1/accounts:" + ep + "?key=" + encodeURIComponent(syncCfg.apiKey);
+}
+function syncFetch(url, opt){
+  return fetch(url, opt).then(function(r){
+    return r.json().catch(function(){ return null; }).then(function(j){
+      if (!r.ok){
+        var msg = (j && j.error && (j.error.message || j.error)) || ("HTTP " + r.status);
+        var err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+        err.status = r.status;
+        throw err;
+      }
+      return j;
+    });
+  });
+}
+function syncErrDe(e){
+  var m = (e && e.message) || "";
+  if (/EMAIL_EXISTS/.test(m)) return "Diese E-Mail ist schon registriert – bitte „Anmelden“ benutzen.";
+  if (/EMAIL_NOT_FOUND|INVALID_PASSWORD|INVALID_LOGIN_CREDENTIALS/.test(m)) return "E-Mail oder Passwort ist falsch.";
+  if (/WEAK_PASSWORD/.test(m)) return "Das Passwort muss mindestens 6 Zeichen haben.";
+  if (/OPERATION_NOT_ALLOWED/.test(m)) return "In Firebase ist „E-Mail/Passwort“ als Anmeldeart noch nicht aktiviert (Anleitung Schritt 3).";
+  if (/TOO_MANY_ATTEMPTS/.test(m)) return "Zu viele Versuche – bitte ein paar Minuten warten.";
+  if (/INVALID_EMAIL|MISSING_EMAIL/.test(m)) return "Das ist keine gültige E-Mail-Adresse.";
+  if (/API key not valid|API_KEY_INVALID|INVALID_API_KEY/i.test(m)) return "Der Web-API-Schlüssel stimmt nicht – bitte Einrichtung Teil 1 prüfen.";
+  if (/Permission denied/i.test(m)) return "Zugriff verweigert – bitte die Datenbank-Regeln aus der Anleitung (Schritt 5) einsetzen.";
+  if (/Failed to fetch|NetworkError|Load failed|fetch/i.test(m)) return "Keine Verbindung – bitte Internet prüfen.";
+  return m || "Unbekannter Fehler";
+}
+function ensureToken(){
+  if (!syncCfg || !syncAuth) return Promise.reject(new Error("Nicht angemeldet"));
+  if (syncAuth.exp && Date.now() < syncAuth.exp - 5 * 60 * 1000) return Promise.resolve();
+  var body = "grant_type=refresh_token&refresh_token=" + encodeURIComponent(syncAuth.refreshToken);
+  return syncFetch("https://securetoken.googleapis.com/v1/token?key=" + encodeURIComponent(syncCfg.apiKey), {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body
+  }).then(function(j){
+    syncAuth.idToken = j.id_token;
+    syncAuth.refreshToken = j.refresh_token || syncAuth.refreshToken;
+    syncAuth.uid = j.user_id || syncAuth.uid;
+    syncAuth.exp = Date.now() + ((parseInt(j.expires_in, 10) || 3600) * 1000);
+    syncSave("uni-planer.sync.auth", syncAuth);
+  }).catch(function(e){
+    if (e && e.status === 400){
+      syncAuth = null; syncSave("uni-planer.sync.auth", null); syncStatus();
+      throw new Error("Anmeldung abgelaufen – bitte neu anmelden.");
+    }
+    throw e;
+  });
+}
+function mtOf(x){ return (x && x._mt) || 1; }
+function syncNow(manual){
+  if (!syncCfg || !syncAuth || !syncHook.store){
+    if (manual) toast(!syncCfg ? "Bitte zuerst einrichten – Anleitung unten in der Sync-Karte." : "Bitte zuerst anmelden.");
+    return;
+  }
+  if (syncBusy){ syncAgain = true; return; }
+  syncBusy = true;
+  if (syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+  syncStatus("Synchronisiere …");
+  var store = syncHook.store;
+  ensureToken().then(function(){
+    return syncFetch(syncDbUrl(), { method: "GET" });
+  }).then(function(remote){
+    remote = remote || {};
+    var rdel = remote._del || {};
+    if (!store._del) store._del = {};
+    var patch = {}, changed = {};
+    SYNC_COLLS.forEach(function(c){
+      var rc = remote[c] || {}, lc = store[c] || (store[c] = {});
+      var rd = rdel[c] || {}, ld = store._del[c] || (store._del[c] = {});
+      var ids = {};
+      [rc, lc, rd, ld].forEach(function(m){ Object.keys(m).forEach(function(i){ ids[i] = 1; }); });
+      Object.keys(ids).forEach(function(id){
+        var lv = lc[id], rv = rc[id];
+        var lt = lv ? mtOf(lv) : 0, rt = rv ? mtOf(rv) : 0;
+        var dt = Math.max(ld[id] || 0, rd[id] || 0);
+        if (dt >= lt && dt >= rt){
+          if (lv){ delete lc[id]; changed[c] = 1; }
+          if (rv) patch[c + "/" + id] = null;
+          if ((rd[id] || 0) < dt) patch["_del/" + c + "/" + id] = dt;
+          ld[id] = dt;
+        } else if (rt > lt){
+          lc[id] = rv; changed[c] = 1;
+          if (ld[id]) delete ld[id];
+        } else if (lt > rt){
+          patch[c + "/" + id] = lv;
+          if (rd[id]) patch["_del/" + c + "/" + id] = null;
+        }
+      });
+    });
+    var cutoff = Date.now() - 90 * 24 * 3600 * 1000;
+    Object.keys(store._del).forEach(function(c){
+      Object.keys(store._del[c]).forEach(function(id){
+        if (store._del[c][id] < cutoff) delete store._del[c][id];
+      });
+    });
+    syncHook.persist();
+    Object.keys(changed).forEach(function(c){ syncHook.emit(c); });
+    if (Object.keys(patch).length){
+      return syncFetch(syncDbUrl(), {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch)
+      });
+    }
+  }).then(function(){
+    syncBusy = false;
+    syncLastOk = Date.now(); syncLastErr = "";
+    syncStatus();
+    if (manual) toast("Alles synchron.");
+    if (syncAgain){ syncAgain = false; syncNow(false); }
+  }, function(e){
+    syncBusy = false; syncAgain = false;
+    syncLastErr = syncErrDe(e);
+    syncStatus();
+    if (manual) toast("Sync fehlgeschlagen: " + syncLastErr);
+  });
+}
+function syncStatus(msg){
+  var el = $("sync-state");
+  if (!el) return;
+  var login = $("sync-login"), on = $("sync-on");
+  if (!syncCfg){
+    el.textContent = "Noch nicht eingerichtet. Folge einmalig der Anleitung unten (Teil 1) und trage die zwei Werte ein – danach meldest du dich auf jedem Gerät nur noch mit E-Mail und Passwort an.";
+    login.hidden = true; on.hidden = true;
+    return;
+  }
+  login.hidden = !!syncAuth; on.hidden = !syncAuth;
+  if (msg){ el.textContent = msg; return; }
+  if (!syncAuth){
+    el.textContent = "Eingerichtet. Melde dich mit E-Mail und Passwort an – beim allerersten Mal über „Neues Konto erstellen“.";
+    return;
+  }
+  var t = syncLastOk ? new Date(syncLastOk).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "";
+  el.textContent = "Angemeldet als " + syncAuth.email
+    + (t ? " · zuletzt synchronisiert " + t + " Uhr" : "")
+    + (syncLastErr ? " · Achtung: " + syncLastErr : "");
+}
+(function(){
+  if (!$("sync-state")) return;
+  if (syncCfg){
+    $("sync-key").value = syncCfg.apiKey || "";
+    $("sync-url").value = syncCfg.dbUrl || "";
+  } else {
+    $("sync-setup").open = true;
+  }
+  $("sync-cfg-save").addEventListener("click", function(){
+    var key = $("sync-key").value.trim();
+    var url = $("sync-url").value.trim().replace(/\/+$/, "");
+    if (!key || !/^https:\/\//.test(url) || !/firebasedatabase\.app|firebaseio\.com/.test(url)){
+      toast("Bitte Web-API-Schlüssel und Datenbank-URL (https://….firebasedatabase.app) eintragen.");
+      return;
+    }
+    syncCfg = { apiKey: key, dbUrl: url };
+    syncSave("uni-planer.sync.cfg", syncCfg);
+    $("sync-setup").open = false;
+    toast("Zugangsdaten gespeichert – jetzt Konto erstellen oder anmelden.");
+    syncStatus();
+  });
+  function doAuth(ep){
+    if (!syncCfg){
+      toast("Bitte zuerst die Firebase-Zugangsdaten eintragen (Anleitung unten).");
+      $("sync-setup").open = true;
+      return;
+    }
+    var email = $("sync-email").value.trim(), pw = $("sync-pw").value;
+    if (!email || !pw){ toast("Bitte E-Mail und Passwort eingeben."); return; }
+    syncStatus("Einen Moment …");
+    syncFetch(authUrl(ep), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, password: pw, returnSecureToken: true })
+    }).then(function(j){
+      syncAuth = {
+        uid: j.localId, email: j.email || email,
+        idToken: j.idToken, refreshToken: j.refreshToken,
+        exp: Date.now() + ((parseInt(j.expiresIn, 10) || 3600) * 1000)
+      };
+      syncSave("uni-planer.sync.auth", syncAuth);
+      $("sync-pw").value = "";
+      toast(ep === "signUp" ? "Konto erstellt und angemeldet." : "Angemeldet.");
+      syncStatus();
+      syncNow(false);
+    }).catch(function(e){
+      syncStatus();
+      toast(syncErrDe(e));
+    });
+  }
+  $("sync-in").addEventListener("click", function(){ doAuth("signInWithPassword"); });
+  $("sync-up").addEventListener("click", function(){ doAuth("signUp"); });
+  $("sync-pw").addEventListener("keydown", function(ev){ if (ev.key === "Enter") doAuth("signInWithPassword"); });
+  $("sync-out").addEventListener("click", function(){
+    syncAuth = null; syncSave("uni-planer.sync.auth", null);
+    toast("Abgemeldet – deine Einträge bleiben auf diesem Gerät.");
+    syncStatus();
+  });
+  $("sync-now").addEventListener("click", function(){ syncNow(true); });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) syncNow(false); });
+  window.addEventListener("online", function(){ syncNow(false); });
+  setInterval(function(){ syncNow(false); }, 5 * 60 * 1000);
+  setTimeout(function(){ syncNow(false); }, 1200);
+  syncStatus();
+})();
+
+/* ---- Kalender-Import (.ics) ---- */
+function parseIcsStamp(v){
+  var m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(?:\d{2})?(Z)?)?/.exec(String(v || "").trim());
+  if (!m) return null;
+  if (m[4] && m[6]){
+    var d = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]));
+    return { date: iso(d), time: String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0") };
+  }
+  return { date: m[1] + "-" + m[2] + "-" + m[3], time: m[4] ? m[4] + ":" + m[5] : "" };
+}
+function unescapeIcs(s){
+  return String(s).replace(/\\n/gi, " – ").replace(/\\([,;\\])/g, "$1").trim();
+}
+function parseIcs(text){
+  var lines = String(text).replace(/\r?\n[ \t]/g, "").split(/\r?\n/);
+  var out = [], cur = null, inAlarm = false;
+  lines.forEach(function(line){
+    if (/^BEGIN:VALARM/i.test(line)){ inAlarm = true; return; }
+    if (/^END:VALARM/i.test(line)){ inAlarm = false; return; }
+    if (/^BEGIN:VEVENT/i.test(line)){ cur = {}; inAlarm = false; return; }
+    if (/^END:VEVENT/i.test(line)){ if (cur) out.push(cur); cur = null; return; }
+    if (!cur || inAlarm) return;
+    var i = line.indexOf(":");
+    if (i < 0) return;
+    var key = line.slice(0, i).split(";")[0].toUpperCase();
+    var val = line.slice(i + 1);
+    if (key === "DTSTART") cur.start = parseIcsStamp(val);
+    else if (key === "SUMMARY") cur.summary = unescapeIcs(val);
+    else if (key === "LOCATION" && !cur.loc) cur.loc = unescapeIcs(val);
+    else if (key === "RRULE") cur.rrule = val;
+  });
+  return out;
+}
+function expandRrule(startIso, rrule){
+  var dates = [startIso];
+  var m = /FREQ=([A-Z]+)/i.exec(rrule || "");
+  if (!m || m[1].toUpperCase() !== "WEEKLY") return dates;
+  var interval = 1;
+  var mi = /INTERVAL=(\d+)/i.exec(rrule);
+  if (mi) interval = Math.max(1, +mi[1]);
+  var count = 0;
+  var mc = /COUNT=(\d+)/i.exec(rrule);
+  if (mc) count = Math.min(+mc[1], 30);
+  var until = "";
+  var mu = /UNTIL=(\d{4})(\d{2})(\d{2})/i.exec(rrule || "");
+  if (mu) until = mu[1] + "-" + mu[2] + "-" + mu[3];
+  var d = parseISO(startIso);
+  if (!d) return dates;
+  for (var i = 1; i < 30; i++){
+    d = addDays(d, 7 * interval);
+    var s = iso(d);
+    if (count && dates.length >= count) break;
+    if (until && s > until) break;
+    if (!count && !until && dates.length >= 15) break;
+    dates.push(s);
+  }
+  return dates;
+}
+function courseIdByName(name){
+  if (!name) return "";
+  var n = String(name).trim().toLowerCase();
+  if (!n) return "";
+  for (var i=0;i<courses.length;i++){
+    var cn = courses[i].name.toLowerCase();
+    if (cn === n || n.indexOf(cn) >= 0 || cn.indexOf(n) >= 0) return courses[i].id;
+  }
+  return "";
+}
+
+/* ---- Einstellungen: Darstellung, Export, Aufräumen ---- */
+var downloadsNs = null;
+var theme = "sys";
+try { theme = localStorage.getItem("uni-planer.theme") || "sys"; } catch(e){}
+function applyTheme(){
+  var root = document.documentElement;
+  if (theme === "light" || theme === "dark") root.setAttribute("data-theme", theme);
+  else root.removeAttribute("data-theme");
+  ["sys","light","dark"].forEach(function(k){
+    $("theme-" + k).setAttribute("aria-pressed", String(theme === k));
+  });
+}
+["sys","light","dark"].forEach(function(k){
+  $("theme-" + k).addEventListener("click", function(){
+    theme = k;
+    try { localStorage.setItem("uni-planer.theme", k); } catch(e){}
+    applyTheme();
+  });
+});
+applyTheme();
+
+/* ---- Fokus-Timer ---- */
+var pomoTotal = 25 * 60, pomoLeft = 25 * 60, pomoTimer = null;
+function pomoRender(){
+  var pm = Math.floor(pomoLeft / 60), ps = pomoLeft % 60;
+  var txt = pm + ":" + String(ps).padStart(2, "0");
+  $("pomo-time").textContent = txt;
+  $("pomo-start").textContent = pomoTimer ? "Pause" : (pomoLeft < pomoTotal ? "Weiter" : "Start");
+  document.title = pomoTimer ? "(" + txt + ") Uni-Planer" : "Uni-Planer";
+}
+function pomoSet(mins){
+  clearInterval(pomoTimer);
+  pomoTimer = null;
+  pomoTotal = mins * 60;
+  pomoLeft = pomoTotal;
+  $("pomo-25").setAttribute("aria-pressed", String(mins === 25));
+  $("pomo-5").setAttribute("aria-pressed", String(mins === 5));
+  try { localStorage.setItem("uni-planer.pomo", String(mins)); } catch(e){}
+  pomoRender();
+}
+$("pomo-start").addEventListener("click", function(){
+  if (pomoTimer){
+    clearInterval(pomoTimer);
+    pomoTimer = null;
+  } else {
+    var pomoEndAt = Date.now() + pomoLeft * 1000;
+    pomoTimer = setInterval(function(){
+      pomoLeft = Math.max(0, Math.round((pomoEndAt - Date.now()) / 1000));
+      if (pomoLeft <= 0){
+        clearInterval(pomoTimer);
+        pomoTimer = null;
+        pomoLeft = pomoTotal;
+        toast(pomoTotal >= 600 ? "Fokus-Block geschafft – Zeit für eine Pause!" : "Pause vorbei – weiter geht's!");
+      }
+      pomoRender();
+    }, 500);
+  }
+  pomoRender();
+});
+$("pomo-reset").addEventListener("click", function(){ pomoSet(pomoTotal / 60); });
+$("pomo-25").addEventListener("click", function(){ $("pomo-min").value = ""; pomoSet(25); });
+$("pomo-5").addEventListener("click", function(){ $("pomo-min").value = ""; pomoSet(5); });
+$("pomo-min").addEventListener("change", function(){
+  var v = parseInt($("pomo-min").value, 10);
+  if (v >= 1 && v <= 240) pomoSet(v);
+});
+var pomoSaved = 0;
+try { pomoSaved = parseInt(localStorage.getItem("uni-planer.pomo") || "", 10) || 0; } catch(e){}
+if (pomoSaved >= 1 && pomoSaved <= 240 && pomoSaved !== 25){
+  if (pomoSaved !== 5) $("pomo-min").value = pomoSaved;
+  pomoSet(pomoSaved);
+} else {
+  pomoRender();
+}
+
+function semWeekOf(d){
+  var s = parseISO(semesterDoc.start);
+  if (!s) return 0;
+  var w = Math.floor(Math.round((d - startOfWeek(s)) / 86400000) / 7) + 1;
+  if (w < 1) return 0;
+  var e = parseISO(semesterDoc.end);
+  if (e && d > e) return 0;
+  return w;
+}
+function gradeAvg(){
+  var sum = 0, wsum = 0, ects = 0;
+  courses.forEach(function(c){
+    if (c.grade > 0){
+      var w = c.ects > 0 ? c.ects : 1;
+      sum += c.grade * w;
+      wsum += w;
+      ects += c.ects > 0 ? c.ects : 0;
+    }
+  });
+  if (!wsum) return "";
+  return (Math.round(sum / wsum * 100) / 100).toLocaleString("de-DE") + (ects ? " (" + ects + " ECTS)" : "");
+}
+function renderSemInfo(){
+  var el = $("sem-info");
+  var line = "";
+  var s = parseISO(semesterDoc.start);
+  if (s){
+    var ds = diffDays(s);
+    if (ds > 0) line = "Semester beginnt in " + ds + " Tagen";
+    else {
+      var sw = semWeekOf(today0());
+      var e = parseISO(semesterDoc.end);
+      if (sw){
+        line = "Semesterwoche " + sw;
+        if (e){
+          var de = diffDays(e);
+          if (de >= 0) line += " · noch " + de + " Tage";
+        }
+      } else if (e && diffDays(e) < 0){
+        line = "Semester beendet";
+      }
+    }
+  }
+  var g = gradeAvg();
+  if (g) line += (line ? " · " : "") + "Schnitt " + g;
+  el.hidden = !line;
+  el.textContent = line;
+}
+$("sem-save").addEventListener("click", function(){
+  if (needDb()) return;
+  db.doc("settings/semester").set({ start: $("sem-start").value || "", end: $("sem-end").value || "" })
+    .then(function(){ toast("Semester gespeichert."); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+$("grade-form").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb() || !fachId) return;
+  col("courses").doc(fachId).update({
+    grade: parseFloat(String($("gr-note").value).replace(",", ".")) || 0,
+    ects: parseFloat($("gr-ects").value) || 0
+  }).then(function(){ toast("Note gespeichert."); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+$("plan-form").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb() || !fachId) return;
+  var c = courseById(fachId);
+  if (!c) return;
+  var count = parseInt($("pl-count").value, 10) || 0;
+  if (!count){ toast("Bitte die Anzahl der Vorlesungen angeben."); return; }
+  var review = Math.max(0, parseInt($("pl-review").value, 10) || 0);
+  var ex = c.exam || {};
+  var examIso = (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) ? ex.t1
+    : ((ex.t2 && diffDays(parseISO(ex.t2)) >= 0) ? ex.t2 : "");
+  if (!examIso){ toast("Bitte zuerst einen zukünftigen Klausurtermin in der Klausur-Karte eintragen."); return; }
+  var exDays = [], bufDays = [];
+  [0,1,2,3,4,5,6].forEach(function(wd){
+    if ($("pl-wd-" + wd).checked) exDays.push(wd);
+    if ($("pl-bwd-" + wd).checked) bufDays.push(wd);
+  });
+  var skipWork = $("pl-skipwork").checked;
+
+  var workDays = {};
+  if (skipWork) work.forEach(function(w){ if (w.date) workDays[w.date] = 1; });
+  var examDays = {};
+  courses.forEach(function(cc){
+    var e2 = cc.exam || {};
+    if (e2.t1) examDays[e2.t1] = 1;
+    if (e2.t2) examDays[e2.t2] = 1;
+  });
+  var start = addDays(today0(), 1);
+  var end = addDays(parseISO(examIso), -1);
+  var avail = [], bufCount = 0;
+  for (var d = start; d <= end; d = addDays(d, 1)){
+    var dIso = iso(d);
+    if (exDays.indexOf(d.getDay()) >= 0) continue;
+    if (bufDays.indexOf(d.getDay()) >= 0){ bufCount++; continue; }
+    if (workDays[dIso]) continue;
+    if (examDays[dIso]) continue;
+    avail.push(dIso);
+  }
+  if (!avail.length){
+    $("pl-status").textContent = "Kein freier Tag bis zur Klausur übrig – Puffertage oder Ausschlüsse verringern.";
+    return;
+  }
+  var reviewDays = [];
+  if (review > 0 && avail.length > 1){
+    var take = Math.min(review, avail.length - 1);
+    reviewDays = avail.slice(avail.length - take);
+    avail = avail.slice(0, avail.length - take);
+  }
+  var wantDays = parseInt($("pl-days").value, 10) || Math.min(count, avail.length);
+  var D = Math.min(wantDays, avail.length, count);
+  var chosen = avail.slice(Math.max(0, avail.length - D));
+  var base = Math.floor(count / chosen.length), extra = count % chosen.length;
+  var lecNo = 1;
+  var planId = "plan-" + fachId;
+  var oldIds = study.filter(function(s){ return s.seriesId === planId; }).map(function(s){ return s.id; });
+  var chain = Promise.resolve();
+  oldIds.forEach(function(oid){
+    chain = chain.then(function(){ return col("study").doc(oid).delete().catch(function(){}); });
+  });
+  var made = 0;
+  chosen.forEach(function(dayIso, ci){
+    var n = base + (ci < extra ? 1 : 0);
+    if (!n) return;
+    var label = n === 1 ? "VL " + lecNo : "VL " + lecNo + "–" + (lecNo + n - 1);
+    lecNo += n;
+    var body = {
+      title: "Lernplan: " + label + " bearbeiten",
+      date: dayIso, time: "", courseId: fachId,
+      done: false, doneAt: null, seriesId: planId, createdAt: Date.now()
+    };
+    chain = chain.then(function(){ return col("study").add(body).then(function(){ made++; }, function(){}); });
+  });
+  reviewDays.forEach(function(dayIso, ri){
+    var rBody = {
+      title: "Lernplan: Wiederholung" + (reviewDays.length > 1 ? " (Tag " + (ri + 1) + " von " + reviewDays.length + ")" : ""),
+      date: dayIso, time: "", courseId: fachId,
+      done: false, doneAt: null, seriesId: planId, createdAt: Date.now()
+    };
+    chain = chain.then(function(){ return col("study").add(rBody).then(function(){}, function(){}); });
+  });
+  chain = chain.then(function(){
+    return col("courses").doc(fachId).update({
+      plan: { count: count, days: wantDays, review: review, exDays: exDays, bufDays: bufDays, skipWork: skipWork }
+    }).catch(function(){});
+  });
+  $("pl-status").textContent = "Erstelle Lernplan …";
+  chain.then(function(){
+    $("pl-status").textContent = count + " Vorlesungen auf " + made + " Lerntage verteilt"
+      + (reviewDays.length ? ", danach " + reviewDays.length + " Wiederholungstage" : "")
+      + " – Klausur am " + fmtShort(examIso)
+      + (bufCount ? ", " + bufCount + " Puffertage an den gewählten Wochentagen" : "") + ".";
+    toast("Lernplan erstellt – sichtbar in Lernwoche und Lernmonat.");
+  });
+});
+$("pl-clear").addEventListener("click", function(){
+  armAction($("pl-clear"), function(){
+    var planId = "plan-" + fachId;
+    deleteMany("study", study.filter(function(s){ return s.seriesId === planId; }).map(function(s){ return s.id; }), "Lernplan-Einträge gelöscht.");
+  });
+});
+
+/* ---- Private Termine mit Ordnern ---- */
+function renderPrivatTermine(cid){
+  var tIso = iso(today0());
+  var list = events.filter(function(e){ return e.courseId === cid && e.date >= tIso; })
+    .sort(function(a,b){ return (a.date + (a.time || "")) < (b.date + (b.time || "")) ? -1 : 1; });
+  var byFolder = {};
+  list.forEach(function(e){
+    var f = e.folder || "Allgemein";
+    (byFolder[f] = byFolder[f] || []).push(e);
+  });
+  var names = Object.keys(byFolder).sort(function(a,b){ return a.localeCompare(b, "de"); });
+  $("ptermin-list").innerHTML = names.map(function(f){
+    return '<section class="grp"><h2>' + esc(f) + ' <span class="n">· ' + byFolder[f].length + '</span></h2><ul class="list">'
+      + byFolder[f].map(function(e){
+          var d = parseISO(e.date);
+          return '<li class="todo" draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
+            + '<div class="datebox"><div class="d">' + d.getDate() + '</div><div class="m">' + MON_K[d.getMonth()] + '</div></div>'
+            + '<div class="main-c"><div class="t">' + esc(e.title) + '</div>'
+            + '<div class="meta"><span class="rel">' + WTAGE[d.getDay()] + (e.time ? ", " + esc(e.time) + " Uhr" : "") + '</span>'
+            + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '') + '</div></div>'
+            + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
+        }).join("") + '</ul></section>';
+  }).join("") || '<p class="sub" style="margin:0">Noch keine Termine – oben eintragen.</p>';
+}
+$("ptermin-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  var title = $("pt-title").value.trim();
+  var date = $("pt-date").value;
+  if (!title || !date || !plausibleISO(date)) return;
+  addDoc("events", {
+    title: title, date: date, time: $("pt-from").value || "",
+    typ: "Termin", courseId: fachId, folder: $("pt-folder").value.trim(),
+    createdAt: Date.now()
+  }, function(){
+    $("pt-title").value = "";
+    toast("Termin eingetragen – erscheint auch in Lernwoche und Lernmonat.");
+  });
+});
+
+/* ---- Vokabeltrainer ---- */
+function vokBadge(){
+  var tIso = iso(today0());
+  var reviews = 0, introToday = 0;
+  vocab.forEach(function(p){
+    if (p.due && p.due <= tIso) reviews++;
+    if (p.intro === tIso) introToday++;
+  });
+  var newLeft = Math.min(Math.max(0, 10 - introToday), Math.max(0, VOCAB.length - vocab.length));
+  return reviews + newLeft;
+}
+function renderVokabeln(){
+  var tIso = iso(today0());
+  var progByIdx = {};
+  vocab.forEach(function(p){ progByIdx[p.idx] = p; });
+  var dueSort = function(a,b){
+    if ((a.due || "") !== (b.due || "")) return (a.due || "") < (b.due || "") ? -1 : 1;
+    return (a.seenAt || 0) - (b.seenAt || 0);
+  };
+  var dueAll = vocab.filter(function(p){ return p.due && p.due <= tIso; });
+  var dueOld = dueAll.filter(function(p){ return p.lastDay !== tIso; }).sort(dueSort);
+  var dueRepeat = dueAll.filter(function(p){ return p.lastDay === tIso; }).sort(dueSort);
+  var reviews = dueOld.concat(dueRepeat);
+  var introToday = vocab.filter(function(p){ return p.intro === tIso; }).length;
+  var newAllowed = Math.max(0, 10 - introToday);
+  var news = [];
+  for (var i = 0; i < VOCAB.length && news.length < newAllowed; i++){
+    if (progByIdx[i] === undefined) news.push(i);
+  }
+  var cnt = { easy: 0, mid: 0, hard: 0 };
+  vocab.forEach(function(p){ if (cnt[p.rating] !== undefined) cnt[p.rating]++; });
+  $("vok-sub").textContent = "Kann ich: " + cnt.easy + " · Mittel: " + cnt.mid + " · Kann ich noch nicht: " + cnt.hard
+    + " · Noch nie gesehen: " + Math.max(0, VOCAB.length - vocab.length)
+    + ((vokStats.streak || 0) > 0 ? " · Übungsserie: " + vokStats.streak + (vokStats.streak === 1 ? " Tag" : " Tage") : "");
+
+  if (vokCurrent !== null){
+    var cp = progByIdx[vokCurrent];
+    var stillDue = cp ? (cp.due && cp.due <= tIso) : true;
+    if (!stillDue && vokPractice.indexOf(vokCurrent) < 0) vokCurrent = null;
+  }
+  if (vokCurrent === null){
+    vokShowing = false;
+    if (dueOld.length) vokCurrent = dueOld[0].idx;
+    else if (news.length) vokCurrent = news[0];
+    else if (dueRepeat.length) vokCurrent = dueRepeat[0].idx;
+    else {
+      if (!vokPractice.length && vokEndless && vocab.length) refillPractice();
+      if (vokPractice.length) vokCurrent = vokPractice[0];
+    }
+  }
+  var card = $("vok-card"), doneBox = $("vok-done");
+  if (vokCurrent === null || !VOCAB[vokCurrent]){
+    vokCurrent = null;
+    card.hidden = true;
+    doneBox.hidden = false;
+    $("vok-done-sub").textContent = introToday
+      ? "Du hast heute " + introToday + " neue Vokabeln gelernt und alle Wiederholungen erledigt."
+      : "Keine Wiederholungen offen.";
+    $("vok-extra").hidden = !vocab.length;
+  } else {
+    card.hidden = false;
+    doneBox.hidden = true;
+    var w = VOCAB[vokCurrent];
+    var cpr = progByIdx[vokCurrent];
+    var kind;
+    if (cpr === undefined) kind = "Neue Vokabel (" + (introToday + 1) + " von 10 heute)";
+    else if (cpr.due && cpr.due <= tIso) kind = (cpr.lastDay === tIso ? "Gleich nochmal" : "Wiederholung");
+    else kind = "Extra-Runde";
+    $("vok-kind").textContent = kind;
+    $("vok-word").textContent = w[0];
+    $("vok-answer").textContent = w[1];
+    $("vok-answer").hidden = !vokShowing;
+    $("vok-actions").hidden = vokShowing;
+    $("vok-rate").hidden = !vokShowing;
+    $("vok-progress").textContent = reviews.length + " Wiederholungen offen · heute noch "
+      + Math.min(newAllowed, Math.max(0, VOCAB.length - vocab.length)) + " neue"
+      + (vokEndless ? " · Endlos-Üben: " + vokPractice.length + " Karten bis zum Neumischen" : "");
+    $("vok-stop").hidden = kind !== "Extra-Runde";
+  }
+  var groups = { hard: [], mid: [], easy: [] };
+  vocab.forEach(function(p){ if (groups[p.rating] && VOCAB[p.idx]) groups[p.rating].push(p.idx); });
+  var names = { hard: "Kann ich noch nicht", mid: "Mittel", easy: "Kann ich" };
+  $("vok-lists").innerHTML = ["hard","mid","easy"].map(function(k){
+    if (!groups[k].length) return "";
+    return '<div><div class="fh" style="margin-bottom:6px">' + names[k] + ' · ' + groups[k].length + '</div><p class="sub" style="margin:0">'
+      + groups[k].map(function(ix){ return esc(VOCAB[ix][0]) + " – " + esc(VOCAB[ix][1]); }).join(" · ") + '</p></div>';
+  }).join("") || '<p class="sub" style="margin:0">Noch keine Vokabeln bewertet.</p>';
+}
+function rateVocab(rating){
+  if (needDb() || vokCurrent === null) return;
+  var idx = vokCurrent;
+  var p = null;
+  for (var i = 0; i < vocab.length; i++) if (vocab[i].idx === idx) p = vocab[i];
+  var tIso = iso(today0());
+  var sameDay = !!(p && p.lastDay === tIso);
+  var level = p ? p.level : 0;
+  var days;
+  if (rating === "easy"){
+    if (!sameDay) level = Math.min(level + 1, VOK_IV.length - 1);
+    days = VOK_IV[level];
+  } else if (rating === "mid"){
+    level = Math.max(1, level);
+    days = 3;
+  } else {
+    level = 0;
+    days = 0;
+  }
+  var entry = {
+    idx: idx, level: level, rating: rating,
+    due: iso(addDays(today0(), days)),
+    intro: (p && p.intro) ? p.intro : tIso,
+    lastDay: tIso,
+    seenAt: Date.now()
+  };
+  if (vokStats.lastDay !== tIso){
+    var yIso = iso(addDays(today0(), -1));
+    vokStats = { lastDay: tIso, streak: (vokStats.lastDay === yIso ? (vokStats.streak || 0) + 1 : 1) };
+    db.doc("settings/vokstats").set(vokStats).catch(function(){});
+  }
+  col("vocab").doc("v" + idx).set(entry)
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  var found = false;
+  for (var j = 0; j < vocab.length; j++){
+    if (vocab[j].idx === idx){ vocab[j] = entry; found = true; }
+  }
+  if (!found) vocab.push(entry);
+  var pi = vokPractice.indexOf(idx);
+  if (pi >= 0) vokPractice.splice(pi, 1);
+  vokCurrent = null;
+  vokShowing = false;
+  renderVokabeln();
+  renderSidebar();
+}
+function refillPractice(){
+  vokPractice = vocab.filter(function(p){ return VOCAB[p.idx]; }).map(function(p){ return p.idx; });
+  for (var i = vokPractice.length - 1; i > 0; i--){
+    var r = Math.floor(Math.random() * (i + 1));
+    var tmp = vokPractice[i];
+    vokPractice[i] = vokPractice[r];
+    vokPractice[r] = tmp;
+  }
+}
+$("vok-extra").addEventListener("click", function(){
+  vokEndless = true;
+  refillPractice();
+  vokCurrent = null;
+  vokShowing = false;
+  renderVokabeln();
+});
+$("vok-stop").addEventListener("click", function(){
+  vokEndless = false;
+  vokPractice = [];
+  vokCurrent = null;
+  vokShowing = false;
+  renderVokabeln();
+});
+document.addEventListener("keydown", function(ev){
+  if (view !== "vokabeln" || vokCurrent === null) return;
+  var tg = ev.target;
+  if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName || "")) return;
+  if (!vokShowing && (ev.key === " " || ev.key === "Enter")){
+    ev.preventDefault();
+    vokShowing = true;
+    renderVokabeln();
+  } else if (vokShowing){
+    if (ev.key === "1"){ ev.preventDefault(); rateVocab("hard"); }
+    else if (ev.key === "2"){ ev.preventDefault(); rateVocab("mid"); }
+    else if (ev.key === "3"){ ev.preventDefault(); rateVocab("easy"); }
+  }
+});
+$("vok-show").addEventListener("click", function(){ vokShowing = true; renderVokabeln(); });
+$("vr-easy").addEventListener("click", function(){ rateVocab("easy"); });
+$("vr-mid").addEventListener("click", function(){ rateVocab("mid"); });
+$("vr-hard").addEventListener("click", function(){ rateVocab("hard"); });
+
+var notesTimer = null;
+function saveNotes(){
+  if (!db || !fachId) return;
+  var c = courseById(fachId);
+  var val = $("fach-notes").value;
+  if (!c || val === (c.notes || "")){
+    $("notes-status").textContent = "Wird automatisch gespeichert.";
+    return;
+  }
+  col("courses").doc(fachId).update({ notes: val })
+    .then(function(){ $("notes-status").textContent = "Gespeichert."; })
+    .catch(function(e){ $("notes-status").textContent = "Speichern fehlgeschlagen: " + failMsg(e); });
+}
+$("fach-notes").addEventListener("input", function(){
+  $("notes-status").textContent = "Speichern …";
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(saveNotes, 900);
+});
+$("fach-notes").addEventListener("blur", function(){
+  clearTimeout(notesTimer);
+  saveNotes();
+});
+
+function repeatDates(startIso, rep, endIso){
+  var out = [startIso];
+  if (rep === "w" && endIso && endIso > startIso){
+    var d = parseISO(startIso);
+    for (var i = 0; i < 25; i++){
+      d = addDays(d, 7);
+      var s = iso(d);
+      if (s > endIso) break;
+      out.push(s);
+    }
+  }
+  return out;
+}
+function addSeries(collName, base, dates, after){
+  if (needDb()) return;
+  var seriesId = dates.length > 1 ? "s" + Date.now().toString(36) : "";
+  var chain = Promise.resolve(), ok = 0;
+  dates.forEach(function(dt){
+    chain = chain.then(function(){
+      var body = {};
+      Object.keys(base).forEach(function(k){ body[k] = base[k]; });
+      body.date = dt;
+      if (seriesId) body.seriesId = seriesId;
+      return col(collName).add(body).then(function(){ ok++; }, function(){});
+    });
+  });
+  chain.then(function(){
+    if (after) after();
+    toast(ok > 1 ? ok + " Einträge der Serie angelegt." : "Eingetragen.");
+  });
+}
+
+function renderUpcoming(){
+  var horizon = 21, items = [];
+  courses.forEach(function(c){
+    var ex = c.exam || {};
+    var examPick = null;
+    if (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) examPick = ["t1", "1. Termin"];
+    else if (ex.t2 && diffDays(parseISO(ex.t2)) >= 0) examPick = ["t2", "2. Termin"];
+    if (examPick){
+      items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")" });
+    }
+    [["t1an","Anmeldung","1. Termin"],["t1ab","Abmeldung","1. Termin"],["t2an","Anmeldung","2. Termin"],["t2ab","Abmeldung","2. Termin"]].forEach(function(k){
+      var d = parseISO(ex[k[0]]);
+      if (!d) return;
+      var dd = diffDays(d);
+      if (dd >= 0 && dd <= horizon) items.push({ days: dd, kind: "frist", date: ex[k[0]], txt: "Letzte " + k[1] + " " + c.name + " (" + k[2] + ")" });
+    });
+  });
+  items.sort(function(a,b){ return a.days - b.days; });
+  items = items.slice(0, 12);
+  $("upcoming").innerHTML = items.map(function(x){
+    var when = x.days === 0 ? "heute" : (x.days === 1 ? "morgen" : "in " + x.days + " Tagen");
+    return '<div class="up-item"><span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span>'
+      + '<span style="flex:1; min-width:0">' + esc(x.txt) + '</span>'
+      + (x.date ? '<span style="color:var(--muted)">' + fmtShort(x.date) + '</span>' : '')
+      + '<strong>' + when + '</strong></div>';
+  }).join("");
+}
+
+function workHours(w){
+  if (!w.from || !w.to) return 0;
+  var f = w.from.split(":"), t = w.to.split(":");
+  var h = (+t[0] + (+t[1]) / 60) - (+f[0] + (+f[1]) / 60);
+  return h > 0 ? h : 0;
+}
+function fmtH(h){
+  return (Math.round(h * 4) / 4).toLocaleString("de-DE") + " h";
+}
+function renderLabor(){
+  $("work-empty").hidden = !(loaded && !work.length);
+  var tIso = iso(today0());
+  var weeks = {};
+  work.forEach(function(w){
+    var d = parseISO(w.date);
+    if (!d) return;
+    var wk = iso(startOfWeek(d));
+    (weeks[wk] = weeks[wk] || []).push(w);
+  });
+  var keys = Object.keys(weeks).sort().reverse();
+  var html = "";
+  keys.forEach(function(wk){
+    var ws = weeks[wk];
+    var mon = parseISO(wk), sun = addDays(mon, 6);
+    var sum = 0;
+    ws.forEach(function(w){ sum += workHours(w); });
+    ws.sort(function(a,b){ return (a.date + (a.from || "")) < (b.date + (b.from || "")) ? -1 : 1; });
+    html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + '</span></div><ul class="list">';
+    ws.forEach(function(w){
+      var d = parseISO(w.date);
+      var planned = w.date > tIso;
+      var hrs = workHours(w);
+      html += '<li class="todo" data-id="' + esc(w.id) + '" data-coll="work">'
+        + '<div class="datebox"><div class="d">' + d.getDate() + '</div><div class="m">' + MON_K[d.getMonth()] + '</div></div>'
+        + '<div class="main-c"><div class="t">' + WTAGE[d.getDay()] + (w.from ? ", " + esc(w.from) + (w.to ? "–" + esc(w.to) : "") + " Uhr" : "") + (w.note ? " · " + esc(w.note) : "") + '</div>'
+        + '<div class="meta"><span class="tag labor">Labor</span>'
+        + (hrs ? '<span>' + fmtH(hrs) + '</span>' : '')
+        + (planned ? '<span class="tag typ">geplant</span>' : '')
+        + '</div></div>'
+        + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
+    });
+    html += '</ul></section>';
+  });
+  $("work-list").innerHTML = html;
+  var thisWeek = iso(startOfWeek(new Date()));
+  var sumWeek = 0, sumMonth = 0, m = new Date().getMonth(), y = new Date().getFullYear();
+  work.forEach(function(w){
+    var d = parseISO(w.date);
+    if (!d) return;
+    var h = workHours(w);
+    if (iso(startOfWeek(d)) === thisWeek) sumWeek += h;
+    if (d.getMonth() === m && d.getFullYear() === y) sumMonth += h;
+  });
+  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth);
+  var openW = null;
+  work.forEach(function(w){ if (w.date === tIso && w.from && !w.to) openW = w; });
+  $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + openW.from + " Uhr)") : "Jetzt einstempeln";
+}
+$("work-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  var date = $("wk-date").value;
+  if (!date) return;
+  addDoc("work", {
+    date: date, from: $("wk-from").value || "", to: $("wk-to").value || "",
+    note: $("wk-note").value.trim(), createdAt: Date.now()
+  }, function(){
+    $("wk-note").value = "";
+    toast("Arbeitszeit eingetragen.");
+  });
+});
+if (!$("wk-date").value) $("wk-date").value = iso(today0());
+$("wk-punch").addEventListener("click", function(){
+  if (needDb()) return;
+  var pIso = iso(today0());
+  var pNow = new Date();
+  var hm = String(pNow.getHours()).padStart(2, "0") + ":" + String(pNow.getMinutes()).padStart(2, "0");
+  var openW = null;
+  work.forEach(function(w){ if (w.date === pIso && w.from && !w.to) openW = w; });
+  if (openW){
+    col("work").doc(openW.id).update({ to: hm })
+      .then(function(){ toast("Ausgestempelt um " + hm + " Uhr."); })
+      .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  } else {
+    addDoc("work", { date: pIso, from: hm, to: "", note: "", createdAt: Date.now() }, function(){
+      toast("Eingestempelt um " + hm + " Uhr.");
+    });
+  }
+});
+
+function armAction(btn, fn){
+  if (!btn.classList.contains("arm")){
+    btn.classList.add("arm");
+    var orig = btn.textContent;
+    btn.textContent = "Wirklich?";
+    setTimeout(function(){ btn.classList.remove("arm"); btn.textContent = orig; }, 3000);
+    return;
+  }
+  btn.classList.remove("arm");
+  fn();
+}
+function deleteMany(collName, ids, doneMsg){
+  if (needDb()) return;
+  var chain = Promise.resolve(), ok = 0;
+  ids.forEach(function(id){
+    chain = chain.then(function(){
+      return col(collName).doc(id).delete().then(function(){ ok++; }, function(){});
+    });
+  });
+  chain.then(function(){ toast(ok + " " + doneMsg); });
+}
+$("clean-done").addEventListener("click", function(){
+  armAction($("clean-done"), function(){
+    deleteMany("todos", todos.filter(function(t){ return t.done; }).map(function(t){ return t.id; }), "erledigte Aufgaben gelöscht.");
+  });
+});
+$("clean-imported").addEventListener("click", function(){
+  armAction($("clean-imported"), function(){
+    deleteMany("events", events.filter(function(e){ return e.imported; }).map(function(e){ return e.id; }), "importierte Termine gelöscht.");
+  });
+});
+
+function saveFile(filename, data, okMsg){
+  if (!downloadsNs){ toast("Download ist in dieser Ansicht nicht verfügbar."); return; }
+  downloadsNs.save({ filename: filename, data: data }).then(function(){
+    toast(okMsg);
+  }).catch(function(e){
+    if (e && e.code === "declined") return;
+    toast("Download fehlgeschlagen: " + failMsg(e));
+  });
+}
+function csvCell(s){
+  s = String(s == null ? "" : s);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+$("csv-btn").addEventListener("click", function(){
+  var rows = [["Subject","Start Date","Start Time","All Day Event","Description"]];
+  function usDate(s){
+    var d = parseISO(s);
+    return d ? (String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0") + "/" + d.getFullYear()) : "";
+  }
+  events.forEach(function(e){
+    if (!e.date) return;
+    rows.push([(e.typ === "Klausur" ? "Klausur: " : "") + e.title, usDate(e.date), e.time || "", e.time ? "False" : "True", ""]);
+  });
+  courses.forEach(function(c){
+    var ex = c.exam || {};
+    [["t1","Klausur " + c.name + " (1. Termin)"],["t2","Klausur " + c.name + " (2. Termin)"],
+     ["t1an","Letzte Anmeldung " + c.name + " (1. Termin)"],["t1ab","Letzte Abmeldung " + c.name + " (1. Termin)"],
+     ["t2an","Letzte Anmeldung " + c.name + " (2. Termin)"],["t2ab","Letzte Abmeldung " + c.name + " (2. Termin)"]].forEach(function(k){
+      if (ex[k[0]]) rows.push([k[1], usDate(ex[k[0]]), "", "True", ""]);
+    });
+  });
+  study.forEach(function(s){
+    if (s.date && !s.done) rows.push(["Lernblock: " + s.title, usDate(s.date), s.time || "", s.time ? "False" : "True", ""]);
+  });
+  var csv = rows.map(function(r){ return r.map(csvCell).join(","); }).join("\r\n");
+  saveFile("uni-planer-termine-" + iso(today0()) + ".csv", csv, "CSV gespeichert – in Google Kalender über „Importieren“ einlesen.");
+});
+$("backup-btn").addEventListener("click", function(){
+  var data = JSON.stringify({
+    exportiert: new Date().toISOString(),
+    courses: courses, todos: todos, events: events, study: study, work: work, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
+    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc }
+  }, null, 2);
+  saveFile("uni-planer-backup-" + iso(today0()) + ".json", data, "Backup gespeichert.");
+});
+$("restore-file").addEventListener("change", function(){
+  var inp = $("restore-file");
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (needDb()){ inp.value = ""; return; }
+  if (f.size > 10 * 1024 * 1024){ toast("Backup-Datei zu groß – maximal 10 MB."); inp.value = ""; return; }
+  var fr = new FileReader();
+  fr.onerror = function(){ toast("Datei konnte nicht gelesen werden."); inp.value = ""; };
+  fr.onload = function(){
+    var data;
+    try { data = JSON.parse(fr.result); } catch(e){ toast("Keine gültige Backup-Datei."); inp.value = ""; return; }
+    var writes = [];
+    ["courses","todos","events","study","work","vocab"].forEach(function(cn){
+      (Array.isArray(data[cn]) ? data[cn] : []).forEach(function(row){
+        if (!row || typeof row !== "object" || !row.id) return;
+        var body = {};
+        Object.keys(row).forEach(function(k){ if (k !== "id") body[k] = row[k]; });
+        writes.push({ cn: cn, id: String(row.id), body: body });
+      });
+    });
+    if (!writes.length){ toast("Das Backup enthält keine Daten."); inp.value = ""; return; }
+    toast("Stelle " + writes.length + " Einträge wieder her …");
+    var chain = Promise.resolve(), ok = 0;
+    writes.forEach(function(w){
+      chain = chain.then(function(){
+        try {
+          return col(w.cn).doc(w.id).set(w.body).then(function(){ ok++; }, function(){});
+        } catch(e){ return; }
+      });
+    });
+    chain.then(function(){
+      if (data.settings && typeof data.settings === "object"){
+        if (data.settings.layout) db.doc("settings/layout").set(data.settings.layout).catch(function(){});
+        if (data.settings.design) db.doc("settings/design").set(data.settings.design).catch(function(){});
+        if (data.settings.semester) db.doc("settings/semester").set(data.settings.semester).catch(function(){});
+      }
+      toast(ok + " Einträge wiederhergestellt.");
+      inp.value = "";
+    });
+  };
+  fr.readAsText(f);
+});
+
+Promise.resolve(makeLocalDownloads()).then(function(ns){
+  downloadsNs = ns;
+});
+$("import-file").addEventListener("change", function(){
+  var inp = $("import-file");
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  if (needDb()){ inp.value = ""; return; }
+  var st = $("import-status");
+  if (f.size > 2 * 1024 * 1024){ st.textContent = "Datei zu groß – maximal 2 MB."; inp.value = ""; return; }
+  st.textContent = "Lese Datei …";
+  var fr = new FileReader();
+  fr.onerror = function(){ st.textContent = "Datei konnte nicht gelesen werden."; inp.value = ""; };
+  fr.onload = function(){
+    var evts = parseIcs(fr.result);
+    if (!evts.length){ st.textContent = "Keine Termine in der Datei gefunden – ist es eine .ics-Kalenderdatei?"; inp.value = ""; return; }
+    var items = [], skipped = 0, dupes = 0;
+    var existing = {};
+    events.forEach(function(e){ existing[e.title + "|" + e.date + "|" + (e.time || "")] = 1; });
+    evts.forEach(function(ev){
+      if (!ev.start || !ev.summary){ skipped++; return; }
+      var title0 = ev.summary + (ev.loc ? " (" + ev.loc + ")" : "");
+      var dates = ev.rrule ? expandRrule(ev.start.date, ev.rrule) : [ev.start.date];
+      dates.forEach(function(dt){
+        var key = title0 + "|" + dt + "|" + (ev.start.time || "");
+        if (existing[key]){ dupes++; return; }
+        existing[key] = 1;
+        items.push({
+          title: title0,
+          date: dt,
+          time: ev.start.time || "",
+          typ: /klausur|pr(ü|ue)fung|exam/i.test(ev.summary) ? "Klausur" : "Termin",
+          courseId: courseIdByName(ev.summary),
+          imported: true,
+          createdAt: Date.now()
+        });
+      });
+    });
+    if (items.length > 600){ st.textContent = "Zu viele Termine (" + items.length + ") – maximal 600 pro Import."; inp.value = ""; return; }
+    if (!items.length){
+      st.textContent = dupes
+        ? "Alle " + dupes + " Termine sind schon vorhanden – nichts importiert."
+        : "Keine gültigen Termine gefunden" + (skipped ? " (" + skipped + " übersprungen)." : ".");
+      inp.value = "";
+      return;
+    }
+    st.textContent = "Importiere " + items.length + " Termine …";
+    var ok = 0, failed = 0;
+    var chain = Promise.resolve();
+    items.forEach(function(it){
+      chain = chain.then(function(){
+        return col("events").add(it).then(function(){ ok++; }, function(){ failed++; });
+      });
+    });
+    chain.then(function(){
+      st.textContent = ok + " Termine importiert"
+        + (dupes ? ", " + dupes + " Duplikate übersprungen" : "")
+        + (skipped ? ", " + skipped + " übersprungen" : "")
+        + (failed ? ", " + failed + " fehlgeschlagen" : "") + ".";
+      toast(ok + " Termine importiert.");
+      inp.value = "";
+    });
+  };
+  fr.readAsText(f);
+});
+
+/* ---- Tageswechsel um Mitternacht erkennen ---- */
+var lastDayIso = iso(today0());
+setInterval(function(){
+  var nowIso = iso(today0());
+  if (nowIso !== lastDayIso){
+    lastDayIso = nowIso;
+    render();
+  }
+}, 60000);
+
+/* ---- Daten laden ---- */
+render();
+
+(function(then){ then(makeLocalDb()); })(function(ns){
+  if (!ns){
+    $("offline-banner").classList.add("show");
+    $("todos-summary").textContent = "Nicht verbunden";
+    return;
+  }
+  db = ns;
+  function sub(name, map, assign){
+    db.collection(name).onSnapshot(function(snap){
+      assign(snap.docs.map(function(d){ return map(d.id, d.data() || {}); }));
+      loaded = true;
+      render();
+    }, function(e){
+      $("offline-banner").classList.add("show");
+      toast("Verbindung verloren: " + failMsg(e));
+    });
+  }
+  sub("courses", function(id, b){
+    var ex = (b.exam && typeof b.exam === "object") ? b.exam : {};
+    return {
+      id: id, name: String(b.name || "?"),
+      color: typeof b.color === "number" ? b.color : 0,
+      colorId: typeof b.colorId === "string" ? b.colorId : "",
+      group: typeof b.group === "string" ? b.group : "",
+      order: typeof b.order === "number" ? b.order : 0,
+      grade: typeof b.grade === "number" ? b.grade : 0,
+      ects: typeof b.ects === "number" ? b.ects : 0,
+      notes: typeof b.notes === "string" ? b.notes : "",
+      plan: (b.plan && typeof b.plan === "object") ? b.plan : {},
+      exam: {
+        t1: typeof ex.t1 === "string" ? ex.t1 : "",
+        t1an: typeof ex.t1an === "string" ? ex.t1an : (typeof ex.an === "string" ? ex.an : ""),
+        t1ab: typeof ex.t1ab === "string" ? ex.t1ab : (typeof ex.ab === "string" ? ex.ab : ""),
+        t2: typeof ex.t2 === "string" ? ex.t2 : "",
+        t2an: typeof ex.t2an === "string" ? ex.t2an : "",
+        t2ab: typeof ex.t2ab === "string" ? ex.t2ab : ""
+      },
+      createdAt: b.createdAt || 0
+    };
+  }, function(v){ courses = v; });
+  sub("todos", function(id, b){
+    return {
+      id: id, title: String(b.title || ""), courseId: String(b.courseId || ""),
+      due: typeof b.due === "string" ? b.due : "", typ: String(b.typ || "Sonstiges"),
+      studyDate: typeof b.studyDate === "string" ? b.studyDate : "",
+      done: !!b.done, doneAt: typeof b.doneAt === "number" ? b.doneAt : 0,
+      createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+    };
+  }, function(v){ todos = v; });
+  sub("events", function(id, b){
+    return {
+      id: id, title: String(b.title || ""), date: typeof b.date === "string" ? b.date : "",
+      time: typeof b.time === "string" ? b.time : "", typ: String(b.typ || "Termin"),
+      courseId: String(b.courseId || ""), imported: !!b.imported,
+      folder: typeof b.folder === "string" ? b.folder : "",
+      seriesId: typeof b.seriesId === "string" ? b.seriesId : "",
+      createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+    };
+  }, function(v){ events = v; });
+  sub("study", function(id, b){
+    return {
+      id: id, title: String(b.title || ""), date: typeof b.date === "string" ? b.date : "",
+      time: typeof b.time === "string" ? b.time : "", courseId: String(b.courseId || ""),
+      done: !!b.done, doneAt: typeof b.doneAt === "number" ? b.doneAt : 0,
+      seriesId: typeof b.seriesId === "string" ? b.seriesId : "",
+      createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+    };
+  }, function(v){ study = v; });
+  sub("work", function(id, b){
+    return {
+      id: id, date: typeof b.date === "string" ? b.date : "",
+      from: typeof b.from === "string" ? b.from : "", to: typeof b.to === "string" ? b.to : "",
+      note: String(b.note || ""), createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+    };
+  }, function(v){ work = v; });
+  sub("vocab", function(id, b){
+    return {
+      idx: typeof b.idx === "number" ? b.idx : -1,
+      level: typeof b.level === "number" ? b.level : 0,
+      rating: typeof b.rating === "string" ? b.rating : "",
+      due: typeof b.due === "string" ? b.due : "",
+      intro: typeof b.intro === "string" ? b.intro : "",
+      lastDay: typeof b.lastDay === "string" ? b.lastDay : "",
+      seenAt: typeof b.seenAt === "number" ? b.seenAt : 0
+    };
+  }, function(v){ vocab = v.filter(function(p){ return p.idx >= 0; }); });
+  sub("settings", function(id, b){
+    return { id: id, data: b };
+  }, function(v){
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {};
+    v.forEach(function(d){
+      if (d.id === "layout") layoutDoc = d.data || {};
+      if (d.id === "design") designDoc = d.data || {};
+      if (d.id === "semester") semesterDoc = d.data || {};
+      if (d.id === "vokstats") vokStats = d.data || {};
+    });
+    applyDesign();
+  });
+});
+})();
+</script>
+
+</body>
+</html>
