@@ -112,6 +112,11 @@ h1{font-family:var(--font-display); font-weight:700; font-size:clamp(25px,4vw,33
 .clpsd > :not(:first-child){display:none !important}
 [data-clps] > .fh-row, [data-clps] > .fh{cursor:pointer}
 .clps-c{color:var(--muted); font-size:12px; font-weight:600; margin-left:8px; user-select:none; -webkit-user-select:none; flex:none}
+.jumpbar{display:flex; gap:6px; overflow-x:auto; margin:-4px 0 16px; padding:6px 2px; position:sticky; top:0; z-index:6; background:color-mix(in srgb,var(--bg) 82%,transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none}
+.jumpbar::-webkit-scrollbar{display:none}
+.jumpbar button{flex:none; border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:5px 12px; font-size:12.5px; color:var(--ink); cursor:pointer}
+.jumpbar button:hover{border-color:var(--accent); color:var(--accent)}
+[data-clps]{scroll-margin-top:52px}
 [hidden]{display:none !important}
 .banner{display:none; background:color-mix(in srgb,var(--warn) 12%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px}
 .banner.show{display:block}
@@ -400,6 +405,7 @@ div[data-block] form.card{margin-bottom:14px}
 <!-- Alle To-Dos -->
 <section id="view-todos" hidden>
   <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
+  <nav class="jumpbar" id="jump-todos" hidden></nav>
   <div class="upcoming" id="upcoming"></div>
   <div id="today-box"></div>
   <div id="sched-box"></div>
@@ -447,6 +453,7 @@ div[data-block] form.card{margin-bottom:14px}
     <div class="grow"><h1 id="fach-title"></h1><p class="sub" id="fach-sub"></p><div class="pbar" id="fach-pbar" hidden><span id="fach-pfill"></span></div></div>
     <button type="button" class="ghost" id="fach-del">Vorlesung löschen</button>
   </div>
+  <nav class="jumpbar" id="jump-fach" hidden></nav>
   <div class="card" data-block="ptermine" style="display:grid; gap:11px; margin-bottom:24px" hidden>
     <div class="fh-row"><div class="fh">Private Termine</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <form id="ptermin-add" autocomplete="off" style="display:grid; gap:10px">
@@ -700,6 +707,7 @@ div[data-block] form.card{margin-bottom:14px}
 <!-- Einstellungen -->
 <section id="view-design" hidden>
   <div class="vhead"><div class="grow"><h1>Einstellungen</h1><p class="sub">Darstellung, eigene Fotos, Export und Aufräumen.</p></div></div>
+  <nav class="jumpbar" id="jump-design" hidden></nav>
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
     <div class="fh">Synchronisierung – eigenes Konto (ohne Claude)</div>
     <p class="sub" style="margin:0" id="sync-state">…</p>
@@ -1359,7 +1367,7 @@ function renderFachView(){
     $("ex-t2ab").value = ex.t2ab || "";
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
-    kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false;
+    kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; kkQueue = [];
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
     $("fach-notes").value = c.notes || "";
@@ -1648,6 +1656,7 @@ function render(){
   else if (view === "vokabeln") renderVokabeln();
   else if (view === "plan") renderPlan();
   renderDayPanel();
+  renderJumpbars();
 }
 
 /* ---- Schreiboperationen ---- */
@@ -2774,6 +2783,55 @@ function initCollapse(){
 }
 initCollapse();
 
+/* ---- Sprungleiste ---- */
+function buildJump(secId, barId){
+  var bar = $(barId);
+  if (!bar) return;
+  var sec = $(secId);
+  if (!sec || sec.hidden){ bar.hidden = true; return; }
+  var html = "";
+  Array.prototype.forEach.call(sec.querySelectorAll("[data-clps]"), function(box){
+    if (box.hidden) return;
+    var head = box.firstElementChild;
+    if (!head) return;
+    var label = "";
+    if (head.classList.contains("fh")){
+      Array.prototype.forEach.call(head.childNodes, function(n){ if (n.nodeType === 3) label += n.textContent; });
+    } else {
+      var fh = head.querySelector(".fh");
+      if (fh) label = fh.textContent;
+    }
+    label = label.replace(/\s+/g, " ").trim();
+    if (!label) return;
+    html += '<button type="button" data-jump="' + esc(box.dataset.clps) + '">' + esc(label) + '</button>';
+  });
+  bar.innerHTML = html;
+  bar.hidden = !html;
+}
+function renderJumpbars(){
+  buildJump("view-todos", "jump-todos");
+  buildJump("view-fach", "jump-fach");
+  buildJump("view-design", "jump-design");
+}
+document.addEventListener("click", function(ev){
+  var jb = ev.target.closest("[data-jump]");
+  if (!jb) return;
+  var key = jb.dataset.jump;
+  var box = null;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-clps]"), function(b){
+    if (b.dataset.clps === key) box = b;
+  });
+  if (!box) return;
+  if (box.classList.contains("clpsd")){
+    box.classList.remove("clpsd");
+    var ch = box.querySelector(".clps-c");
+    if (ch) ch.textContent = "▾";
+    delete clpsState[key];
+    try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
+  }
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
 /* ---- Stundenplan-Ansicht ---- */
 var spCursor = startOfWeek(new Date());
 function spEventsOn(dIso){
@@ -2856,7 +2914,7 @@ $("sp-next").addEventListener("click", function(){ spCursor = addDays(spCursor, 
 $("sp-today").addEventListener("click", function(){ spCursor = startOfWeek(new Date()); renderPlan(); });
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false;
+var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {};
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
@@ -2873,9 +2931,11 @@ function renderKk(c){
   if (!$("kk-status")) return;
   var my = kkCardsFor(c.id);
   var due = kkDueList(c.id);
-  $("kk-status").textContent = my.length
-    ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " heute fällig" : "für heute alles wiederholt")
-    : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.";
+  $("kk-status").textContent = kkMode
+    ? "Übungsrunde: noch " + kkQueue.length + " Karten – „Kann ich“ kommt später nochmal dran, „Kann ich noch nicht“ gleich wieder."
+    : (my.length
+      ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " heute fällig" : "für heute alles wiederholt")
+      : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
   $("kk-start").textContent = due.length ? "Üben (" + due.length + ")" : "Extra-Runde üben";
   $("kk-start").disabled = !my.length;
   $("kk-list-sum").textContent = "Alle Karten · " + my.length;
@@ -2887,16 +2947,14 @@ function renderKk(c){
   }).join("");
   var cur = null;
   if (kkMode){
-    if (kkCurrent) cur = findIn(cards, kkCurrent);
-    if (!cur){
-      if (due.length) cur = due[0];
-      else if (kkExtra && my.length) cur = my[Math.floor(Math.random() * my.length)];
-      kkCurrent = cur ? cur.id : null;
-      kkShowing = false;
+    while (!cur && kkQueue.length){
+      cur = findIn(cards, kkQueue[0]);
+      if (!cur) kkQueue.shift();
     }
+    if (cur && kkCurrent !== cur.id){ kkCurrent = cur.id; kkShowing = false; }
   }
   if (!kkMode || !cur){
-    if (kkMode && !cur) toast("Alle Karten für heute geschafft!");
+    if (kkMode && !cur) toast("Runde geschafft – alles sitzt!");
     kkMode = false;
     $("kk-practice").hidden = true;
     $("kk-ctl").hidden = false;
@@ -2905,7 +2963,7 @@ function renderKk(c){
   $("kk-practice").hidden = false;
   $("kk-ctl").hidden = true;
   var tIso = iso(today0());
-  $("kk-kind").textContent = !cur.rating ? "Neue Karte" : (cur.due && cur.due <= tIso ? (cur.lastDay === tIso ? "Gleich nochmal" : "Wiederholung") : "Extra-Runde");
+  $("kk-kind").textContent = !cur.rating ? "Neue Karte" : (cur.lastDay === tIso && cur.rating === "hard" ? "Gleich nochmal" : (cur.due && cur.due <= tIso ? "Wiederholung" : "Nochmal zur Sicherheit"));
   $("kk-q").textContent = cur.q;
   $("kk-a").textContent = cur.a;
   $("kk-a").hidden = !kkShowing;
@@ -2932,6 +2990,14 @@ function rateKk(rating){
   var patch = { level: level, rating: rating, due: iso(addDays(today0(), days)), lastDay: tIso, seenAt: Date.now() };
   Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
   col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  if (kkQueue[0] === k.id) kkQueue.shift();
+  if (rating === "easy"){
+    kkEasyCnt[k.id] = (kkEasyCnt[k.id] || 0) + 1;
+    if (kkEasyCnt[k.id] < 2) kkQueue.push(k.id);
+  } else {
+    kkEasyCnt[k.id] = 0;
+    kkQueue.splice(rating === "hard" ? Math.min(2, kkQueue.length) : Math.min(8, kkQueue.length), 0, k.id);
+  }
   kkCurrent = null;
   kkShowing = false;
   var c = courseById(fachId);
@@ -2947,14 +3013,24 @@ $("kk-add").addEventListener("submit", function(ev){
   });
 });
 $("kk-start").addEventListener("click", function(){
+  var due = kkDueList(fachId);
+  var pool = due.slice();
+  if (!pool.length){
+    pool = kkCardsFor(fachId).slice();
+    for (var i = pool.length - 1; i > 0; i--){
+      var r = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[r]; pool[r] = tmp;
+    }
+  }
+  kkQueue = pool.map(function(k){ return k.id; });
+  kkEasyCnt = {};
   kkMode = true;
-  kkExtra = !kkDueList(fachId).length;
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
   if (c) renderKk(c);
 });
 $("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); });
-$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; kkQueue = []; var c = courseById(fachId); if (c) renderKk(c); });
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
