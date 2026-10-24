@@ -407,6 +407,7 @@ div[data-block] form.card{margin-bottom:14px}
   <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
   <nav class="jumpbar" id="jump-todos" hidden></nav>
   <div class="upcoming" id="upcoming"></div>
+  <div id="phase-hints"></div>
   <div id="today-box"></div>
   <div id="sched-box"></div>
   <div id="today-cal"></div>
@@ -428,13 +429,20 @@ div[data-block] form.card{margin-bottom:14px}
           <option>Vorlesung</option><option selected>Sonstiges</option>
         </select>
       </label>
+      <label class="f" for="todo-prio">Priorität
+        <select id="todo-prio"><option value="">Normal</option><option value="1">Wichtig</option></select>
+      </label>
+      <label class="f" for="todo-mins">Dauer (min)
+        <input type="number" id="todo-mins" min="5" max="600" step="5" placeholder="z. B. 45">
+      </label>
     </div>
     <button class="primary" id="todo-add-btn" type="submit">Hinzufügen</button>
   </form>
   <div data-block="list">
     <div class="fh-row"><div class="fh">Aufgabenliste</div><span class="drag-handle" title="Verschieben">⠿</span></div>
-    <input type="search" id="todo-search" placeholder="Aufgaben durchsuchen …" aria-label="Aufgaben durchsuchen">
+    <input type="search" id="todo-search" placeholder="Alles durchsuchen – Aufgaben, Termine, Karten, Notizen …" aria-label="Alles durchsuchen">
     <div id="todo-groups"></div>
+    <div id="search-hits"></div>
     <div class="empty" id="todo-empty" hidden>
       <div class="big">Noch keine To-Dos</div>
       Trag oben deine erste Aufgabe ein – die Liste sortiert sich dann von selbst nach Fälligkeit.
@@ -491,7 +499,17 @@ div[data-block] form.card{margin-bottom:14px}
     <button class="primary" type="submit">Klausurtermine speichern</button>
   </form>
   <div class="card" data-block="cards" style="display:grid; gap:11px; margin-bottom:24px">
-    <div class="fh-row"><div class="fh">Karteikarten</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="fh-row"><div class="fh">Karteikarten</div><button type="button" class="ghost" id="kk-lang" style="flex:none; padding:3px 10px; font-size:12px">Sprache: DE</button><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div id="kk-quiz-box" style="display:grid; gap:12px; text-align:center" hidden>
+      <div class="fh" id="kq-prog"></div>
+      <div id="kq-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
+      <div id="kq-opts" style="display:grid; gap:8px"></div>
+      <p class="sub" id="kq-fb" style="margin:0"></p>
+      <div class="frow" style="justify-content:center">
+        <button type="button" class="primary" id="kq-next" style="flex:none" hidden>Weiter</button>
+        <button type="button" class="ghost" id="kq-stop" style="flex:none">Quiz beenden</button>
+      </div>
+    </div>
     <div id="kk-practice" style="display:grid; gap:12px; text-align:center" hidden>
       <div class="fh" id="kk-kind"></div>
       <div id="kk-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
@@ -505,19 +523,27 @@ div[data-block] form.card{margin-bottom:14px}
       <button type="button" class="ghost" id="kk-stopx" style="justify-self:center">Üben beenden</button>
     </div>
     <p class="sub" id="kk-status" style="margin:0"></p>
+    <div id="kk-prog" class="sub" style="margin:0" hidden></div>
+    <div class="pbar" id="kk-pbar" hidden><span id="kk-pfill"></span></div>
     <div class="frow" id="kk-ctl">
       <button type="button" class="primary" id="kk-start" style="flex:none">Lernen</button>
       <button type="button" class="ghost" id="kk-shuffle" style="flex:none">Alle durchgehen</button>
+      <button type="button" class="ghost" id="kk-quiz" style="flex:none">Quiz</button>
+      <button type="button" class="ghost" id="kk-export" style="flex:none">Als Datei speichern</button>
     </div>
     <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
       <label class="f" for="kk-qin">Frage <input type="text" id="kk-qin" maxlength="300" placeholder="z. B. Welche Zellen präsentieren Antigene über MHC-II?"></label>
       <label class="f" for="kk-ain">Antwort <textarea id="kk-ain" rows="2" maxlength="1000" placeholder="z. B. Dendritische Zellen, Makrophagen, B-Zellen"></textarea></label>
+      <div class="frow">
+        <label class="f" for="kk-qen" style="flex:1">Frage auf Englisch (optional) <input type="text" id="kk-qen" maxlength="300"></label>
+        <label class="f" for="kk-aen" style="flex:1">Antwort auf Englisch (optional) <input type="text" id="kk-aen" maxlength="1000"></label>
+      </div>
       <button class="primary" type="submit">Karte hinzufügen</button>
     </form>
     <details>
       <summary style="cursor:pointer; font-weight:600">Karteikarten aus Datei importieren</summary>
       <div style="display:grid; gap:10px; margin-top:10px">
-        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile im Format <b>Frage;;Antwort</b> (auch Frage;Antwort oder Tab-getrennt). Damit nicht alles auf einmal kommt, werden neue Karten auf ca. 15 pro Tag verteilt.</p>
+        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Neue Karten werden auf ca. 15 pro Tag verteilt.</p>
         <label class="f" for="kk-file">Datei wählen <input type="file" id="kk-file" accept=".txt,.csv,text/plain,text/csv"></label>
         <p class="sub" id="kk-imp-status" style="margin:0"></p>
       </div>
@@ -613,6 +639,12 @@ div[data-block] form.card{margin-bottom:14px}
           <select id="ftodo-typ">
             <option>Abgabe</option><option>Klausur</option><option>Lernen</option><option selected>Sonstiges</option>
           </select>
+        </label>
+        <label class="f" for="ftodo-prio">Priorität
+          <select id="ftodo-prio"><option value="">Normal</option><option value="1">Wichtig</option></select>
+        </label>
+        <label class="f" for="ftodo-mins">Dauer (min)
+          <input type="number" id="ftodo-mins" min="5" max="600" step="5" placeholder="z. B. 45">
         </label>
       </div>
       <button class="primary" type="submit">Hinzufügen</button>
@@ -776,6 +808,16 @@ div[data-block] form.card{margin-bottom:14px}
     <div class="fh">Gruppen in der Seitenleiste</div>
     <p class="sub" style="margin:0">Benenne die Oberthemen um, unter denen deine Vorlesungen gruppiert sind. Der neue Name gilt für alle Fächer der Gruppe.</p>
     <div id="group-list" style="display:grid; gap:10px"></div>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Wochenziele</div>
+    <p class="sub" style="margin:0">Setze dir Ziele pro Woche – der Wochenrückblick auf der Startseite zeigt dann Fortschrittsbalken. Feld leer lassen = kein Ziel.</p>
+    <div class="frow">
+      <label class="f" for="wg-fokus">Fokus-Stunden <input type="number" id="wg-fokus" min="1" max="80" step="0.5" placeholder="z. B. 10"></label>
+      <label class="f" for="wg-blocks">Lernblöcke <input type="number" id="wg-blocks" min="1" max="50" step="1" placeholder="z. B. 5"></label>
+      <label class="f" for="wg-vok">Vokabel-Tage <input type="number" id="wg-vok" min="1" max="7" step="1" placeholder="z. B. 7"></label>
+    </div>
+    <button type="button" class="ghost" id="wg-save">Wochenziele speichern</button>
   </div>
   <div class="card" id="grades-card" style="display:grid; gap:11px; margin-bottom:24px" hidden>
     <div class="fh">Notenübersicht</div>
@@ -982,7 +1024,7 @@ var VOCAB = [
 ];
 var VOK_IV = [1, 3, 7, 14, 30, 60];
 var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
-var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {};
+var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {};
 var now = new Date();
 var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
 var wCursor = startOfWeek(now);
@@ -1010,13 +1052,14 @@ function toast(msg, action){
     b.textContent = action.label;
     b.addEventListener("click", function(){
       t.classList.remove("show");
+      t.style.pointerEvents = "none";
       action.fn();
     });
     t.appendChild(b);
   }
   t.classList.add("show");
   clearTimeout(toast._h);
-  toast._h = setTimeout(function(){ t.classList.remove("show"); }, action ? 6000 : 3500);
+  toast._h = setTimeout(function(){ t.classList.remove("show"); t.style.pointerEvents = "none"; }, action ? 6000 : 3500);
 }
 function failMsg(e){ return (e && e.message) ? e.message : String(e); }
 function cssUrl(u){
@@ -1111,6 +1154,8 @@ function todoRow(t, showFach){
   if (showFach) meta += fachTag(t.courseId);
   if (t.typ === "Klausur") meta += '<span class="tag klausur">Klausur</span>';
   else if (t.typ && t.typ !== "Sonstiges") meta += '<span class="tag typ">' + esc(t.typ) + '</span>';
+  if (t.prio) meta += '<span class="tag klausur">Wichtig</span>';
+  if (t.mins) meta += '<span>≈ ' + t.mins + ' min</span>';
   if (due && !t.done){
     var d = diffDays(due), lbl, cls = "rel";
     if (d < 0){ lbl = (d === -1 ? "seit gestern überfällig" : (-d) + " Tage überfällig"); cls += " over"; }
@@ -1132,6 +1177,7 @@ function todoRow(t, showFach){
 function byDue(a,b){
   var da = a.due || "9999", dbb = b.due || "9999";
   if (da !== dbb) return da < dbb ? -1 : 1;
+  if ((b.prio||0) !== (a.prio||0)) return (b.prio||0) - (a.prio||0);
   return (a.createdAt||0) - (b.createdAt||0);
 }
 function renderGroups(arr, el, showFach){
@@ -1248,6 +1294,7 @@ function renderTodosView(){
   if (!loaded) s.textContent = "Lade …";
   else s.innerHTML = (open.length === 1 ? "1 offene Aufgabe" : open.length + " offene Aufgaben")
     + (late ? " · <strong>" + late + " überfällig</strong>" : "");
+  renderSearchHits();
   renderUpcoming();
   var tbIso = iso(today0()), tmIso = iso(addDays(today0(), 1));
   function dayList(dIso){
@@ -1258,12 +1305,14 @@ function renderTodosView(){
     tbList = dayList(tmIso);
     tbLabel = "Morgen";
   }
+  var tbMins = 0;
+  tbList.forEach(function(t){ tbMins += t.mins || 0; });
   var doneToday = todos.some(function(t){ return t.done && (t.due === tbIso || t.studyDate === tbIso); });
   var celebrate = (tbLabel === "Morgen" && doneToday)
     ? '<p class="sub" style="margin:0 0 10px; color:var(--ok); font-weight:600">Alles für heute erledigt – stark!</p>'
     : "";
   $("today-box").innerHTML = celebrate + (tbList.length
-    ? '<section class="grp today"><h2>' + tbLabel + ' <span class="n">· ' + tbList.length + '</span></h2><ul class="list">'
+    ? '<section class="grp today"><h2>' + tbLabel + ' <span class="n">· ' + tbList.length + (tbMins ? " · ≈ " + fmtMins(tbMins) : "") + '</span></h2><ul class="list">'
       + tbList.map(function(t){ return todoRow(t, true); }).join("").replace(/id="cb-/g, 'id="tbcb-').replace(/id="sd-/g, 'id="tbsd-')
       + '</ul></section>'
     : "");
@@ -1277,7 +1326,7 @@ function renderTodosView(){
     ? '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Stundenplan ' + spLabel + '</div><ul class="list" style="gap:6px">'
       + spList.map(function(e){
           var c = courseById(e.courseId);
-          return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "\u2013") + '</span><span class="t">' + esc(e.title) + '</span>'
+          return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "\u2013") + '</span><span class="t">' + esc(e.title) + (e.note ? ' <span style="color:var(--muted)">– ' + esc(e.note) + '</span>' : '') + '</span>'
             + (c ? '<span style="display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.5px"><span style="width:10px; height:10px; border-radius:50%; background:' + courseColor(c) + '; flex:none"></span>' + esc(c.name) + '</span>' : '<span class="tag typ">Vorlesung</span>')
             + '</li>';
         }).join("") + '</ul></div>'
@@ -1297,6 +1346,7 @@ function renderTodosView(){
   } else {
     $("today-cal").innerHTML = "";
   }
+  renderPhaseHints();
   renderWeekStats();
 }
 
@@ -1356,6 +1406,7 @@ function renderFachView(){
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
     kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; kkQueue = [];
+    kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
     $("fach-notes").value = c.notes || "";
@@ -1585,6 +1636,7 @@ function renderDayPanel(){
     html += '<li draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
       + '<input type="time" class="tm-edit" id="tm-' + esc(e.id) + '" value="' + esc(e.time || "") + '" aria-label="Uhrzeit ändern">'
       + '<span class="t">' + esc(e.title) + '</span>'
+      + '<input type="text" class="nt-edit" data-id="' + esc(e.id) + '" value="' + esc(e.note || "") + '" placeholder="Notiz …" maxlength="200" style="flex:1 1 130px; min-width:100px; padding:4px 6px; font-size:13px">'
       + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '<span class="tag typ">Termin</span>')
       + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
       + fachTag(e.courseId)
@@ -1625,6 +1677,8 @@ function renderDayPanel(){
 }
 
 function render(){
+  var ae = document.activeElement;
+  if (ae && ae.closest && ae.closest("input.d-edit, input.t-edit, input.tm-edit, input.nt-edit, input.study-date")) return;
   renderSidebar();
   syncFachSelects();
   $("view-todos").hidden = view !== "todos";
@@ -1782,7 +1836,7 @@ document.addEventListener("click", function(ev){
     mCursor = new Date(mCursor.getFullYear(), mCursor.getMonth() + (ev.target.id==="m-next"?1:-1), 1);
     selectedDay = null; render(); return;
   }
-  if (ev.target.id === "m-today"){ mCursor = new Date(now.getFullYear(), now.getMonth(), 1); selectedDay = iso(today0()); render(); return; }
+  if (ev.target.id === "m-today"){ var nd0 = new Date(); mCursor = new Date(nd0.getFullYear(), nd0.getMonth(), 1); selectedDay = iso(today0()); render(); return; }
   if (ev.target.id === "w-prev" || ev.target.id === "w-next"){
     wCursor = addDays(wCursor, ev.target.id==="w-next"?7:-7);
     selectedDay = null; render(); return;
@@ -1811,11 +1865,24 @@ document.addEventListener("click", function(ev){
     if (del.id === "fach-del"){
       var cid = fachId;
       var cBody = rawBody("courses", cid);
+      var casc = [];
+      ["todos", "cards", "study"].forEach(function(cn2){
+        collArray(cn2).forEach(function(x){
+          if (x.courseId === cid){
+            var b2 = {};
+            Object.keys(x).forEach(function(k3){ if (k3 !== "id") b2[k3] = x[k3]; });
+            casc.push({ cn: cn2, id: x.id, body: b2 });
+          }
+        });
+      });
       col("courses").doc(cid).delete().then(function(){
+        casc.forEach(function(it){ col(it.cn).doc(it.id).delete().catch(function(){}); });
+        events.forEach(function(e3){ if (e3.courseId === cid) col("events").doc(e3.id).update({ courseId: "" }).catch(function(){}); });
         view = "todos";
         render();
-        toast("Vorlesung gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
+        toast("Vorlesung samt Aufgaben, Karten und Lernblöcken gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
           col("courses").doc(cid).set(cBody).catch(function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
+          casc.forEach(function(it){ col(it.cn).doc(it.id).set(it.body).catch(function(){}); });
         }} : null);
       }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
       return;
@@ -1866,7 +1933,9 @@ document.addEventListener("focusout", function(ev){
   var sdf = ev.target.closest("input.study-date");
   if (sdf){ commitStudyDate(sdf); return; }
   var tmf = ev.target.closest("input.tm-edit");
-  if (tmf) commitTime(tmf);
+  if (tmf){ commitTime(tmf); return; }
+  var ntf = ev.target.closest("input.nt-edit");
+  if (ntf) commitNote(ntf);
 });
 document.addEventListener("change", function(ev){
   var sd = ev.target.closest("input.study-date");
@@ -1926,7 +1995,7 @@ $("exam-form").addEventListener("submit", function(ev){
     .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
 });
 
-function todoSubmit(titleId, dueId, typId, courseId){
+function todoSubmit(titleId, dueId, typId, courseId, prioId, minsId){
   var title = $(titleId).value.trim();
   if (!title) return;
   addDoc("todos", {
@@ -1934,16 +2003,20 @@ function todoSubmit(titleId, dueId, typId, courseId){
     courseId: courseId,
     due: dueId ? ($(dueId).value || "") : "",
     typ: $(typId).value,
+    prio: prioId && $(prioId).value ? 1 : 0,
+    mins: minsId ? (parseInt($(minsId).value, 10) || 0) : 0,
     done: false, doneAt: null, createdAt: Date.now()
   }, function(){
     $(titleId).value = "";
     if (dueId) $(dueId).value = "";
+    if (prioId) $(prioId).value = "";
+    if (minsId) $(minsId).value = "";
     $(titleId).focus();
   });
 }
 $("todo-add").addEventListener("submit", function(ev){
   ev.preventDefault();
-  todoSubmit("todo-title","todo-due","todo-typ", $("todo-fach").value);
+  todoSubmit("todo-title","todo-due","todo-typ", $("todo-fach").value, "todo-prio", "todo-mins");
 });
 $("todo-search").addEventListener("input", function(){
   searchQ = $("todo-search").value.trim().toLowerCase();
@@ -1951,7 +2024,7 @@ $("todo-search").addEventListener("input", function(){
 });
 $("fach-todo-add").addEventListener("submit", function(ev){
   ev.preventDefault();
-  todoSubmit("ftodo-title","ftodo-due","ftodo-typ", fachId);
+  todoSubmit("ftodo-title","ftodo-due","ftodo-typ", fachId, "ftodo-prio", "ftodo-mins");
 });
 $("lec-add").addEventListener("submit", function(ev){
   ev.preventDefault();
@@ -1997,6 +2070,8 @@ function applyLayout(vk){
     var el = cont.querySelector('[data-block="' + id + '"]');
     if (el) cont.appendChild(el);
   });
+  var tail = cont.querySelector("#week-stats");
+  if (tail) cont.appendChild(tail);
 }
 function saveLayout(vk, arr){
   if (needDb()) return;
@@ -2037,6 +2112,11 @@ function renderDesignView(){
     $("sem-end").value = semesterDoc.end || "";
   }
   syncStatus();
+  if (!(document.activeElement && (document.activeElement.id || "").slice(0, 3) === "wg-")){
+    $("wg-fokus").value = wgoalsDoc.fokusH > 0 ? wgoalsDoc.fokusH : "";
+    $("wg-blocks").value = wgoalsDoc.blocks > 0 ? wgoalsDoc.blocks : "";
+    $("wg-vok").value = wgoalsDoc.vokDays > 0 ? wgoalsDoc.vokDays : "";
+  }
   var gset = {};
   courses.forEach(function(c){ gset[c.group || ""] = 1; });
   var gl = $("group-list");
@@ -2633,33 +2713,50 @@ function parseIcs(text){
     else if (key === "SUMMARY") cur.summary = unescapeIcs(val);
     else if (key === "LOCATION" && !cur.loc) cur.loc = unescapeIcs(val);
     else if (key === "RRULE") cur.rrule = val;
+    else if (key === "EXDATE"){
+      String(val).split(",").forEach(function(xv){
+        var xs = parseIcsStamp(xv);
+        if (xs) (cur.exd = cur.exd || []).push(xs.date);
+      });
+    }
   });
   return out;
 }
 function expandRrule(startIso, rrule){
-  var dates = [startIso];
   var m = /FREQ=([A-Z]+)/i.exec(rrule || "");
-  if (!m || m[1].toUpperCase() !== "WEEKLY") return dates;
+  var d0 = parseISO(startIso);
+  if (!m || m[1].toUpperCase() !== "WEEKLY" || !d0) return [startIso];
   var interval = 1;
   var mi = /INTERVAL=(\d+)/i.exec(rrule);
   if (mi) interval = Math.max(1, +mi[1]);
   var count = 0;
   var mc = /COUNT=(\d+)/i.exec(rrule);
-  if (mc) count = Math.min(+mc[1], 30);
+  if (mc) count = Math.min(+mc[1], 60);
   var until = "";
   var mu = /UNTIL=(\d{4})(\d{2})(\d{2})/i.exec(rrule || "");
   if (mu) until = mu[1] + "-" + mu[2] + "-" + mu[3];
-  var d = parseISO(startIso);
-  if (!d) return dates;
-  for (var i = 1; i < 30; i++){
-    d = addDays(d, 7 * interval);
-    var s = iso(d);
-    if (count && dates.length >= count) break;
-    if (until && s > until) break;
-    if (!count && !until && dates.length >= 15) break;
-    dates.push(s);
+  var wdMap = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+  var bydays = [];
+  var mb = /BYDAY=([A-Z0-9,+-]+)/i.exec(rrule || "");
+  if (mb) mb[1].split(",").forEach(function(t){
+    var k = wdMap[t.slice(-2).toUpperCase()];
+    if (k !== undefined && bydays.indexOf(k) < 0) bydays.push(k);
+  });
+  if (!bydays.length) bydays = [d0.getDay()];
+  var maxN = Math.min(count || (bydays.length > 1 ? 45 : 15), 60);
+  var dates = [], week0 = startOfWeek(d0), done = false;
+  for (var w = 0; w < 60 && !done; w++){
+    for (var i = 0; i < 7; i++){
+      var day = addDays(week0, w * 7 * interval + i);
+      if (bydays.indexOf(day.getDay()) < 0) continue;
+      var s = iso(day);
+      if (s < startIso) continue;
+      if (until && s > until){ done = true; break; }
+      dates.push(s);
+      if (dates.length >= maxN){ done = true; break; }
+    }
   }
-  return dates;
+  return dates.length ? dates : [startIso];
 }
 function courseIdByName(name){
   if (!name) return "";
@@ -2846,6 +2943,201 @@ document.addEventListener("click", function(ev){
   })();
 });
 
+/* ---- v34: Hilfen, Suche, Notizen, Ziele, Quiz ---- */
+function fmtMins(m){ return m >= 90 ? (Math.round(m / 6) / 10).toLocaleString("de-DE") + " h" : m + " min"; }
+function renderPhaseHints(){
+  var el = $("phase-hints");
+  if (!el) return;
+  var tIso2 = iso(today0());
+  var html = "";
+  courses.forEach(function(c){
+    if ((c.group || "") === "Privat") return;
+    var ex = c.exam || {};
+    var t = (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) ? ex.t1 : ((ex.t2 && diffDays(parseISO(ex.t2)) >= 0) ? ex.t2 : "");
+    if (!t) return;
+    var dd = diffDays(parseISO(t));
+    if (dd > 28) return;
+    var hasPlan = study.some(function(s){ return s.courseId === c.id && !s.done && s.date >= tIso2; });
+    if (hasPlan) return;
+    html += '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; border-left:4px solid ' + courseColor(c) + '">'
+      + '<span style="flex:1; min-width:160px">Klausur <strong>' + esc(c.name) + '</strong> ' + (dd === 0 ? "ist heute" : "in " + dd + " Tagen") + ' – noch kein Lernplan angelegt.</span>'
+      + '<button type="button" class="primary phase-go" data-course="' + esc(c.id) + '" style="flex:none">Lernplan erstellen</button></div>';
+  });
+  el.innerHTML = html;
+}
+document.addEventListener("click", function(ev){
+  var pg = ev.target.closest(".phase-go");
+  if (pg){
+    view = "fach";
+    fachId = pg.dataset.course;
+    render();
+    var pf = $("plan-form");
+    if (pf){
+      if (pf.classList.contains("clpsd")){
+        pf.classList.remove("clpsd");
+        var ch = pf.querySelector(".clps-c");
+        if (ch) ch.textContent = "▾";
+        delete clpsState[pf.dataset.clps];
+        try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
+      }
+      pf.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    return;
+  }
+  var gf = ev.target.closest("[data-gofach]");
+  if (gf){ view = "fach"; fachId = gf.dataset.gofach; render(); return; }
+  var gn = ev.target.closest("[data-gonav]");
+  if (gn){ view = gn.dataset.gonav; render(); }
+});
+function renderSearchHits(){
+  var el = $("search-hits");
+  if (!el) return;
+  if (!searchQ || searchQ.length < 2){ el.innerHTML = ""; return; }
+  function hit(t){ return String(t || "").toLowerCase().indexOf(searchQ) >= 0; }
+  var rows = [];
+  events.forEach(function(e){
+    if (rows.length < 25 && (hit(e.title) || hit(e.note))) rows.push({ txt: e.title + (e.note ? " – " + e.note : "") + (e.date ? " · " + fmtShort(e.date) + (e.time ? ", " + e.time : "") : ""), tag: "Termin" });
+  });
+  cards.forEach(function(k){
+    if (rows.length < 25 && (hit(k.q) || hit(k.a) || hit(k.qe) || hit(k.ae))){
+      var c = courseById(k.courseId);
+      rows.push({ txt: k.q, tag: "Karteikarte", cid: k.courseId, sub: c ? c.name : "" });
+    }
+  });
+  courses.forEach(function(c){
+    if (rows.length < 25 && hit(c.notes)) rows.push({ txt: "Notizen: " + c.notes.slice(0, 120), tag: "Brainstorming", cid: c.id, sub: c.name });
+  });
+  vocab.forEach(function(p){
+    var w = vw(p.idx);
+    if (rows.length < 25 && w && (hit(w[0]) || hit(w[1]))) rows.push({ txt: w[0] + " – " + w[1], tag: "Vokabel", nav: "vokabeln" });
+  });
+  el.innerHTML = rows.length
+    ? '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Weitere Treffer</div><ul class="list" style="gap:6px">'
+      + rows.map(function(r){
+          return '<li class="wit"' + (r.cid ? ' data-gofach="' + esc(r.cid) + '"' : (r.nav ? ' data-gonav="' + esc(r.nav) + '"' : "")) + ((r.cid || r.nav) ? ' style="cursor:pointer"' : "") + '>'
+            + '<span class="t">' + esc(r.txt) + (r.sub ? ' <span style="color:var(--muted)">· ' + esc(r.sub) + '</span>' : "") + '</span>'
+            + '<span class="tag typ">' + r.tag + '</span></li>';
+        }).join("") + '</ul></div>'
+    : "";
+}
+function commitNote(inp){
+  var id = inp.dataset.id;
+  var e = findIn(events, id);
+  var nv = inp.value.trim();
+  if (!e || nv === (e.note || "")) return;
+  if (!db){ toast("Kein Speicher verbunden."); return; }
+  col("events").doc(id).update({ note: nv })
+    .then(function(){ toast(nv ? "Notiz gespeichert." : "Notiz entfernt."); })
+    .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
+}
+$("wg-save").addEventListener("click", function(){
+  if (needDb()) return;
+  function numOf(id, mx){ var v = parseFloat(String($(id).value).replace(",", ".")); return (v > 0 && v <= mx) ? v : 0; }
+  wgoalsDoc = { fokusH: numOf("wg-fokus", 80), blocks: numOf("wg-blocks", 50), vokDays: Math.round(numOf("wg-vok", 7)) };
+  db.doc("settings/wgoals").set(wgoalsDoc)
+    .then(function(){ toast("Wochenziele gespeichert."); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+});
+$("kk-export").addEventListener("click", function(){
+  var c = courseById(fachId);
+  var my = kkCardsFor(fachId);
+  if (!c || !my.length){ toast("Keine Karten zum Speichern."); return; }
+  var txt = my.map(function(k){ var ln = k.q.replace(/\s+/g, " ") + ";;" + k.a.replace(/\s+/g, " "); if (k.qe || k.ae) ln += ";;" + String(k.qe || "").replace(/\s+/g, " ") + ";;" + String(k.ae || "").replace(/\s+/g, " "); return ln; }).join("\n");
+  saveFile("Karteikarten " + c.name.replace(/[\\\/:*?"<>|]/g, "-") + ".txt", txt, "Karten gespeichert – zum Teilen einfach per Import einlesen lassen.");
+});
+
+/* ---- Karten-Quiz ---- */
+var kqCards = [], kqIdx = 0, kqScore = 0, kqAnswered = false;
+function kqShuffle(a){
+  for (var i = a.length - 1; i > 0; i--){
+    var r = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[r]; a[r] = t;
+  }
+  return a;
+}
+function renderQuiz(){
+  var box = $("kk-quiz-box");
+  if (!box) return;
+  if (!kqCards.length){ box.hidden = true; return; }
+  box.hidden = false;
+  $("kk-practice").hidden = true;
+  $("kk-ctl").hidden = true;
+  if (kqIdx >= kqCards.length){
+    $("kq-prog").textContent = "Quiz beendet";
+    $("kq-q").textContent = kqScore + " von " + kqCards.length + " richtig (" + Math.round(kqScore / kqCards.length * 100) + " %)";
+    $("kq-opts").innerHTML = "";
+    $("kq-fb").textContent = kqScore === kqCards.length ? "Perfekt!" : (kqScore >= kqCards.length * 0.7 ? "Stark – die Richtung stimmt!" : "Die Wackelkandidaten am besten gleich im Lern-Modus üben.");
+    $("kq-next").hidden = true;
+    return;
+  }
+  var cur = kqCards[kqIdx];
+  $("kq-prog").textContent = "Frage " + (kqIdx + 1) + " von " + kqCards.length + " · " + kqScore + " richtig";
+  $("kq-q").textContent = kkQ(cur);
+  $("kq-fb").textContent = "";
+  $("kq-next").hidden = true;
+  kqAnswered = false;
+  var sameC = kqShuffle(cards.filter(function(k){ return k.courseId === cur.courseId && k.id !== cur.id; }));
+  var otherC = kqShuffle(cards.filter(function(k){ return k.courseId !== cur.courseId; }));
+  var wrong = [], seenA = {};
+  seenA[kkA(cur)] = 1;
+  sameC.concat(otherC).forEach(function(k){
+    var a2 = kkA(k);
+    if (wrong.length < 3 && !seenA[a2]){ seenA[a2] = 1; wrong.push(a2); }
+  });
+  var opts = kqShuffle([kkA(cur)].concat(wrong));
+  $("kq-opts").innerHTML = opts.map(function(o){
+    return '<button type="button" class="ghost kq-opt" data-ok="' + (o === kkA(cur) ? "1" : "") + '" style="text-align:left">' + esc(o) + '</button>';
+  }).join("");
+}
+document.addEventListener("click", function(ev){
+  var opt = ev.target.closest(".kq-opt");
+  if (!opt || kqAnswered) return;
+  kqAnswered = true;
+  var ok = opt.dataset.ok === "1";
+  if (ok) kqScore++;
+  Array.prototype.forEach.call(document.querySelectorAll(".kq-opt"), function(b){
+    if (b.dataset.ok === "1") b.style.borderColor = "var(--ok)", b.style.color = "var(--ok)";
+    else if (b === opt) b.style.borderColor = "var(--danger)", b.style.color = "var(--danger)";
+  });
+  $("kq-fb").textContent = ok ? "Richtig!" : "Leider nein – die richtige Antwort ist grün markiert.";
+  $("kq-next").hidden = false;
+});
+$("kq-next").addEventListener("click", function(){ kqIdx++; renderQuiz(); });
+$("kq-stop").addEventListener("click", function(){
+  kqCards = [];
+  $("kk-quiz-box").hidden = true;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+$("kk-quiz").addEventListener("click", function(){
+  var my = kkCardsFor(fachId);
+  if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
+  kkMode = false; kkQueue = [];
+  kqCards = kqShuffle(my.slice()).slice(0, 20);
+  kqIdx = 0; kqScore = 0;
+  renderQuiz();
+});
+
+/* ---- Karteikarten-Sprache (DE/EN) ---- */
+var kkLang = "de";
+try { kkLang = localStorage.getItem("uni-planer.kklang") === "en" ? "en" : "de"; } catch(e){}
+function kkQ(k){ return (kkLang === "en" && k.qe) ? k.qe : k.q; }
+function kkA(k){ return (kkLang === "en" && k.ae) ? k.ae : k.a; }
+function kkLangBtn(){
+  var b = $("kk-lang");
+  if (b) b.textContent = kkLang === "en" ? "Sprache: EN" : "Sprache: DE";
+}
+$("kk-lang").addEventListener("click", function(ev){
+  ev.stopPropagation();
+  kkLang = kkLang === "en" ? "de" : "en";
+  try { localStorage.setItem("uni-planer.kklang", kkLang); } catch(e){}
+  kkLangBtn();
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+  if (kqCards.length) renderQuiz();
+});
+kkLangBtn();
+
 /* ---- Karteikarten pro Fach ---- */
 var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true;
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
@@ -2874,10 +3166,31 @@ function renderKk(c){
   $("kk-start").textContent = due.length ? "Lernen (" + due.length + " fällig)" : "Extra-Runde lernen";
   $("kk-start").disabled = !my.length;
   $("kk-shuffle").disabled = !my.length;
+  $("kk-quiz").disabled = my.length < 4;
+  $("kk-export").disabled = !my.length;
+  var kc = { easy: 0, mid: 0, hard: 0, neu: 0 };
+  my.forEach(function(k){ if (kc[k.rating] !== undefined) kc[k.rating]++; else kc.neu++; });
+  $("kk-pbar").hidden = !my.length;
+  $("kk-prog").hidden = !my.length;
+  if (my.length){
+    var kpct = Math.round(kc.easy / my.length * 100);
+    $("kk-pfill").style.width = kpct + "%";
+    var kdelta = "";
+    var khist = (kkHistDoc && kkHistDoc.days) || {};
+    var weekAgo = iso(addDays(today0(), -7));
+    var baseVal = null, baseDay = "";
+    Object.keys(khist).forEach(function(hk){
+      var pp = hk.split("|");
+      if (pp[0] !== c.id || pp[1] < weekAgo) return;
+      if (!baseDay || pp[1] < baseDay){ baseDay = pp[1]; baseVal = khist[hk]; }
+    });
+    if (baseVal !== null && kc.easy > baseVal) kdelta = " · +" + (kc.easy - baseVal) + " diese Woche";
+    $("kk-prog").textContent = kc.easy + " von " + my.length + " sitzen (" + kpct + " %) · " + kc.mid + " mittel · " + kc.hard + " noch nicht · " + kc.neu + " neu" + kdelta;
+  }
   $("kk-list-sum").textContent = "Alle Karten · " + my.length;
   $("kk-list").innerHTML = my.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
     return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
-      + '<div class="main-c"><div class="t">' + esc(k.q) + '</div><div class="meta"><span>' + esc(k.a) + '</span>'
+      + '<div class="main-c"><div class="t">' + esc(kkQ(k)) + '</div><div class="meta"><span>' + esc(kkA(k)) + '</span>'
       + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
       + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
   }).join("");
@@ -2900,8 +3213,8 @@ function renderKk(c){
   $("kk-ctl").hidden = true;
   var tIso = iso(today0());
   $("kk-kind").textContent = !cur.rating ? "Neue Karte" : (cur.lastDay === tIso && cur.rating === "hard" ? "Gleich nochmal" : (cur.due && cur.due <= tIso ? "Wiederholung" : "Nochmal zur Sicherheit"));
-  $("kk-q").textContent = cur.q;
-  $("kk-a").textContent = cur.a;
+  $("kk-q").textContent = kkQ(cur);
+  $("kk-a").textContent = kkA(cur);
   $("kk-a").hidden = !kkShowing;
   $("kk-showrow").hidden = kkShowing;
   $("kk-rate").hidden = !kkShowing;
@@ -2926,6 +3239,14 @@ function rateKk(rating){
   var patch = { level: level, rating: rating, due: iso(addDays(today0(), days)), lastDay: tIso, seenAt: Date.now() };
   Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
   col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  var hd = (kkHistDoc && kkHistDoc.days && typeof kkHistDoc.days === "object") ? kkHistDoc.days : {};
+  var easyN = 0;
+  cards.forEach(function(x){ if (x.courseId === k.courseId && x.rating === "easy") easyN++; });
+  hd[k.courseId + "|" + tIso] = easyN;
+  var hcut = iso(addDays(today0(), -60));
+  Object.keys(hd).forEach(function(hk2){ if ((hk2.split("|")[1] || "") < hcut) delete hd[hk2]; });
+  kkHistDoc = { days: hd };
+  db.doc("settings/kkhist").set(kkHistDoc).catch(function(){});
   if (kkQueue[0] === k.id) kkQueue.shift();
   if (kkRequeue){
     if (rating === "easy"){
@@ -2946,20 +3267,14 @@ $("kk-add").addEventListener("submit", function(ev){
   if (needDb() || !fachId) return;
   var q = $("kk-qin").value.trim(), a = $("kk-ain").value.trim();
   if (!q || !a){ toast("Bitte Frage und Antwort eintragen."); return; }
-  addDoc("cards", { courseId: fachId, q: q, a: a, level: 0, rating: "", due: iso(today0()), lastDay: "", seenAt: 0, createdAt: Date.now() }, function(){
-    $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qin").focus();
+  addDoc("cards", { courseId: fachId, q: q, a: a, qe: $("kk-qen").value.trim(), ae: $("kk-aen").value.trim(), level: 0, rating: "", due: iso(today0()), lastDay: "", seenAt: 0, createdAt: Date.now() }, function(){
+    $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qen").value = ""; $("kk-aen").value = ""; $("kk-qin").focus();
   });
 });
 $("kk-start").addEventListener("click", function(){
   var due = kkDueList(fachId);
   var pool = due.slice();
-  if (!pool.length){
-    pool = kkCardsFor(fachId).slice();
-    for (var i = pool.length - 1; i > 0; i--){
-      var r = Math.floor(Math.random() * (i + 1));
-      var tmp = pool[i]; pool[i] = pool[r]; pool[r] = tmp;
-    }
-  }
+  if (!pool.length) pool = kqShuffle(kkCardsFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
   kkEasyCnt = {};
   kkRequeue = true;
@@ -2969,11 +3284,7 @@ $("kk-start").addEventListener("click", function(){
   if (c) renderKk(c);
 });
 $("kk-shuffle").addEventListener("click", function(){
-  var pool = kkCardsFor(fachId).slice();
-  for (var i = pool.length - 1; i > 0; i--){
-    var r = Math.floor(Math.random() * (i + 1));
-    var tmp = pool[i]; pool[i] = pool[r]; pool[r] = tmp;
-  }
+  var pool = kqShuffle(kkCardsFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
   kkEasyCnt = {};
   kkRequeue = false;
@@ -2994,13 +3305,17 @@ function parseCardsFile(text){
   String(text).split(/\r?\n/).forEach(function(line){
     line = line.trim();
     if (!line) return;
-    var q = "", a = "", i;
-    if ((i = line.indexOf("\t")) > 0){ q = line.slice(0, i); a = line.slice(i + 1); }
-    else if ((i = line.indexOf(";;")) > 0){ q = line.slice(0, i); a = line.slice(i + 2); }
-    else if ((i = line.indexOf(";")) > 0){ q = line.slice(0, i); a = line.slice(i + 1); }
-    else return;
-    q = q.trim(); a = a.trim();
-    if (q && a && q.length <= 300 && a.length <= 1000) out.push([q, a]);
+    var q = "", a = "", qe = "", ae = "";
+    if (line.indexOf(";;") > 0){
+      var parts = line.split(";;");
+      q = parts[0]; a = parts[1] || ""; qe = parts[2] || ""; ae = parts[3] || "";
+    } else {
+      var i = line.indexOf("\t") > 0 ? line.indexOf("\t") : line.indexOf(";");
+      if (i <= 0) return;
+      q = line.slice(0, i); a = line.slice(i + 1);
+    }
+    q = q.trim(); a = a.trim(); qe = qe.trim().slice(0, 300); ae = ae.trim().slice(0, 1000);
+    if (q && a && q.length <= 300 && a.length <= 1000) out.push({ q: q, a: a, qe: qe, ae: ae });
   });
   return out;
 }
@@ -3018,24 +3333,38 @@ $("kk-file").addEventListener("change", function(){
     if (!pairs.length){ st.textContent = "Keine Karten gefunden – bitte Format Frage;;Antwort prüfen."; inp.value = ""; return; }
     if (pairs.length > 500){ st.textContent = "Zu viele Karten (" + pairs.length + ") – maximal 500 pro Import."; inp.value = ""; return; }
     var have = {};
-    kkCardsFor(fachId).forEach(function(k){ have[k.q.toLowerCase()] = 1; });
-    var fresh = pairs.filter(function(p){ return !have[p[0].toLowerCase()]; });
-    var dup = pairs.length - fresh.length;
-    if (!fresh.length){ st.textContent = "Alle " + pairs.length + " Karten sind schon vorhanden."; inp.value = ""; return; }
-    st.textContent = "Importiere " + fresh.length + " Karten …";
-    var i2 = 0;
+    kkCardsFor(fachId).forEach(function(k){ have[k.q.toLowerCase()] = k; });
+    var fresh = [], upd = [];
+    pairs.forEach(function(p){
+      var ex = have[p.q.toLowerCase()];
+      if (!ex) fresh.push(p);
+      else if ((p.qe || p.ae) && (ex.qe !== p.qe || ex.ae !== p.ae)) upd.push({ id: ex.id, qe: p.qe, ae: p.ae });
+    });
+    var dup = pairs.length - fresh.length - upd.length;
+    if (!fresh.length && !upd.length){ st.textContent = "Alle " + pairs.length + " Karten sind schon vorhanden."; inp.value = ""; return; }
+    st.textContent = "Importiere " + (fresh.length + upd.length) + " Karten …";
+    var i2 = 0, u2 = 0;
+    var finish = function(){
+      st.textContent = (fresh.length ? fresh.length + " Karten importiert" : "")
+        + (fresh.length && upd.length ? ", " : "")
+        + (upd.length ? upd.length + " um Übersetzung ergänzt" : "")
+        + (dup ? " (" + dup + " unverändert)" : "") + ".";
+      inp.value = "";
+      var c = courseById(fachId);
+      if (c) renderKk(c);
+    };
+    var nextUpd = function(){
+      if (u2 >= upd.length){ finish(); return; }
+      var u = upd[u2++];
+      col("cards").doc(u.id).update({ qe: u.qe, ae: u.ae })
+        .then(nextUpd, function(e){ st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
+    };
     (function next(){
-      if (i2 >= fresh.length){
-        st.textContent = fresh.length + " Karten importiert" + (dup ? " (" + dup + " Duplikate übersprungen)" : "") + ". Neue Karten starten verteilt über die nächsten Tage.";
-        inp.value = "";
-        var c = courseById(fachId);
-        if (c) renderKk(c);
-        return;
-      }
+      if (i2 >= fresh.length){ nextUpd(); return; }
       var p = fresh[i2];
       var dueDay = iso(addDays(today0(), Math.floor(i2 / 15)));
       i2++;
-      col("cards").add({ courseId: fachId, q: p[0], a: p[1], level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
+      col("cards").add({ courseId: fachId, q: p.q, a: p.a, qe: p.qe, ae: p.ae, level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
         .then(next, function(e){ st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
     })();
   };
@@ -3069,12 +3398,29 @@ function renderWeekStats(){
   var parts = [];
   if (tDone) parts.push("<strong>" + tDone + "</strong> Aufgaben erledigt");
   if (sDone) parts.push("<strong>" + sDone + "</strong> Lernblöcke geschafft");
-  if (fok) parts.push("<strong>" + (fok >= 90 ? (Math.round(fok / 6) / 10).toLocaleString("de-DE") + " h" : fok + " min") + "</strong> fokussiert gelernt");
+  if (fok) parts.push("<strong>" + fmtMins(fok) + "</strong> fokussiert gelernt");
   if (vok) parts.push("<strong>" + vok + "</strong> Vokabeln geübt" + ((vokStats.streak || 0) > 1 ? " (Serie: " + vokStats.streak + " Tage)" : ""));
   if (kk) parts.push("<strong>" + kk + "</strong> Karteikarten wiederholt");
   if (lab) parts.push("<strong>" + fmtH(lab) + "</strong> im Labor");
-  el.innerHTML = parts.length
-    ? '<div class="card" style="display:grid; gap:8px; margin-top:24px"><div class="fh">Diese Woche geschafft</div><p class="sub" style="margin:0">' + parts.join(" · ") + '</p></div>'
+  var goalsHtml = "";
+  if (wgoalsDoc && (wgoalsDoc.fokusH > 0 || wgoalsDoc.blocks > 0 || wgoalsDoc.vokDays > 0)){
+    var vokDaysNow = 0, vds = vokStats.days || {};
+    Object.keys(vds).forEach(function(vk){ if (vk >= wsIso) vokDaysNow++; });
+    var goalRow = function(label, val, goal, unit){
+      if (!(goal > 0)) return "";
+      var pct = Math.min(100, Math.round(val / goal * 100));
+      return '<div><div class="sub" style="margin:0 0 4px; display:flex; justify-content:space-between; gap:8px"><span>' + label + '</span><span>' + val.toLocaleString("de-DE") + ' / ' + goal.toLocaleString("de-DE") + (unit ? ' ' + unit : '') + (pct >= 100 ? " ✓" : "") + '</span></div>'
+        + '<div class="pbar"><span style="width:' + pct + '%"></span></div></div>';
+    };
+    goalsHtml = goalRow("Fokus-Zeit", Math.round(fok / 6) / 10, wgoalsDoc.fokusH, "h")
+      + goalRow("Lernblöcke", sDone, wgoalsDoc.blocks, "")
+      + goalRow("Vokabel-Tage", vokDaysNow, wgoalsDoc.vokDays, "");
+  }
+  el.innerHTML = (parts.length || goalsHtml)
+    ? '<div class="card" style="display:grid; gap:10px; margin-top:24px"><div class="fh">Diese Woche</div>'
+      + (goalsHtml ? '<div style="display:grid; gap:10px">' + goalsHtml + '</div>' : "")
+      + (parts.length ? '<p class="sub" style="margin:0">' + parts.join(" · ") + '</p>' : "")
+      + '</div>'
     : "";
 }
 
@@ -3496,7 +3842,11 @@ function rateVocab(rating){
   };
   if (vokStats.lastDay !== tIso){
     var yIso = iso(addDays(today0(), -1));
-    vokStats = { lastDay: tIso, streak: (vokStats.lastDay === yIso ? (vokStats.streak || 0) + 1 : 1) };
+    var vd = (vokStats.days && typeof vokStats.days === "object") ? vokStats.days : {};
+    vd[tIso] = 1;
+    var vcut = iso(addDays(today0(), -30));
+    Object.keys(vd).forEach(function(vk2){ if (vk2 < vcut) delete vd[vk2]; });
+    vokStats = { lastDay: tIso, streak: (vokStats.lastDay === yIso ? (vokStats.streak || 0) + 1 : 1), days: vd };
     db.doc("settings/vokstats").set(vokStats).catch(function(){});
   }
   col("vocab").doc("v" + idx).set(entry)
@@ -3514,13 +3864,7 @@ function rateVocab(rating){
   renderSidebar();
 }
 function refillPractice(){
-  vokPractice = vocab.filter(function(p){ return vw(p.idx); }).map(function(p){ return p.idx; });
-  for (var i = vokPractice.length - 1; i > 0; i--){
-    var r = Math.floor(Math.random() * (i + 1));
-    var tmp = vokPractice[i];
-    vokPractice[i] = vokPractice[r];
-    vokPractice[r] = tmp;
-  }
+  vokPractice = kqShuffle(vocab.filter(function(p){ return vw(p.idx); }).map(function(p){ return p.idx; }));
 }
 $("vok-extra").addEventListener("click", function(){
   vokEndless = true;
@@ -3694,7 +4038,8 @@ function renderLabor(){
   });
   $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth);
   var openW = null;
-  work.forEach(function(w){ if (w.date === tIso && w.from && !w.to) openW = w; });
+  var yIso3 = iso(addDays(today0(), -1));
+  work.forEach(function(w){ if ((w.date === tIso || w.date === yIso3) && w.from && !w.to) openW = w; });
   $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + openW.from + " Uhr)") : "Jetzt einstempeln";
 }
 $("work-add").addEventListener("submit", function(ev){
@@ -3716,8 +4061,17 @@ $("wk-punch").addEventListener("click", function(){
   var pNow = new Date();
   var hm = String(pNow.getHours()).padStart(2, "0") + ":" + String(pNow.getMinutes()).padStart(2, "0");
   var openW = null;
-  work.forEach(function(w){ if (w.date === pIso && w.from && !w.to) openW = w; });
-  if (openW){
+  var yIso4 = iso(addDays(today0(), -1));
+  work.forEach(function(w){ if ((w.date === pIso || w.date === yIso4) && w.from && !w.to) openW = w; });
+  if (openW && openW.date !== pIso){
+    col("work").doc(openW.id).update({ to: "23:59" })
+      .then(function(){
+        addDoc("work", { date: pIso, from: "00:00", to: hm, note: openW.note || "", createdAt: Date.now() }, function(){
+          toast("Ausgestempelt – die Schicht über Mitternacht wurde auf zwei Tage aufgeteilt.");
+        });
+      })
+      .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
+  } else if (openW){
     col("work").doc(openW.id).update({ to: hm })
       .then(function(){ toast("Ausgestempelt um " + hm + " Uhr."); })
       .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
@@ -3801,7 +4155,7 @@ $("backup-btn").addEventListener("click", function(){
   var data = JSON.stringify({
     exportiert: new Date().toISOString(),
     courses: courses, todos: todos, events: events, study: study, work: work, cards: cards, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
-    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc }
+    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc }
   }, null, 2);
   saveFile("uni-planer-backup-" + iso(today0()) + ".json", data, "Backup gespeichert.");
 });
@@ -3844,6 +4198,8 @@ $("restore-file").addEventListener("change", function(){
         if (data.settings.myvocab) db.doc("settings/myvocab").set(data.settings.myvocab).catch(function(){});
         if (data.settings.ziel) db.doc("settings/ziel").set(data.settings.ziel).catch(function(){});
         if (data.settings.fokus) db.doc("settings/fokus").set(data.settings.fokus).catch(function(){});
+        if (data.settings.wgoals) db.doc("settings/wgoals").set(data.settings.wgoals).catch(function(){});
+        if (data.settings.kkhist) db.doc("settings/kkhist").set(data.settings.kkhist).catch(function(){});
       }
       toast(ok + " Einträge wiederhergestellt.");
       inp.value = "";
@@ -3875,6 +4231,7 @@ $("import-file").addEventListener("change", function(){
       if (!ev.start || !ev.summary){ skipped++; return; }
       var title0 = ev.summary + (ev.loc ? " (" + ev.loc + ")" : "");
       var dates = ev.rrule ? expandRrule(ev.start.date, ev.rrule) : [ev.start.date];
+      if (ev.exd) dates = dates.filter(function(dt0){ return ev.exd.indexOf(dt0) < 0; });
       dates.forEach(function(dt){
         var key = title0 + "|" + dt + "|" + (ev.start.time || "");
         if (existing[key]){ dupes++; return; }
@@ -3978,6 +4335,7 @@ render();
       id: id, title: String(b.title || ""), courseId: String(b.courseId || ""),
       due: typeof b.due === "string" ? b.due : "", typ: String(b.typ || "Sonstiges"),
       studyDate: typeof b.studyDate === "string" ? b.studyDate : "",
+      prio: b.prio ? 1 : 0, mins: typeof b.mins === "number" ? b.mins : 0,
       done: !!b.done, doneAt: typeof b.doneAt === "number" ? b.doneAt : 0,
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
@@ -3986,6 +4344,7 @@ render();
     return {
       id: id, title: String(b.title || ""), date: typeof b.date === "string" ? b.date : "",
       time: typeof b.time === "string" ? b.time : "", timeEnd: typeof b.timeEnd === "string" ? b.timeEnd : "", typ: String(b.typ || "Termin"),
+      note: typeof b.note === "string" ? b.note : "",
       courseId: String(b.courseId || ""), imported: !!b.imported,
       folder: typeof b.folder === "string" ? b.folder : "",
       seriesId: typeof b.seriesId === "string" ? b.seriesId : "",
@@ -4022,6 +4381,7 @@ render();
   sub("cards", function(id, b){
     return {
       id: id, courseId: String(b.courseId || ""), q: String(b.q || ""), a: String(b.a || ""),
+      qe: String(b.qe || ""), ae: String(b.ae || ""),
       level: typeof b.level === "number" ? b.level : 0,
       rating: typeof b.rating === "string" ? b.rating : "",
       due: typeof b.due === "string" ? b.due : "",
@@ -4033,7 +4393,7 @@ render();
   sub("settings", function(id, b){
     return { id: id, data: b };
   }, function(v){
-    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {};
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {};
     v.forEach(function(d){
       if (d.id === "layout") layoutDoc = d.data || {};
       if (d.id === "design") designDoc = d.data || {};
@@ -4042,6 +4402,8 @@ render();
       if (d.id === "myvocab") myVocabDoc = d.data || {};
       if (d.id === "ziel") zielDoc = d.data || {};
       if (d.id === "fokus") fokusDoc = d.data || {};
+      if (d.id === "wgoals") wgoalsDoc = d.data || {};
+      if (d.id === "kkhist") kkHistDoc = d.data || {};
     });
     customVocab = {};
     Object.keys((myVocabDoc && myVocabDoc.words) || {}).forEach(function(k){
