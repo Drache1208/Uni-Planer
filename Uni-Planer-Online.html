@@ -119,10 +119,20 @@ button.primary:hover{filter:brightness(1.05)}
 button.ghost:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
 ::selection{background:color-mix(in srgb,var(--accent) 22%,transparent)}
 /* Tagesplan-Zeitachse */
-.tl-wrap{position:relative; border-left:2px solid var(--border); margin-left:40px; overflow:hidden}
+.tl-wrap{position:relative; border-left:2px solid var(--border); margin-left:40px; clip-path:inset(0 0 0 -44px)}
 .tl-hour{position:absolute; left:-40px; right:0; border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent); font-size:10.5px; color:var(--muted); padding:1px 0 0 2px; pointer-events:none}
 .tl-ev{position:absolute; left:8px; right:4px; border-radius:8px; padding:4px 8px; font-size:12.5px; line-height:1.3; color:var(--ink); background:color-mix(in srgb,var(--sc,var(--accent)) 22%,var(--surface)); border-left:3px solid var(--sc,var(--accent)); overflow:hidden}
 .tl-ev .tm{font-weight:700; font-size:11px; display:block}
+/* Lern-Heatmap */
+.hm-grid{display:flex; gap:3px}
+.hm-col{display:grid; grid-template-rows:repeat(7,1fr); gap:3px; flex:1; max-width:15px}
+.hm-c{width:100%; aspect-ratio:1; border-radius:3px; background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.hm-f{background:transparent}
+.hm-1{background:color-mix(in srgb,var(--accent) 25%,var(--surface))}
+.hm-2{background:color-mix(in srgb,var(--accent) 45%,var(--surface))}
+.hm-3{background:color-mix(in srgb,var(--accent) 70%,var(--surface))}
+.hm-4{background:var(--accent)}
+.hm-t{box-shadow:0 0 0 1.5px var(--ink)}
 /* Untere Tab-Leiste (Handy) */
 #tabbar{display:none}
 @media (max-width:760px){
@@ -550,6 +560,18 @@ div[data-block] form.card{margin-bottom:14px}
         <button type="button" class="ghost" id="kq-stop" style="flex:none">Quiz beenden</button>
       </div>
     </div>
+    <div id="kk-probe-box" style="display:grid; gap:12px; text-align:center" hidden>
+      <div class="fh" id="kp-prog"></div>
+      <div id="kp-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
+      <div id="kp-a" style="color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere" hidden></div>
+      <div class="frow" id="kp-showrow" style="justify-content:center"><button type="button" class="primary" id="kp-show" style="flex:none">Antwort zeigen</button></div>
+      <div class="frow" id="kp-rate" hidden style="justify-content:center; gap:8px">
+        <button type="button" class="ghost" style="color:var(--ok); flex:none" id="kp-ok">Gewusst</button>
+        <button type="button" class="ghost" style="color:var(--danger); flex:none" id="kp-no">Nicht gewusst</button>
+      </div>
+      <p class="sub" id="kp-fb" style="margin:0"></p>
+      <div class="frow" style="justify-content:center"><button type="button" class="ghost" id="kp-stop" style="flex:none">Probeklausur beenden</button></div>
+    </div>
     <div id="kk-practice" style="display:grid; gap:12px; text-align:center" hidden>
       <div class="fh" id="kk-kind"></div>
       <div id="kk-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
@@ -566,10 +588,12 @@ div[data-block] form.card{margin-bottom:14px}
     <p class="sub" id="kk-status" style="margin:0"></p>
     <div id="kk-prog" class="sub" style="margin:0" hidden></div>
     <div class="pbar" id="kk-pbar" hidden><span id="kk-pfill"></span></div>
+    <div id="kk-probe-hist" class="sub" style="margin:0" hidden></div>
     <div class="frow" id="kk-ctl">
       <button type="button" class="primary" id="kk-start" style="flex:none">Lernen</button>
       <button type="button" class="ghost" id="kk-shuffle" style="flex:none">Alle durchgehen</button>
       <button type="button" class="ghost" id="kk-quiz" style="flex:none">Quiz</button>
+      <button type="button" class="ghost" id="kk-probe" style="flex:none">Probeklausur</button>
       <button type="button" class="ghost" id="kk-export" style="flex:none">Als Datei speichern</button>
     </div>
     <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
@@ -927,7 +951,7 @@ div[data-block] form.card{margin-bottom:14px}
   <details class="card" id="import-box" style="margin-bottom:22px" open>
     <summary style="cursor:pointer; font-weight:600">Termine aus Kalenderdatei (.ics) importieren</summary>
     <div style="display:grid; gap:10px; margin-top:12px">
-      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (bis zu 30 Wiederholungen).</p>
+      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (bis zu 60 Wiederholungen).</p>
       <label class="f" for="import-file">Datei wählen
         <input type="file" id="import-file" accept=".ics,text/calendar">
       </label>
@@ -1023,7 +1047,7 @@ var WTAGE = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Sa
 
 var db = null;
 var courses = [], todos = [], events = [], study = [], work = [];
-var loaded = false;
+var loaded = false, loadedColls = {};
 var view = "todos", fachId = null, selectedDay = null;
 var palTab = null, fachFormFor = null;
 var layoutDoc = {}, designDoc = {}, semesterDoc = {}, assetsNs = null, assetsReady = null, dragInfo = null;
@@ -1077,7 +1101,7 @@ var VOCAB = [
 ];
 var VOK_IV = [1, 3, 7, 14, 30, 60];
 var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
-var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {};
+var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {}, probeDoc = {};
 var now = new Date();
 var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
 var wCursor = startOfWeek(now);
@@ -1464,6 +1488,7 @@ function renderFachView(){
     $("ex-reg2").checked = !!ex.reg2;
     kkMode = false; kkExtra = false; kkCurrent = null; kkShowing = false; kkQueue = [];
     kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
+    kpCards = []; var kpb = $("kk-probe-box"); if (kpb) kpb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
     $("fach-notes").value = c.notes || "";
@@ -2825,7 +2850,7 @@ function expandRrule(startIso, rrule){
     if (k !== undefined && bydays.indexOf(k) < 0) bydays.push(k);
   });
   if (!bydays.length) bydays = [d0.getDay()];
-  var maxN = Math.min(count || (bydays.length > 1 ? 45 : 15), 60);
+  var maxN = Math.min(count || (until ? 60 : (bydays.length > 1 ? 45 : 15)), 60);
   var dates = [], week0 = startOfWeek(d0), done = false;
   for (var w = 0; w < 60 && !done; w++){
     for (var i = 0; i < 7; i++){
@@ -2955,9 +2980,14 @@ $("pomo-cycle").addEventListener("click", function(){
   pomoCycle = !pomoCycle;
   try { localStorage.setItem("uni-planer.pomocycle", pomoCycle ? "1" : "0"); } catch(e){}
   $("pomo-cycle").setAttribute("aria-pressed", String(pomoCycle));
-  pomoPhase = "focus";
   pomoRound = 1;
-  if (!pomoTimer){ pomoTotal = pomoFocusLen; pomoLeft = pomoTotal; }
+  if (pomoPhase !== "focus" || !pomoTimer){
+    clearInterval(pomoTimer);
+    pomoTimer = null;
+    pomoPhase = "focus";
+    pomoTotal = pomoFocusLen;
+    pomoLeft = pomoTotal;
+  }
   pomoRender();
 });
 $("pomo-cycle").setAttribute("aria-pressed", String(pomoCycle));
@@ -3067,11 +3097,11 @@ document.addEventListener("click", function(ev){
   if (newG === oldG) return;
   if (newG === "Privat"){ toast("„Privat“ ist für die private Gruppe reserviert."); return; }
   var mine = courses.filter(function(c){ return (c.group || "") === oldG; });
-  var i = 0;
+  var i = 0, gFail = 0;
   (function next(){
-    if (i >= mine.length){ toast("Gruppe umbenannt."); return; }
+    if (i >= mine.length){ toast(gFail ? "Gruppe umbenannt – " + gFail + " von " + mine.length + " Fächern konnten nicht gespeichert werden." : "Gruppe umbenannt."); return; }
     var c = mine[i++];
-    col("courses").doc(c.id).update({ group: newG }).then(next, function(e){ toast("Umbenennen fehlgeschlagen: " + failMsg(e)); });
+    col("courses").doc(c.id).update({ group: newG }).then(next, function(){ gFail++; next(); });
   })();
 });
 
@@ -3251,6 +3281,76 @@ $("kk-quiz").addEventListener("click", function(){
   renderQuiz();
 });
 
+/* ---- Probeklausur ---- */
+var kpCards = [], kpIdx = 0, kpOk = 0, kpShowing = false, kpStart = 0;
+function fmtProbeSecs(s){ return s >= 60 ? Math.floor(s / 60) + " min " + (s % 60) + " s" : s + " s"; }
+function saveProbeRun(){
+  var secs = Math.round((Date.now() - kpStart) / 1000);
+  var pct = Math.round(kpOk / kpCards.length * 100);
+  var runs = (probeDoc && Array.isArray(probeDoc.runs)) ? probeDoc.runs.slice() : [];
+  runs.push({ c: fachId, t: Date.now(), ok: kpOk, n: kpCards.length, s: secs, pct: pct });
+  if (runs.length > 80) runs = runs.slice(runs.length - 80);
+  probeDoc = { runs: runs };
+  if (db) db.doc("settings/probe").set(probeDoc).catch(function(){});
+}
+function renderProbe(){
+  var box = $("kk-probe-box");
+  if (!box) return;
+  if (!kpCards.length){ box.hidden = true; return; }
+  box.hidden = false;
+  $("kk-practice").hidden = true;
+  $("kk-quiz-box").hidden = true;
+  $("kk-ctl").hidden = true;
+  if (kpIdx >= kpCards.length){
+    var secs = Math.round((Date.now() - kpStart) / 1000);
+    var pct = Math.round(kpOk / kpCards.length * 100);
+    $("kp-prog").textContent = "Probeklausur beendet";
+    $("kp-q").textContent = kpOk + " von " + kpCards.length + " gewusst (" + pct + " %)";
+    $("kp-a").hidden = true;
+    $("kp-showrow").hidden = true;
+    $("kp-rate").hidden = true;
+    $("kp-fb").textContent = "Dauer: " + fmtProbeSecs(secs) + " · " + (pct >= 90 ? "Klausurreif!" : (pct >= 70 ? "Gut dabei – die Lücken gleich im Lern-Modus schließen." : "Noch Luft nach oben – die Karten am besten nochmal lernen."));
+    return;
+  }
+  var cur = kpCards[kpIdx];
+  $("kp-prog").textContent = "Frage " + (kpIdx + 1) + " von " + kpCards.length + " · bisher " + kpOk + " gewusst";
+  $("kp-q").textContent = kkQ(cur);
+  $("kp-a").textContent = kkA(cur);
+  $("kp-a").hidden = !kpShowing;
+  $("kp-showrow").hidden = kpShowing;
+  $("kp-rate").hidden = !kpShowing;
+  $("kp-fb").textContent = "";
+}
+function kpRate(ok){
+  if (!kpCards.length || kpIdx >= kpCards.length) return;
+  if (ok) kpOk++;
+  kpIdx++;
+  kpShowing = false;
+  if (kpIdx >= kpCards.length){
+    saveProbeRun();
+    var ck = courseById(fachId);
+    if (ck) renderKk(ck);
+  }
+  renderProbe();
+}
+$("kk-probe").addEventListener("click", function(){
+  var my = kkCardsFor(fachId);
+  if (my.length < 5){ toast("Für eine Probeklausur brauchst du mindestens 5 Karten in diesem Fach."); return; }
+  kkMode = false; kkQueue = []; kqCards = [];
+  kpCards = kqShuffle(my.slice()).slice(0, 15);
+  kpIdx = 0; kpOk = 0; kpShowing = false; kpStart = Date.now();
+  renderProbe();
+});
+$("kp-show").addEventListener("click", function(){ kpShowing = true; renderProbe(); });
+$("kp-ok").addEventListener("click", function(){ kpRate(true); });
+$("kp-no").addEventListener("click", function(){ kpRate(false); });
+$("kp-stop").addEventListener("click", function(){
+  kpCards = [];
+  $("kk-probe-box").hidden = true;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+
 function srsNext(level, rating, sameDay){
   var days;
   if (rating === "easy"){
@@ -3281,7 +3381,8 @@ $("kk-lang").addEventListener("click", function(ev){
   kkLangBtn();
   var c = courseById(fachId);
   if (c) renderKk(c);
-  if (kqCards.length) renderQuiz();
+  if (kqCards.length && !kqAnswered) renderQuiz();
+  if (kpCards.length && kpIdx < kpCards.length) renderProbe();
 });
 kkLangBtn();
 
@@ -3346,13 +3447,50 @@ function renderDayTimeline(){
   html += '</div>';
   el.innerHTML = html;
 }
-function speak(txt, lang){
+var speakVoices = [];
+function loadVoices(){
+  try { speakVoices = window.speechSynthesis ? (window.speechSynthesis.getVoices() || []) : []; } catch(e){}
+}
+if ("speechSynthesis" in window){
+  loadVoices();
+  try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch(e){}
+}
+function pickVoice(lang){
+  if (!speakVoices.length) loadVoices();
+  var pre = String(lang || "").slice(0, 2).toLowerCase();
+  var cand = speakVoices.filter(function(v){ return (v.lang || "").toLowerCase().indexOf(pre) === 0; });
+  if (!cand.length) return null;
+  function rank(v){
+    var n = (v.name || "").toLowerCase();
+    var score = 0;
+    if (n.indexOf("siri") >= 0) score += 50;
+    if (/premium|enhanced|natural|neural/.test(n)) score += 40;
+    if (pre === "en" && /samantha|ava|allison|zoe|nicky|evan|nathan|serena|kate|daniel|moira/.test(n)) score += 30;
+    if (pre === "de" && /anna|petra|helena|markus|viktor/.test(n)) score += 30;
+    if (n.indexOf("google") >= 0) score += 25;
+    if ((v.lang || "").toLowerCase() === String(lang).toLowerCase()) score += 10;
+    if (v.localService) score += 5;
+    if (/compact|eloquence|fred|zarvox|albert|bells|boing|bubbles|cellos|wobble|whisper|bad news|good news|jester|organ|superstar|trinoids|bahh|deranged|hysterical/.test(n)) score -= 80;
+    return score;
+  }
+  cand.sort(function(a, b){ return rank(b) - rank(a); });
+  return cand[0];
+}
+function speak(txt, lang, keep){
   if (!("speechSynthesis" in window)){ toast("Sprachausgabe wird von diesem Browser nicht unterstützt."); return; }
   try {
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(String(txt || ""));
+    if (!keep) window.speechSynthesis.cancel();
+    var pre = String(lang || "en").slice(0, 2).toLowerCase();
+    var clean = String(txt || "")
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\s*\/\s*/g, pre === "de" ? " oder " : " or ")
+      .replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    var u = new SpeechSynthesisUtterance(clean);
     u.lang = lang || "en-US";
-    u.rate = 0.95;
+    var v = pickVoice(u.lang);
+    if (v){ u.voice = v; u.lang = v.lang || u.lang; }
+    u.rate = 0.92;
     window.speechSynthesis.speak(u);
   } catch(e){}
 }
@@ -3364,12 +3502,12 @@ $("vok-speak").addEventListener("click", function(){
 $("kk-speak").addEventListener("click", function(){
   var k = kkCurrent ? findIn(cards, kkCurrent) : null;
   if (!k) return;
-  var lang = (kkLang === "en" && (k.qe || k.ae)) ? "en-US" : "de-DE";
-  speak(kkQ(k) + (kkShowing ? ". " + kkA(k) : ""), lang);
+  speak(kkQ(k), (kkLang === "en" && k.qe) ? "en-US" : "de-DE");
+  if (kkShowing) speak(kkA(k), (kkLang === "en" && k.ae) ? "en-US" : "de-DE", true);
 });
 function fmtKB(n){ return n > 900000 ? ((Math.round(n / 104857.6) / 10).toLocaleString("de-DE") + " MB") : (Math.round(n / 1024) + " kB"); }
 function autoSweep(){
-  if (!db || !loaded || !(cleanDoc && cleanDoc.auto)) return;
+  if (!db || !loadedColls.todos || !loadedColls.study || !(cleanDoc && cleanDoc.auto)) return;
   var tIso = iso(today0());
   var last = "";
   try { last = localStorage.getItem("uni-planer.sweep") || ""; } catch(e){}
@@ -3423,6 +3561,7 @@ function renderKk(c){
   $("kk-start").disabled = !my.length;
   $("kk-shuffle").disabled = !my.length;
   $("kk-quiz").disabled = my.length < 4;
+  $("kk-probe").disabled = my.length < 5;
   $("kk-export").disabled = !my.length;
   var kc = { easy: 0, mid: 0, hard: 0, neu: 0 };
   my.forEach(function(k){ if (kc[k.rating] !== undefined) kc[k.rating]++; else kc.neu++; });
@@ -3443,6 +3582,15 @@ function renderKk(c){
     if (baseVal !== null && kc.easy > baseVal) kdelta = " · +" + (kc.easy - baseVal) + " diese Woche";
     $("kk-prog").textContent = kc.easy + " von " + my.length + " sitzen (" + kpct + " %) · " + kc.mid + " mittel · " + kc.hard + " noch nicht · " + kc.neu + " neu" + kdelta;
   }
+  var ph = $("kk-probe-hist");
+  if (ph){
+    var pruns = ((probeDoc && probeDoc.runs) || []).filter(function(r){ return r && r.c === c.id; }).slice(-5).reverse();
+    ph.hidden = !pruns.length;
+    ph.textContent = pruns.length ? "Probeklausuren: " + pruns.map(function(r){
+      var rd = new Date(r.t || 0);
+      return rd.getDate() + ". " + MON_K[rd.getMonth()] + ": " + r.pct + " %";
+    }).join(" · ") : "";
+  }
   $("kk-list-sum").textContent = "Alle Karten · " + my.length;
   $("kk-list").innerHTML = my.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
     return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
@@ -3462,7 +3610,7 @@ function renderKk(c){
     if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : "Alle Karten einmal durchgegangen!");
     kkMode = false;
     $("kk-practice").hidden = true;
-    $("kk-ctl").hidden = !!kqCards.length;
+    $("kk-ctl").hidden = !!kqCards.length || !!kpCards.length;
     return;
   }
   $("kk-practice").hidden = false;
@@ -3583,9 +3731,12 @@ $("kk-file").addEventListener("change", function(){
     kkCardsFor(fachId).forEach(function(k){ have[k.q.toLowerCase()] = k; });
     var fresh = [], upd = [];
     pairs.forEach(function(p){
-      var ex = have[p.q.toLowerCase()];
-      if (!ex) fresh.push(p);
-      else {
+      var qk = p.q.toLowerCase();
+      var ex = have[qk];
+      if (!ex){
+        fresh.push(p);
+        have[qk] = { id: "", qe: p.qe, ae: p.ae };
+      } else if (ex.id){
         var patch2 = {};
         if (p.qe && p.qe !== ex.qe) patch2.qe = p.qe;
         if (p.ae && p.ae !== ex.ae) patch2.ae = p.ae;
@@ -3689,11 +3840,57 @@ function renderWeekStats(){
         + '<span class="sub" style="margin:0; font-size:10.5px">KW' + w2.kw + '</span></div>';
     }).join("") + '</div><p class="sub" style="margin:0; font-size:11px">Fokus-Lernzeit der letzten 6 Wochen</p>';
   })();
-  el.innerHTML = (parts.length || goalsHtml || chartHtml)
+  var heatHtml = "";
+  (function(){
+    var vds = (vokStats && vokStats.days && typeof vokStats.days === "object") ? vokStats.days : {};
+    var vokSeen = {};
+    vocab.forEach(function(p){ if (p.seenAt) vokSeen[iso(new Date(p.seenAt))] = 1; });
+    var kkDays = {};
+    Object.keys((kkHistDoc && kkHistDoc.days) || {}).forEach(function(hk3){ var dd3 = hk3.split("|")[1]; if (dd3) kkDays[dd3] = 1; });
+    cards.forEach(function(k){ if (k.seenAt) kkDays[iso(new Date(k.seenAt))] = 1; });
+    var doneDays = {}, blockDays = {};
+    todos.forEach(function(t){ if (t.done && t.doneAt){ var di0 = iso(new Date(t.doneAt)); doneDays[di0] = (doneDays[di0] || 0) + 1; } });
+    study.forEach(function(s){ if (s.done && s.doneAt){ var di1 = iso(new Date(s.doneAt)); blockDays[di1] = (blockDays[di1] || 0) + 1; } });
+    function dayScore(dx){
+      var sc = fd[dx] || 0;
+      sc += 15 * (blockDays[dx] || 0);
+      sc += 5 * Math.min(4, doneDays[dx] || 0);
+      if (vds[dx] || vokSeen[dx]) sc += 10;
+      if (kkDays[dx]) sc += 10;
+      return sc;
+    }
+    var weeksN = 12;
+    var w0 = addDays(startOfWeek(new Date()), -7 * (weeksN - 1));
+    var tIso3 = iso(today0());
+    var any = false, cols = "";
+    for (var wi2 = 0; wi2 < weeksN; wi2++){
+      var colCells = "";
+      for (var di2 = 0; di2 < 7; di2++){
+        var dd4 = addDays(w0, wi2 * 7 + di2);
+        var dIso4 = iso(dd4);
+        if (dIso4 > tIso3){ colCells += '<span class="hm-c hm-f"></span>'; continue; }
+        var sc2 = dayScore(dIso4);
+        if (sc2 > 0) any = true;
+        var lv = sc2 >= 120 ? 4 : (sc2 >= 60 ? 3 : (sc2 >= 25 ? 2 : (sc2 > 0 ? 1 : 0)));
+        var det = [];
+        if (fd[dIso4]) det.push(fmtMins(fd[dIso4]) + " Fokus");
+        if (blockDays[dIso4]) det.push(blockDays[dIso4] + (blockDays[dIso4] === 1 ? " Lernblock" : " Lernblöcke"));
+        if (doneDays[dIso4]) det.push(doneDays[dIso4] + (doneDays[dIso4] === 1 ? " Aufgabe" : " Aufgaben"));
+        if (vds[dIso4] || vokSeen[dIso4]) det.push("Vokabeln");
+        if (kkDays[dIso4]) det.push("Karteikarten");
+        colCells += '<span class="hm-c' + (lv ? ' hm-' + lv : '') + (dIso4 === tIso3 ? ' hm-t' : '') + '" title="' + fmtShort(dIso4) + (det.length ? " – " + det.join(", ") : "") + '"></span>';
+      }
+      cols += '<span class="hm-col">' + colCells + '</span>';
+    }
+    if (!any) return;
+    heatHtml = '<div><div class="hm-grid">' + cols + '</div><p class="sub" style="margin:4px 0 0; font-size:11px">Lern-Aktivität der letzten ' + weeksN + ' Wochen · Spalten = Wochen, Zeilen = Mo–So</p></div>';
+  })();
+  el.innerHTML = (parts.length || goalsHtml || chartHtml || heatHtml)
     ? '<div class="card" style="display:grid; gap:10px; margin-top:24px"><div class="fh">Diese Woche</div>'
       + (goalsHtml ? '<div style="display:grid; gap:10px">' + goalsHtml + '</div>' : "")
       + (parts.length ? '<p class="sub" style="margin:0">' + parts.join(" · ") + '</p>' : "")
       + chartHtml
+      + heatHtml
       + '</div>'
     : "";
 }
@@ -4102,9 +4299,13 @@ function rateVocab(rating){
   var sameDay = !!(p && p.lastDay === tIso);
   var nx0 = srsNext(p ? p.level : 0, rating, sameDay);
   var level = nx0.level, days = nx0.days;
+  var nextDue = iso(addDays(today0(), days));
+  var extra = !!(p && p.due && p.due > tIso);
+  if (extra && rating === "easy"){ level = p.level; nextDue = p.due; }
+  if (extra && rating === "mid" && p.due < nextDue) nextDue = p.due;
   var entry = {
     idx: idx, level: level, rating: rating,
-    due: iso(addDays(today0(), days)),
+    due: nextDue,
     intro: (p && p.intro) ? p.intro : tIso,
     lastDay: tIso,
     seenAt: Date.now()
@@ -4309,7 +4510,9 @@ function renderLabor(){
   $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth);
   var openW = null;
   var yIso3 = iso(addDays(today0(), -1));
-  work.forEach(function(w){ if ((w.date === tIso || w.date === yIso3) && w.from && !w.to) openW = w; });
+  var nowD3 = new Date();
+  var nowHm3 = String(nowD3.getHours()).padStart(2, "0") + ":" + String(nowD3.getMinutes()).padStart(2, "0");
+  work.forEach(function(w){ if ((w.date === tIso || w.date === yIso3) && w.from && !w.to && (w.date !== tIso || w.from <= nowHm3)) openW = w; });
   $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + openW.from + " Uhr)") : "Jetzt einstempeln";
 }
 $("work-add").addEventListener("submit", function(ev){
@@ -4332,7 +4535,7 @@ $("wk-punch").addEventListener("click", function(){
   var hm = String(pNow.getHours()).padStart(2, "0") + ":" + String(pNow.getMinutes()).padStart(2, "0");
   var openW = null;
   var yIso4 = iso(addDays(today0(), -1));
-  work.forEach(function(w){ if ((w.date === pIso || w.date === yIso4) && w.from && !w.to) openW = w; });
+  work.forEach(function(w){ if ((w.date === pIso || w.date === yIso4) && w.from && !w.to && (w.date !== pIso || w.from <= hm)) openW = w; });
   if (openW && openW.date !== pIso){
     col("work").doc(openW.id).update({ to: "23:59" })
       .then(function(){
@@ -4425,7 +4628,7 @@ $("backup-btn").addEventListener("click", function(){
   var data = JSON.stringify({
     exportiert: new Date().toISOString(),
     courses: courses, todos: todos, events: events, study: study, work: work, cards: cards, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
-    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc }
+    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc }
   }, null, 2);
   saveFile("uni-planer-backup-" + iso(today0()) + ".json", data, "Backup gespeichert.");
 });
@@ -4471,6 +4674,7 @@ $("restore-file").addEventListener("change", function(){
         if (data.settings.wgoals) db.doc("settings/wgoals").set(data.settings.wgoals).catch(function(){});
         if (data.settings.kkhist) db.doc("settings/kkhist").set(data.settings.kkhist).catch(function(){});
         if (data.settings.clean) db.doc("settings/clean").set(data.settings.clean).catch(function(){});
+        if (data.settings.probe) db.doc("settings/probe").set(data.settings.probe).catch(function(){});
       }
       toast(ok + " Einträge wiederhergestellt.");
       inp.value = "";
@@ -4571,6 +4775,7 @@ render();
   function sub(name, map, assign){
     db.collection(name).onSnapshot(function(snap){
       assign(snap.docs.map(function(d){ return map(d.id, d.data() || {}); }));
+      loadedColls[name] = true;
       loaded = true;
       render();
     }, function(e){
@@ -4666,7 +4871,7 @@ render();
   sub("settings", function(id, b){
     return { id: id, data: b };
   }, function(v){
-    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {};
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {}; probeDoc = {};
     v.forEach(function(d){
       if (d.id === "layout") layoutDoc = d.data || {};
       if (d.id === "design") designDoc = d.data || {};
@@ -4678,6 +4883,7 @@ render();
       if (d.id === "wgoals") wgoalsDoc = d.data || {};
       if (d.id === "kkhist") kkHistDoc = d.data || {};
       if (d.id === "clean") cleanDoc = d.data || {};
+      if (d.id === "probe") probeDoc = d.data || {};
     });
     customVocab = {};
     Object.keys((myVocabDoc && myVocabDoc.words) || {}).forEach(function(k){
