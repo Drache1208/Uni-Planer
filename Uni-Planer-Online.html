@@ -101,22 +101,23 @@ h1{font-family:var(--font-display); font-weight:700; font-size:clamp(25px,4vw,33
 .vhead{margin-bottom:20px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
 .vhead .grow{flex:1}
 
-#sp-grid{display:grid; background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden}
-.sp-h{padding:8px 4px; text-align:center; font-weight:700; font-size:13px; border-bottom:1px solid var(--border)}
-.sp-h.today{color:var(--accent)}
-.sp-axis,.sp-col{position:relative; border-right:1px solid var(--border)}
-.sp-col:last-child{border-right:none}
-.sp-hour{position:absolute; left:0; right:0; border-top:1px solid color-mix(in srgb,var(--border) 55%,transparent); font-size:10.5px; color:var(--muted); padding:1px 3px; pointer-events:none}
-.sp-ev{position:absolute; left:3px; right:3px; border-radius:8px; padding:4px 6px; font-size:12px; line-height:1.25; color:var(--ink); background:color-mix(in srgb,var(--sc,var(--accent)) 24%,var(--surface)); border-left:3px solid var(--sc,var(--accent)); overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.sp-ev .tm{font-weight:700; font-size:11px; display:block}
 .clpsd > :not(:first-child){display:none !important}
 [data-clps] > .fh-row, [data-clps] > .fh{cursor:pointer}
 .clps-c{color:var(--muted); font-size:12px; font-weight:600; margin-left:8px; user-select:none; -webkit-user-select:none; flex:none}
-.jumpbar{display:flex; gap:6px; overflow-x:auto; margin:-4px 0 16px; padding:6px 2px; position:sticky; top:0; z-index:6; background:color-mix(in srgb,var(--bg) 82%,transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none}
+.jumpbar{display:flex; gap:6px; overflow-x:auto; margin:-4px 0 16px; padding:6px 2px; position:sticky; top:0; z-index:6; scrollbar-width:none}
 .jumpbar::-webkit-scrollbar{display:none}
-.jumpbar button{flex:none; border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:5px 12px; font-size:12.5px; color:var(--ink); cursor:pointer}
+.jumpbar button{flex:none; border:1px solid var(--border); background:color-mix(in srgb,var(--surface) 88%,transparent); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); border-radius:999px; padding:5px 12px; font-size:12.5px; color:var(--ink); cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .jumpbar button:hover{border-color:var(--accent); color:var(--accent)}
 [data-clps]{scroll-margin-top:52px}
+/* Feinschliff */
+.card{border-radius:16px; box-shadow:0 1px 2px rgba(20,24,40,.05), 0 10px 26px -20px rgba(20,24,40,.28)}
+h1{letter-spacing:-.4px}
+.fh{letter-spacing:.2px}
+input:focus-visible, select:focus-visible, textarea:focus-visible{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+button.primary{box-shadow:0 2px 10px -3px color-mix(in srgb,var(--accent) 50%,transparent)}
+button.primary:hover{filter:brightness(1.05)}
+button.ghost:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+::selection{background:color-mix(in srgb,var(--accent) 22%,transparent)}
 [hidden]{display:none !important}
 .banner{display:none; background:color-mix(in srgb,var(--warn) 12%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 35%,transparent); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:14px}
 .banner.show{display:block}
@@ -366,7 +367,6 @@ div[data-block] form.card{margin-bottom:14px}
     <div class="side-h">Lernplanung</div>
     <button type="button" class="nav-btn" data-nav="lernwoche" id="nav-lernwoche">Lernwoche</button>
     <button type="button" class="nav-btn" data-nav="lernmonat" id="nav-lernmonat">Lernmonat</button>
-    <button type="button" class="nav-btn" data-nav="stundenplan" id="nav-stundenplan">Stundenplan</button>
     <div class="side-h">Laborarbeit</div>
     <button type="button" class="nav-btn" data-nav="labor" id="nav-labor">Arbeitszeiten</button>
     <div class="side-h">Englisch</div>
@@ -625,22 +625,6 @@ div[data-block] form.card{margin-bottom:14px}
   </div>
 </section>
 
-<!-- Stundenplan -->
-<section id="view-plan" hidden>
-  <div class="cal-ctl">
-    <h1>Stundenplan</h1>
-    <button type="button" id="sp-today">Heute</button>
-    <button type="button" id="sp-prev" aria-label="Vorige Woche">‹</button>
-    <button type="button" id="sp-next" aria-label="Nächste Woche">›</button>
-  </div>
-  <p class="sub cal-sub" id="sp-sub"></p>
-  <div id="sp-grid"></div>
-  <div class="empty" id="sp-empty" hidden>
-    <div class="big">Keine Termine in dieser Woche</div>
-    Importiere deinen Stundenplan als .ics-Datei im Lernmonat – deine Vorlesungen erscheinen dann hier als Wochenraster mit Uhrzeiten.
-  </div>
-</section>
-
 <!-- Laborarbeit -->
 <section id="view-labor" hidden>
   <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-punch"></button></div>
@@ -787,6 +771,11 @@ div[data-block] form.card{margin-bottom:14px}
     </div>
     <button type="button" class="ghost" id="sem-save">Semester speichern</button>
     <p class="sub" style="margin:0">Mit gesetztem Zeitraum zeigt die Seitenleiste die aktuelle Semesterwoche und die Lernwoche trägt die SW-Nummer im Titel.</p>
+  </div>
+  <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh">Gruppen in der Seitenleiste</div>
+    <p class="sub" style="margin:0">Benenne die Oberthemen um, unter denen deine Vorlesungen gruppiert sind. Der neue Name gilt für alle Fächer der Gruppe.</p>
+    <div id="group-list" style="display:grid; gap:10px"></div>
   </div>
   <div class="card" id="grades-card" style="display:grid; gap:11px; margin-bottom:24px" hidden>
     <div class="fh">Notenübersicht</div>
@@ -1003,7 +992,6 @@ var h = (location.hash || "").slice(1);
 if (h === "monat" || h === "woche" || h === "todos" || h === "design" || h === "labor" || h === "vokabeln") view = h;
 else if (h === "lernmonat") view = "monat";
 else if (h === "lernwoche") view = "woche";
-else if (h === "stundenplan" || h === "plan") view = "plan";
 
 var $ = function(id){ return document.getElementById(id); };
 function esc(s){
@@ -1183,7 +1171,6 @@ function renderSidebar(){
     "todos": view === "todos",
     "lernwoche": view === "woche",
     "lernmonat": view === "monat",
-    "stundenplan": view === "plan",
     "labor": view === "labor",
     "vokabeln": view === "vokabeln",
     "design": view === "design"
@@ -1647,7 +1634,6 @@ function render(){
   $("view-design").hidden = view !== "design";
   $("view-labor").hidden = view !== "labor";
   $("view-vokabeln").hidden = view !== "vokabeln";
-  $("view-plan").hidden = view !== "plan";
   if (view === "todos"){ renderTodosView(); applyLayout("todos"); }
   else if (view === "fach"){ renderFachView(); applyLayout("fach"); }
   else if (view === "monat") renderMonat();
@@ -1655,7 +1641,6 @@ function render(){
   else if (view === "design") renderDesignView();
   else if (view === "labor") renderLabor();
   else if (view === "vokabeln") renderVokabeln();
-  else if (view === "plan") renderPlan();
   renderDayPanel();
   renderJumpbars();
 }
@@ -1682,7 +1667,6 @@ document.addEventListener("click", function(ev){
     var v = nav.dataset.nav;
     if (v === "lernwoche") view = "woche";
     else if (v === "lernmonat") view = "monat";
-    else if (v === "stundenplan") view = "plan";
     else view = v;
     selectedDay = null;
     render();
@@ -2053,6 +2037,17 @@ function renderDesignView(){
     $("sem-end").value = semesterDoc.end || "";
   }
   syncStatus();
+  var gset = {};
+  courses.forEach(function(c){ gset[c.group || ""] = 1; });
+  var gl = $("group-list");
+  if (!(document.activeElement && gl.contains(document.activeElement))){
+    gl.innerHTML = Object.keys(gset).sort().map(function(g){
+      if (g === "Privat") return '<p class="sub" style="margin:0">„Privat“ ist fest – diese Gruppe steuert die privaten Funktionen.</p>';
+      return '<div class="frow" style="align-items:flex-end" data-group="' + esc(g) + '">'
+        + '<label class="f" style="flex:1">Gruppenname <input type="text" class="grp-in" value="' + esc(g) + '" maxlength="60"></label>'
+        + '<button type="button" class="ghost grp-save" style="flex:none">Umbenennen</button></div>';
+    }).join("") || '<p class="sub" style="margin:0">Noch keine Vorlesungen angelegt.</p>';
+  }
   var graded = courses.filter(function(c){ return c.grade > 0; }).sort(courseOrder);
   var anyFach = courses.some(function(c){ return (c.group || "") !== "Privat"; });
   $("grades-card").hidden = !graded.length && !anyFach;
@@ -2833,86 +2828,23 @@ document.addEventListener("click", function(ev){
   box.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-/* ---- Stundenplan-Ansicht ---- */
-var spCursor = startOfWeek(new Date());
-function spEventsOn(dIso){
-  return events.filter(function(e){ return e.date === dIso && !e.folder && (e.imported || e.courseId) && e.typ !== "Klausur"; })
-    .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
-}
-function hmToMin(t){
-  var m = /^(\d{1,2}):(\d{2})/.exec(t || "");
-  return m ? (+m[1]) * 60 + (+m[2]) : -1;
-}
-function renderPlan(){
-  var mon = startOfWeek(spCursor);
-  var tIso = iso(today0());
-  var days = [], hasWe = false, all = [];
-  for (var i = 0; i < 7; i++){
-    var dIso = iso(addDays(mon, i));
-    var list = spEventsOn(dIso);
-    days.push(list);
-    if (i >= 5 && list.length) hasWe = true;
-    all = all.concat(list);
-  }
-  var nDays = hasWe ? 7 : 5;
-  var sw = semWeekOf(mon);
-  var sun = addDays(mon, nDays - 1);
-  $("sp-sub").textContent = "KW " + isoWeek(mon) + (sw ? " · Semesterwoche " + sw : "") + " · " + mon.getDate() + ". " + MON_K[mon.getMonth()] + " – " + sun.getDate() + ". " + MON_K[sun.getMonth()];
-  $("sp-empty").hidden = !!all.length;
-  var grid = $("sp-grid");
-  grid.style.display = all.length ? "" : "none";
-  if (!all.length){ grid.innerHTML = ""; return; }
-  var h0 = 8, h1 = 18;
-  all.forEach(function(e){
-    var s = hmToMin(e.time);
-    if (s >= 0){
-      h0 = Math.min(h0, Math.floor(s / 60));
-      var en = hmToMin(e.timeEnd);
-      h1 = Math.max(h1, Math.ceil((en > s ? en : s + 90) / 60));
-    }
-  });
-  if (h1 > 24) h1 = 24;
-  var pxm = 0.85;
-  var colH = Math.round((h1 - h0) * 60 * pxm);
-  grid.style.gridTemplateColumns = "44px repeat(" + nDays + ", 1fr)";
-  var html = '<div class="sp-h"></div>';
-  for (var di = 0; di < nDays; di++){
-    var dd = addDays(mon, di);
-    html += '<div class="sp-h' + (iso(dd) === tIso ? " today" : "") + '">' + WTAGE[dd.getDay()] + ' <span style="font-weight:400">' + dd.getDate() + '.</span></div>';
-  }
-  html += '<div class="sp-axis" style="height:' + colH + 'px">';
-  for (var hh = h0; hh < h1; hh++){
-    html += '<div class="sp-hour" style="top:' + Math.round((hh - h0) * 60 * pxm) + 'px">' + hh + '</div>';
-  }
-  html += '</div>';
-  for (di = 0; di < nDays; di++){
-    html += '<div class="sp-col" style="height:' + colH + 'px">';
-    for (hh = h0; hh < h1; hh++){
-      html += '<div class="sp-hour" style="top:' + Math.round((hh - h0) * 60 * pxm) + 'px"></div>';
-    }
-    var lanes = [];
-    days[di].forEach(function(e){
-      var s = hmToMin(e.time);
-      if (s < 0) s = h0 * 60;
-      var en = hmToMin(e.timeEnd);
-      if (!(en > s)) en = s + 90;
-      var lane = 0;
-      while (lane < lanes.length && lanes[lane] > s) lane++;
-      lanes[lane] = en;
-      var c = courseById(e.courseId);
-      var top = Math.round((s - h0 * 60) * pxm);
-      var hpx = Math.max(30, Math.round((en - s) * pxm) - 2);
-      html += '<div class="sp-ev" style="top:' + top + 'px; height:' + hpx + 'px; left:' + (3 + lane * 12) + 'px; z-index:' + (1 + lane) + ';' + (c ? " --sc:" + courseColor(c) : "") + '">'
-        + '<span class="tm">' + (e.time ? esc(e.time) + (e.timeEnd ? "–" + esc(e.timeEnd) : "") : "") + '</span>'
-        + esc(e.title) + '</div>';
-    });
-    html += '</div>';
-  }
-  grid.innerHTML = html;
-}
-$("sp-prev").addEventListener("click", function(){ spCursor = addDays(spCursor, -7); renderPlan(); });
-$("sp-next").addEventListener("click", function(){ spCursor = addDays(spCursor, 7); renderPlan(); });
-$("sp-today").addEventListener("click", function(){ spCursor = startOfWeek(new Date()); renderPlan(); });
+document.addEventListener("click", function(ev){
+  var b = ev.target.closest(".grp-save");
+  if (!b || needDb()) return;
+  var row = b.closest("[data-group]");
+  var oldG = row.dataset.group;
+  var newG = row.querySelector(".grp-in").value.trim();
+  if (!newG){ toast("Bitte einen Namen eintragen."); return; }
+  if (newG === oldG) return;
+  if (newG === "Privat"){ toast("„Privat“ ist für die private Gruppe reserviert."); return; }
+  var mine = courses.filter(function(c){ return (c.group || "") === oldG; });
+  var i = 0;
+  (function next(){
+    if (i >= mine.length){ toast("Gruppe umbenannt."); return; }
+    var c = mine[i++];
+    col("courses").doc(c.id).update({ group: newG }).then(next, function(e){ toast("Umbenennen fehlgeschlagen: " + failMsg(e)); });
+  })();
+});
 
 /* ---- Karteikarten pro Fach ---- */
 var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true;
