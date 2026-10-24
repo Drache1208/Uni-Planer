@@ -506,7 +506,8 @@ div[data-block] form.card{margin-bottom:14px}
     </div>
     <p class="sub" id="kk-status" style="margin:0"></p>
     <div class="frow" id="kk-ctl">
-      <button type="button" class="primary" id="kk-start" style="flex:none">Üben</button>
+      <button type="button" class="primary" id="kk-start" style="flex:none">Lernen</button>
+      <button type="button" class="ghost" id="kk-shuffle" style="flex:none">Alle durchgehen</button>
     </div>
     <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
       <label class="f" for="kk-qin">Frage <input type="text" id="kk-qin" maxlength="300" placeholder="z. B. Welche Zellen präsentieren Antigene über MHC-II?"></label>
@@ -2914,7 +2915,7 @@ $("sp-next").addEventListener("click", function(){ spCursor = addDays(spCursor, 
 $("sp-today").addEventListener("click", function(){ spCursor = startOfWeek(new Date()); renderPlan(); });
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {};
+var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true;
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
@@ -2932,12 +2933,15 @@ function renderKk(c){
   var my = kkCardsFor(c.id);
   var due = kkDueList(c.id);
   $("kk-status").textContent = kkMode
-    ? "Übungsrunde: noch " + kkQueue.length + " Karten – „Kann ich“ kommt später nochmal dran, „Kann ich noch nicht“ gleich wieder."
+    ? (kkRequeue
+      ? "Lern-Runde: noch " + kkQueue.length + " Karten – „Kann ich noch nicht“ kommt gleich wieder, „Kann ich“ später nochmal."
+      : "Durchgehen: noch " + kkQueue.length + " von " + my.length + " Karten – jede kommt genau einmal dran.")
     : (my.length
       ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " heute fällig" : "für heute alles wiederholt")
       : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
-  $("kk-start").textContent = due.length ? "Üben (" + due.length + ")" : "Extra-Runde üben";
+  $("kk-start").textContent = due.length ? "Lernen (" + due.length + " fällig)" : "Extra-Runde lernen";
   $("kk-start").disabled = !my.length;
+  $("kk-shuffle").disabled = !my.length;
   $("kk-list-sum").textContent = "Alle Karten · " + my.length;
   $("kk-list").innerHTML = my.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
     return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
@@ -2954,7 +2958,7 @@ function renderKk(c){
     if (cur && kkCurrent !== cur.id){ kkCurrent = cur.id; kkShowing = false; }
   }
   if (!kkMode || !cur){
-    if (kkMode && !cur) toast("Runde geschafft – alles sitzt!");
+    if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : "Alle Karten einmal durchgegangen!");
     kkMode = false;
     $("kk-practice").hidden = true;
     $("kk-ctl").hidden = false;
@@ -2991,12 +2995,14 @@ function rateKk(rating){
   Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
   col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
   if (kkQueue[0] === k.id) kkQueue.shift();
-  if (rating === "easy"){
-    kkEasyCnt[k.id] = (kkEasyCnt[k.id] || 0) + 1;
-    if (kkEasyCnt[k.id] < 2) kkQueue.push(k.id);
-  } else {
-    kkEasyCnt[k.id] = 0;
-    kkQueue.splice(rating === "hard" ? Math.min(2, kkQueue.length) : Math.min(8, kkQueue.length), 0, k.id);
+  if (kkRequeue){
+    if (rating === "easy"){
+      kkEasyCnt[k.id] = (kkEasyCnt[k.id] || 0) + 1;
+      if (kkEasyCnt[k.id] < 2) kkQueue.push(k.id);
+    } else {
+      kkEasyCnt[k.id] = 0;
+      kkQueue.splice(rating === "hard" ? Math.min(2, kkQueue.length) : Math.min(8, kkQueue.length), 0, k.id);
+    }
   }
   kkCurrent = null;
   kkShowing = false;
@@ -3024,6 +3030,21 @@ $("kk-start").addEventListener("click", function(){
   }
   kkQueue = pool.map(function(k){ return k.id; });
   kkEasyCnt = {};
+  kkRequeue = true;
+  kkMode = true;
+  kkCurrent = null; kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+$("kk-shuffle").addEventListener("click", function(){
+  var pool = kkCardsFor(fachId).slice();
+  for (var i = pool.length - 1; i > 0; i--){
+    var r = Math.floor(Math.random() * (i + 1));
+    var tmp = pool[i]; pool[i] = pool[r]; pool[r] = tmp;
+  }
+  kkQueue = pool.map(function(k){ return k.id; });
+  kkEasyCnt = {};
+  kkRequeue = false;
   kkMode = true;
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
