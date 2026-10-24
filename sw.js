@@ -1,4 +1,4 @@
-var CACHE = "uni-planer-20261022221509";
+var CACHE = "uni-planer-20261024131217";
 var SHELL = ["./Uni-Planer-Online.html", "./manifest.json", "./icon-180.png", "./icon-512.png"];
 self.addEventListener("install", function(e){
   e.waitUntil(
