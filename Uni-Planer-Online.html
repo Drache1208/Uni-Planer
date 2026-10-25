@@ -452,7 +452,10 @@ div[data-block] form.card{margin-bottom:14px}
 <section id="view-todos" hidden>
   <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
   <nav class="jumpbar" id="jump-todos" hidden></nav>
-  <div class="upcoming" id="upcoming"></div>
+  <div class="card" data-block="fristen" id="fristen-box" style="display:grid; gap:10px; margin-bottom:22px" hidden>
+    <div class="fh-row"><div class="fh">Klausuren &amp; Fristen</div></div>
+    <div class="upcoming" id="upcoming" style="margin-bottom:0"></div>
+  </div>
   <div id="phase-hints"></div>
   <div id="today-box"></div>
   <div id="sched-box"></div>
@@ -462,6 +465,10 @@ div[data-block] form.card{margin-bottom:14px}
     <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
   </div>
   <div id="today-cal"></div>
+  <div class="card" data-block="ptermine-start" id="priv-box" style="display:grid; gap:8px; margin-bottom:22px" hidden>
+    <div class="fh-row"><div class="fh">Private Termine</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <ul class="list" id="priv-list" style="gap:6px"></ul>
+  </div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add">
     <div class="fh-row"><div class="fh">Neue Aufgabe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <label class="f" for="todo-title">Aufgabe
@@ -580,7 +587,7 @@ div[data-block] form.card{margin-bottom:14px}
       <div class="frow" style="justify-content:center; gap:8px">
         <button type="button" class="ghost" id="kk-speak" style="flex:none; padding:4px 14px; font-size:13px">🔊 Vorlesen</button>
         <button type="button" class="ghost" id="kk-mark" style="flex:none; padding:4px 14px; font-size:13px">☆ Markieren</button>
-        <button type="button" class="ghost" id="kk-delcur" style="flex:none; padding:4px 14px; font-size:13px; color:var(--danger)">Löschen</button>
+        <button type="button" class="ghost" id="kk-delcur" style="flex:none; padding:4px 14px; font-size:13px">Löschen</button>
       </div>
       <div class="frow" id="kk-showrow" style="justify-content:center"><button type="button" class="primary" id="kk-show" style="flex:none">Antwort zeigen</button></div>
       <div class="frow" id="kk-rate" hidden style="justify-content:center; gap:8px">
@@ -611,7 +618,7 @@ div[data-block] form.card{margin-bottom:14px}
       </div>
       <button class="primary" type="submit">Karte hinzufügen</button>
     </form>
-    <details>
+    <details id="kk-imp-det">
       <summary style="cursor:pointer; font-weight:600">Karteikarten aus Datei importieren</summary>
       <div style="display:grid; gap:10px; margin-top:10px">
         <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Neue Karten werden auf ca. 15 pro Tag verteilt.</p>
@@ -619,7 +626,7 @@ div[data-block] form.card{margin-bottom:14px}
         <p class="sub" id="kk-imp-status" style="margin:0"></p>
       </div>
     </details>
-    <details>
+    <details id="kk-list-det">
       <summary style="cursor:pointer; font-weight:600" id="kk-list-sum">Alle Karten</summary>
       <ul class="list" id="kk-list" style="margin-top:10px"></ul>
     </details>
@@ -1432,6 +1439,7 @@ function renderTodosView(){
   } else {
     $("today-cal").innerHTML = "";
   }
+  renderPrivBox();
   renderDayTimeline();
   renderPhaseHints();
   renderWeekStats();
@@ -3306,6 +3314,8 @@ $("kk-quiz").addEventListener("click", function(){
   kqCards = kqShuffle(my.slice()).slice(0, 20);
   kqIdx = 0; kqScore = 0;
   renderQuiz();
+  var c = courseById(fachId);
+  if (c) renderKk(c);
 });
 
 /* ---- Probeklausur ---- */
@@ -3373,6 +3383,8 @@ $("kk-probe").addEventListener("click", function(){
   kpCards = kqShuffle(my.slice()).slice(0, 15);
   kpIdx = 0; kpOk = 0; kpShowing = false; kpStart = Date.now();
   renderProbe();
+  var c = courseById(fachId);
+  if (c) renderKk(c);
 });
 $("kp-show").addEventListener("click", function(){ kpShowing = true; renderProbe(); });
 $("kp-ok").addEventListener("click", function(){ kpRate(true); });
@@ -3631,6 +3643,10 @@ function renderKk(c){
       + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
       + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
   }).join("");
+  var busyKk = kkMode || !!kqCards.length || !!kpCards.length;
+  $("kk-add").hidden = busyKk;
+  var kImp = $("kk-imp-det"); if (kImp) kImp.hidden = busyKk;
+  var kLst = $("kk-list-det"); if (kLst) kLst.hidden = busyKk;
   var cur = null;
   if (kkMode){
     while (!cur && kkQueue.length){
@@ -3749,26 +3765,24 @@ $("kk-mark").addEventListener("click", function(){
 });
 $("kk-delcur").addEventListener("click", function(){
   if (needDb() || !kkCurrent) return;
-  armAction($("kk-delcur"), function(){
-    var k = findIn(cards, kkCurrent);
-    if (!k) return;
-    var id = k.id;
-    var body = rawBody("cards", id);
-    kkQueue = kkQueue.filter(function(x){ return x !== id; });
-    delete kkEasyCnt[id];
-    kkCurrent = null; kkShowing = false;
-    col("cards").doc(id).delete().then(function(){
-      var c2 = courseById(fachId);
-      if (c2) renderKk(c2);
-      toast("Karte gelöscht.", body ? { label: "Rückgängig", fn: function(){
-        col("cards").doc(id).set(body).then(function(){
-          if (kkMode) kkQueue.unshift(id);
-          var c3 = courseById(fachId);
-          if (c3) renderKk(c3);
-        }, function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
-      }} : null);
-    }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
-  });
+  var k = findIn(cards, kkCurrent);
+  if (!k) return;
+  var id = k.id;
+  var body = rawBody("cards", id);
+  kkQueue = kkQueue.filter(function(x){ return x !== id; });
+  delete kkEasyCnt[id];
+  kkCurrent = null; kkShowing = false;
+  col("cards").doc(id).delete().then(function(){
+    var c2 = courseById(fachId);
+    if (c2) renderKk(c2);
+    toast("Karte gelöscht.", body ? { label: "Rückgängig", fn: function(){
+      col("cards").doc(id).set(body).then(function(){
+        if (kkMode) kkQueue.unshift(id);
+        var c3 = courseById(fachId);
+        if (c3) renderKk(c3);
+      }, function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
+    }} : null);
+  }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
 });
 $("kk-marked").addEventListener("click", function(){
   var pool = kqShuffle(kkCardsFor(fachId).filter(function(k){ return k.mark; }));
@@ -4537,12 +4551,34 @@ function renderUpcoming(){
   });
   items.sort(function(a,b){ return a.days - b.days; });
   items = items.slice(0, 12);
+  var fb = $("fristen-box");
+  if (fb) fb.hidden = !items.length;
   $("upcoming").innerHTML = items.map(function(x){
     var when = x.days === 0 ? "heute" : (x.days === 1 ? "morgen" : "in " + x.days + " Tagen");
     return '<div class="up-item"><span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span>'
       + '<span style="flex:1; min-width:0">' + esc(x.txt) + '</span>'
       + (x.date ? '<span style="color:var(--muted)">' + fmtShort(x.date) + '</span>' : '')
       + '<strong>' + when + '</strong></div>';
+  }).join("");
+}
+
+function renderPrivBox(){
+  var box = $("priv-box");
+  if (!box) return;
+  var tIso = iso(today0());
+  var privIds = {};
+  courses.forEach(function(c){ if ((c.group || "") === "Privat") privIds[c.id] = 1; });
+  var list = events.filter(function(e){ return privIds[e.courseId] && e.date >= tIso; })
+    .sort(function(a,b){ return (a.date + (a.time || "")) < (b.date + (b.time || "")) ? -1 : 1; })
+    .slice(0, 8);
+  box.hidden = !list.length;
+  $("priv-list").innerHTML = list.map(function(e){
+    var d = parseISO(e.date);
+    var dd = d ? diffDays(d) : 99;
+    var when = dd === 0 ? "heute" : (dd === 1 ? "morgen" : (d ? WTAGE[d.getDay()].slice(0, 2) + ", " + fmtShort(e.date) : fmtShort(e.date)));
+    return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "–") + '</span>'
+      + '<span class="t">' + esc(e.title) + ' <span style="color:var(--muted)">– ' + when + '</span></span>'
+      + '<span class="tag typ">' + esc(e.folder || "Privat") + '</span></li>';
   }).join("");
 }
 
