@@ -465,10 +465,6 @@ div[data-block] form.card{margin-bottom:14px}
     <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
   </div>
   <div id="today-cal"></div>
-  <div class="card" data-block="ptermine-start" id="priv-box" style="display:grid; gap:8px; margin-bottom:22px" hidden>
-    <div class="fh-row"><div class="fh">Private Termine</div><span class="drag-handle" title="Verschieben">⠿</span></div>
-    <ul class="list" id="priv-list" style="gap:6px"></ul>
-  </div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add">
     <div class="fh-row"><div class="fh">Neue Aufgabe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <label class="f" for="todo-title">Aufgabe
@@ -1439,7 +1435,6 @@ function renderTodosView(){
   } else {
     $("today-cal").innerHTML = "";
   }
-  renderPrivBox();
   renderDayTimeline();
   renderPhaseHints();
   renderWeekStats();
@@ -4559,26 +4554,6 @@ function renderUpcoming(){
       + '<span style="flex:1; min-width:0">' + esc(x.txt) + '</span>'
       + (x.date ? '<span style="color:var(--muted)">' + fmtShort(x.date) + '</span>' : '')
       + '<strong>' + when + '</strong></div>';
-  }).join("");
-}
-
-function renderPrivBox(){
-  var box = $("priv-box");
-  if (!box) return;
-  var tIso = iso(today0());
-  var privIds = {};
-  courses.forEach(function(c){ if ((c.group || "") === "Privat") privIds[c.id] = 1; });
-  var list = events.filter(function(e){ return privIds[e.courseId] && e.date >= tIso; })
-    .sort(function(a,b){ return (a.date + (a.time || "")) < (b.date + (b.time || "")) ? -1 : 1; })
-    .slice(0, 8);
-  box.hidden = !list.length;
-  $("priv-list").innerHTML = list.map(function(e){
-    var d = parseISO(e.date);
-    var dd = d ? diffDays(d) : 99;
-    var when = dd === 0 ? "heute" : (dd === 1 ? "morgen" : (d ? WTAGE[d.getDay()].slice(0, 2) + ", " + fmtShort(e.date) : fmtShort(e.date)));
-    return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "–") + '</span>'
-      + '<span class="t">' + esc(e.title) + ' <span style="color:var(--muted)">– ' + when + '</span></span>'
-      + '<span class="tag typ">' + esc(e.folder || "Privat") + '</span></li>';
   }).join("");
 }
 
