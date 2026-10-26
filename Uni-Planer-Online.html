@@ -647,6 +647,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     </details>
     <details id="kk-list-det">
       <summary style="cursor:pointer; font-weight:600" id="kk-list-sum">Alle Karten</summary>
+      <div class="frow" style="margin-top:10px"><button type="button" class="ghost" id="kk-delall" style="flex:none">Alle Karten dieses Fachs löschen</button></div>
       <ul class="list" id="kk-list" style="margin-top:10px"></ul>
     </details>
   </div>
@@ -1518,7 +1519,7 @@ function renderFachView(){
     $("ex-t2ab").value = ex.t2ab || "";
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
-    kkMode = false; kkExtra = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = [];
+    kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
     kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
     kpCards = []; var kpb = $("kk-probe-box"); if (kpb) kpb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
@@ -3328,7 +3329,7 @@ $("kq-stop").addEventListener("click", function(){
 $("kk-quiz").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
-  kkMode = false; kkQueue = [];
+  kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
   kqCards = kqShuffle(my.slice()).slice(0, 20);
   kqIdx = 0; kqScore = 0;
   renderQuiz();
@@ -3397,7 +3398,7 @@ function kpRate(ok){
 $("kk-probe").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 5){ toast("Für eine Probeklausur brauchst du mindestens 5 Karten in diesem Fach."); return; }
-  kkMode = false; kkQueue = []; kqCards = [];
+  kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kqCards = [];
   kpCards = kqShuffle(my.slice()).slice(0, 15);
   kpIdx = 0; kpOk = 0; kpShowing = false; kpStart = Date.now();
   renderProbe();
@@ -3511,15 +3512,26 @@ function renderDayTimeline(){
       ends[lane] = it.e;
       it.lane = lane;
     });
-    cl.forEach(function(it){ it.cols = ends.length; });
+    var N = ends.length;
+    cl.forEach(function(it){
+      var span = 1;
+      for (var ln = it.lane + 1; ln < N; ln++){
+        var blocked = cl.some(function(o){ return o !== it && o.lane === ln && o.s < it.e && o.e > it.s; });
+        if (blocked) break;
+        span++;
+      }
+      it.cols = N;
+      it.span = span;
+    });
   });
   items.forEach(function(it){
     var top = Math.round((it.s - h0 * 60) * pxm);
     var endM = Math.min(it.e, h1 * 60);
     var hp = Math.max(20, Math.round((endM - it.s) * pxm) - 2);
     var n = it.cols || 1;
+    var sp = it.span || 1;
     var pos = n > 1
-      ? 'left:calc(8px + (100% - 12px)*' + (Math.round(it.lane / n * 1000) / 1000) + '); width:calc((100% - 12px)/' + n + ' - 4px); right:auto'
+      ? 'left:calc(8px + (100% - 12px)*' + (Math.round(it.lane / n * 1000) / 1000) + '); width:calc((100% - 12px)*' + (Math.round(sp / n * 1000) / 1000) + ' - 4px); right:auto'
       : 'left:8px';
     html += '<div class="tl-ev" style="top:' + top + 'px; height:' + hp + 'px; ' + pos + '; --sc:' + it.col + '">'
       + '<span class="tm">' + esc(it.tm) + '</span>' + esc(it.txt) + '</div>';
@@ -3613,14 +3625,11 @@ setTimeout(autoSweep, 4000);
 setTimeout(autoSweep, 25000);
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkExtra = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false;
+var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false;
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
-  var due = kqShuffle(kkCardsFor(cid).filter(function(k){ return !k.due || k.due <= tIso; }));
-  var first = [], repeat = [];
-  due.forEach(function(k){ (k.lastDay === tIso ? repeat : first).push(k); });
-  return first.concat(repeat);
+  return kkCardsFor(cid).filter(function(k){ return !k.due || k.due <= tIso; });
 }
 function renderKk(c){
   if (!$("kk-status")) return;
@@ -3643,6 +3652,7 @@ function renderKk(c){
   $("kk-quiz").disabled = my.length < 4;
   $("kk-probe").disabled = my.length < 5;
   $("kk-export").disabled = !my.length;
+  $("kk-delall").disabled = !my.length;
   var kc = { easy: 0, mid: 0, hard: 0, neu: 0 };
   my.forEach(function(k){ if (kc[k.rating] !== undefined) kc[k.rating]++; else kc.neu++; });
   $("kk-pbar").hidden = !my.length;
@@ -3758,8 +3768,11 @@ $("kk-add").addEventListener("submit", function(ev){
   });
 });
 $("kk-start").addEventListener("click", function(){
-  var due = kkDueList(fachId);
-  var pool = due.slice();
+  var tIso = iso(today0());
+  var pool = kqShuffle(kkDueList(fachId).slice());
+  var first = [], repeat = [];
+  pool.forEach(function(k){ (k.lastDay === tIso ? repeat : first).push(k); });
+  pool = first.concat(repeat);
   if (!pool.length) pool = kqShuffle(kkCardsFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
@@ -3784,7 +3797,7 @@ $("kk-shuffle").addEventListener("click", function(){
   if (c) renderKk(c);
 });
 $("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); });
-$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkExtra = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
@@ -3804,10 +3817,10 @@ $("kk-delcur").addEventListener("click", function(){
   if (!k) return;
   var id = k.id;
   var body = rawBody("cards", id);
-  kkQueue = kkQueue.filter(function(x){ return x !== id; });
-  delete kkEasyCnt[id];
-  kkCurrent = null; kkShowing = false;
   col("cards").doc(id).delete().then(function(){
+    kkQueue = kkQueue.filter(function(x){ return x !== id; });
+    delete kkEasyCnt[id];
+    if (kkCurrent === id){ kkCurrent = null; kkShowing = false; }
     var c2 = courseById(fachId);
     if (c2) renderKk(c2);
     toast("Karte gelöscht.", body ? { label: "Rückgängig", fn: function(){
@@ -3831,6 +3844,38 @@ $("kk-marked").addEventListener("click", function(){
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
   if (c) renderKk(c);
+});
+$("kk-delall").addEventListener("click", function(){
+  if (needDb() || !fachId) return;
+  armAction($("kk-delall"), function(){
+    var my = kkCardsFor(fachId);
+    if (!my.length){ toast("Keine Karten vorhanden."); return; }
+    var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
+    kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kqCards = []; kpCards = [];
+    var kqb2 = $("kk-quiz-box"); if (kqb2) kqb2.hidden = true;
+    var kpb2 = $("kk-probe-box"); if (kpb2) kpb2.hidden = true;
+    var chain = Promise.resolve(), ok = 0;
+    bodies.forEach(function(it){
+      chain = chain.then(function(){ return col("cards").doc(it.id).delete().then(function(){ ok++; }, function(){}); });
+    });
+    chain.then(function(){
+      var c = courseById(fachId);
+      if (c) renderKk(c);
+      toast(ok + " von " + bodies.length + " Karten gelöscht.", ok ? { label: "Rückgängig", fn: function(){
+        var ch2 = Promise.resolve(), back = 0;
+        bodies.forEach(function(it){
+          if (!it.body) return;
+          ch2 = ch2.then(function(){ return col("cards").doc(it.id).set(it.body).then(function(){ back++; }, function(){}); });
+        });
+        ch2.then(function(){
+          var c2 = courseById(fachId);
+          if (c2) renderKk(c2);
+          toast(back + " Karten wiederhergestellt – samt Lernständen und Markierungen.");
+        });
+      }} : null);
+    });
+  });
 });
 
 /* ---- Karteikarten-Import ---- */
@@ -4550,19 +4595,21 @@ function repeatDates(startIso, rep, endIso){
 function addSeries(collName, base, dates, after){
   if (needDb()) return;
   var seriesId = dates.length > 1 ? "s" + Date.now().toString(36) : "";
-  var chain = Promise.resolve(), ok = 0;
+  var chain = Promise.resolve(), ok = 0, fail = 0;
   dates.forEach(function(dt){
     chain = chain.then(function(){
       var body = {};
       Object.keys(base).forEach(function(k){ body[k] = base[k]; });
       body.date = dt;
       if (seriesId) body.seriesId = seriesId;
-      return col(collName).add(body).then(function(){ ok++; }, function(){});
+      return col(collName).add(body).then(function(){ ok++; }, function(){ fail++; });
     });
   });
   chain.then(function(){
     if (ok && after) after();
-    toast(ok ? (ok > 1 ? ok + " Einträge der Serie angelegt." : "Eingetragen.") : "Eintragen fehlgeschlagen – bitte nochmal versuchen.");
+    if (!ok) toast("Eintragen fehlgeschlagen – bitte nochmal versuchen.");
+    else if (fail) toast(ok + " von " + (ok + fail) + " Einträgen angelegt – " + fail + " fehlgeschlagen.");
+    else toast(ok > 1 ? ok + " Einträge der Serie angelegt." : "Eingetragen.");
   });
 }
 
@@ -5021,6 +5068,7 @@ render();
       due: typeof b.due === "string" ? b.due : "",
       lastDay: typeof b.lastDay === "string" ? b.lastDay : "",
       seenAt: typeof b.seenAt === "number" ? b.seenAt : 0,
+      mark: !!b.mark,
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
   }, function(v){ cards = v; });
