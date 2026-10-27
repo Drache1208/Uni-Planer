@@ -640,7 +640,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <details id="kk-imp-det">
       <summary style="cursor:pointer; font-weight:600">Karteikarten aus Datei importieren</summary>
       <div style="display:grid; gap:10px; margin-top:10px">
-        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Neue Karten werden auf ca. 15 pro Tag verteilt.</p>
+        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Alle importierten Karten stehen sofort zum Lernen bereit.</p>
         <label class="f" for="kk-file">Datei wählen <input type="file" id="kk-file" accept=".txt,.csv,text/plain,text/csv"></label>
         <p class="sub" id="kk-imp-status" style="margin:0"></p>
       </div>
@@ -768,6 +768,11 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     </div>
     <button class="primary" type="submit">Eintragen</button>
   </form>
+  <div class="card" id="work-today" style="display:grid; gap:8px; margin-bottom:18px" hidden>
+    <div class="fh">Heute</div>
+    <p class="sub" id="wt-line" style="margin:0"></p>
+    <div class="pbar"><span id="wt-fill"></span></div>
+  </div>
   <div id="work-list"></div>
   <div class="empty" id="work-empty" hidden>
     <div class="big">Noch keine Arbeitszeiten</div>
@@ -984,7 +989,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <details class="card" id="import-box" style="margin-bottom:22px" open>
     <summary style="cursor:pointer; font-weight:600">Termine aus Kalenderdatei (.ics) importieren</summary>
     <div style="display:grid; gap:10px; margin-top:12px">
-      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (bis zu 60 Wiederholungen).</p>
+      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (mit Enddatum bis zu 60 Termine, ohne Enddatum etwa ein Semester).</p>
       <label class="f" for="import-file">Datei wählen
         <input type="file" id="import-file" accept=".ics,text/calendar">
       </label>
@@ -1291,7 +1296,7 @@ function byDue(a,b){
   if ((b.prio||0) !== (a.prio||0)) return (b.prio||0) - (a.prio||0);
   return (a.createdAt||0) - (b.createdAt||0);
 }
-function renderGroups(arr, el, showFach){
+function renderGroups(arr, el, showFach, idPrefix){
   var groups = { late:[], today:[], week:[], later:[], none:[] };
   arr.forEach(function(t){
     var due = parseISO(t.due);
@@ -1309,17 +1314,17 @@ function renderGroups(arr, el, showFach){
     if (!g.length) return;
     g.sort(byDue);
     out += '<section class="grp ' + d[0] + '"><h2>' + d[1] + ' <span class="n">· ' + g.length + '</span></h2><ul class="list">'
-        + g.map(function(t){ return todoRow(t, showFach); }).join("") + '</ul></section>';
+        + g.map(function(t){ return todoRow(t, showFach, idPrefix); }).join("") + '</ul></section>';
   });
   el.innerHTML = out;
 }
-function renderDone(arr, boxId, sumId, listId, showFach){
+function renderDone(arr, boxId, sumId, listId, showFach, idPrefix){
   var box = $(boxId);
   if (!arr.length){ box.hidden = true; $(listId).innerHTML = ""; return; }
   box.hidden = false;
   arr.sort(function(a,b){ return (b.doneAt||0) - (a.doneAt||0); });
   $(sumId).textContent = "Erledigt · " + arr.length;
-  $(listId).innerHTML = arr.map(function(t){ return todoRow(t, showFach); }).join("");
+  $(listId).innerHTML = arr.map(function(t){ return todoRow(t, showFach, idPrefix); }).join("");
 }
 
 /* ---- Seitenleiste ---- */
@@ -1555,11 +1560,11 @@ function renderFachView(){
   });
   $("fach-lectures").innerHTML = lecs.length
     ? '<section class="grp"><h2>Vorlesungen zu bearbeiten <span class="n">· ' + lecs.length + '</span></h2><ul class="list">'
-      + lecs.map(function(t){ return todoRow(t, false); }).join("") + '</ul></section>'
+      + lecs.map(function(t){ return todoRow(t, false, "fl"); }).join("") + '</ul></section>'
     : '<p class="sub" style="margin:0 0 20px">Keine Vorlesungen vorgemerkt – oben eine Nummer eintragen, z. B. „05“.</p>';
 
-  renderGroups(open.filter(function(t){ return t.typ !== "Vorlesung"; }), $("fach-groups"), false);
-  renderDone(mine.filter(function(t){ return t.done; }), "fach-donebox", "fach-done-sum", "fach-done-list", false);
+  renderGroups(open.filter(function(t){ return t.typ !== "Vorlesung"; }), $("fach-groups"), false, "f");
+  renderDone(mine.filter(function(t){ return t.done; }), "fach-donebox", "fach-done-sum", "fach-done-list", false, "f");
 
   var maxN = 0;
   mine.forEach(function(t){
@@ -1791,7 +1796,11 @@ function renderDayPanel(){
   $("dp-empty").hidden = !!html;
 }
 
+var renderPaused = false;
+function pauseRender(){ renderPaused = true; }
+function resumeRender(){ renderPaused = false; render(); }
 function render(){
+  if (renderPaused) return;
   var ae = document.activeElement;
   if (ae && ae.closest && ae.closest("input.d-edit, input.t-edit, input.tm-edit, input.nt-edit, input.study-date")) return;
   renderSidebar();
@@ -1859,6 +1868,7 @@ document.addEventListener("click", function(ev){
         if (dDone) return;
         dDone = true;
         var nv = di.value || "";
+        if (document.activeElement === di) di.blur();
         if (save && db && nv !== curDue && (nv === "" || plausibleISO(nv))){
           col("todos").doc(dli.dataset.id).update({ due: nv })
             .then(function(){ toast(nv ? "Fälligkeitsdatum geändert." : "Fälligkeitsdatum entfernt."); })
@@ -1961,12 +1971,10 @@ document.addEventListener("click", function(ev){
   var del = ev.target.closest("button.del, #fach-del");
   if (del){
     if (!del.classList.contains("arm")){
-      del.classList.add("arm");
-      var orig = del.textContent;
-      del.textContent = "Wirklich löschen?";
-      setTimeout(function(){ del.classList.remove("arm"); del.textContent = orig; }, 3000);
+      armAction(del, function(){}, "Wirklich löschen?");
       return;
     }
+    del.classList.remove("arm");
     if (needDb()) return;
     if (del.dataset.seriesdel){
       var sli = del.closest("[data-id]");
@@ -2899,7 +2907,7 @@ function expandRrule(startIso, rrule){
     if (k !== undefined && bydays.indexOf(k) < 0) bydays.push(k);
   });
   if (!bydays.length) bydays = [d0.getDay()];
-  var maxN = Math.min(count || (until ? 60 : (bydays.length > 1 ? 45 : 15)), 60);
+  var maxN = Math.min(count || (until ? 60 : bydays.length * 18), 60);
   var dates = [], week0 = startOfWeek(d0), done = false;
   for (var w = 0; w < 60 && !done; w++){
     for (var i = 0; i < 7; i++){
@@ -3629,7 +3637,7 @@ var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
-  return kkCardsFor(cid).filter(function(k){ return !k.due || k.due <= tIso; });
+  return kkCardsFor(cid).filter(function(k){ return !k.rating || !k.due || k.due <= tIso; });
 }
 function renderKk(c){
   if (!$("kk-status")) return;
@@ -3640,9 +3648,9 @@ function renderKk(c){
       ? "Lern-Runde: noch " + kkQueue.length + " Karten – „Kann ich noch nicht“ kommt gleich wieder, „Kann ich“ später nochmal."
       : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch ") + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
     : (my.length
-      ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " heute fällig" : "für heute alles wiederholt")
+      ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " zum Lernen offen" : "für heute alles wiederholt")
       : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
-  $("kk-start").textContent = due.length ? "Lernen (" + due.length + " fällig)" : "Extra-Runde lernen";
+  $("kk-start").textContent = due.length ? "Lernen (" + due.length + " offen)" : "Extra-Runde lernen";
   $("kk-start").disabled = !my.length;
   $("kk-shuffle").disabled = !my.length;
   var markedN = 0;
@@ -3933,8 +3941,10 @@ $("kk-file").addEventListener("change", function(){
     var dup = pairs.length - fresh.length - upd.length;
     if (!fresh.length && !upd.length){ st.textContent = "Alle " + pairs.length + " Karten sind schon vorhanden."; inp.value = ""; return; }
     st.textContent = "Importiere " + (fresh.length + upd.length) + " Karten …";
+    pauseRender();
     var i2 = 0, u2 = 0;
     var finish = function(){
+      resumeRender();
       st.textContent = (fresh.length ? fresh.length + " Karten importiert" : "")
         + (fresh.length && upd.length ? ", " : "")
         + (upd.length ? upd.length + " um Übersetzung ergänzt" : "")
@@ -3947,15 +3957,15 @@ $("kk-file").addEventListener("change", function(){
       if (u2 >= upd.length){ finish(); return; }
       var u = upd[u2++];
       col("cards").doc(u.id).update(u.patch)
-        .then(nextUpd, function(e){ st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
+        .then(nextUpd, function(e){ resumeRender(); st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
     };
     (function next(){
       if (i2 >= fresh.length){ nextUpd(); return; }
       var p = fresh[i2];
-      var dueDay = iso(addDays(today0(), Math.floor(i2 / 15)));
+      var dueDay = iso(today0());
       i2++;
       col("cards").add({ courseId: fachId, q: p.q, a: p.a, qe: p.qe, ae: p.ae, level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
-        .then(next, function(e){ st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
+        .then(next, function(e){ resumeRender(); st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
     })();
   };
   fr.readAsText(f);
@@ -4398,6 +4408,12 @@ function vokBadge(){
 }
 function renderVokabeln(){
   var tIso = iso(today0());
+  if (!loadedColls.vocab){
+    $("vok-card").hidden = true;
+    $("vok-done").hidden = true;
+    $("vok-sub").textContent = "Lade Vokabeln …";
+    return;
+  }
   var progByIdx = {};
   vocab.forEach(function(p){ progByIdx[p.idx] = p; });
   var dueSort = function(a,b){
@@ -4479,6 +4495,7 @@ function renderVokabeln(){
 }
 function rateVocab(rating){
   if (needDb() || vokCurrent === null) return;
+  if (!loadedColls.vocab){ toast("Vokabeln laden noch – einen Moment bitte."); return; }
   var idx = vokCurrent;
   var p = null;
   for (var i = 0; i < vocab.length; i++) if (vocab[i].idx === idx) p = vocab[i];
@@ -4623,12 +4640,16 @@ function renderUpcoming(){
     if (examPick){
       items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")" });
     }
-    [["t1an","Anmeldung","1. Termin"],["t1ab","Abmeldung","1. Termin"]].forEach(function(k){
+    var t1over = !ex.t1 || diffDays(parseISO(ex.t1)) < 0;
+    var fr = [["t1an","Anmeldung","1. Termin","reg1"],["t1ab","Abmeldung","1. Termin","reg1"]];
+    if (t1over && ex.t2) fr = [["t2an","Anmeldung","2. Termin","reg2"],["t2ab","Abmeldung","2. Termin","reg2"]];
+    fr.forEach(function(k){
       var d = parseISO(ex[k[0]]);
       if (!d) return;
-      if (k[0] === "t1an" && ex.reg1) return;
+      var isAn = k[0].slice(-2) === "an";
+      if (isAn && ex[k[3]]) return;
       var dd = diffDays(d);
-      if (dd >= 0 && dd <= horizon) items.push({ days: dd, kind: "frist", date: ex[k[0]], txt: "Letzte " + k[1] + " " + c.name + " (" + k[2] + ")" + (k[0] === "t1an" ? " – noch nicht angemeldet" : "") });
+      if (dd >= 0 && dd <= horizon) items.push({ days: dd, kind: "frist", date: ex[k[0]], txt: "Letzte " + k[1] + " " + c.name + " (" + k[2] + ")" + (isAn ? " – noch nicht angemeldet" : "") });
     });
   });
   items.sort(function(a,b){ return a.days - b.days; });
@@ -4675,6 +4696,13 @@ function openShift(){
 function renderLabor(){
   $("work-empty").hidden = !(loadedColls.work && !work.length);
   var tIso = iso(today0());
+  var NORM_H = 8.5;
+  var dayTot = {};
+  work.forEach(function(w){
+    if (!w.date) return;
+    dayTot[w.date] = (dayTot[w.date] || 0) + workHours(w);
+  });
+  function overOf(dIso){ var v = dayTot[dIso] || 0; return v > NORM_H ? v - NORM_H : 0; }
   var weeks = {};
   work.forEach(function(w){
     var d = parseISO(w.date);
@@ -4689,8 +4717,10 @@ function renderLabor(){
     var mon = parseISO(wk), sun = addDays(mon, 6);
     var sum = 0;
     ws.forEach(function(w){ sum += workHours(w); });
+    var seenD = {}, wkOver = 0;
+    ws.forEach(function(w){ if (w.date && !seenD[w.date]){ seenD[w.date] = 1; wkOver += overOf(w.date); } });
     ws.sort(function(a,b){ return (a.date + (a.from || "")) < (b.date + (b.from || "")) ? -1 : 1; });
-    html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + '</span></div><ul class="list">';
+    html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + (wkOver ? ' · ÜS ' + fmtH(wkOver) : '') + '</span></div><ul class="list">';
     ws.forEach(function(w){
       var d = parseISO(w.date);
       var planned = w.date > tIso;
@@ -4716,9 +4746,39 @@ function renderLabor(){
     if (iso(startOfWeek(d)) === thisWeek) sumWeek += h;
     if (d.getMonth() === m && d.getFullYear() === y) sumMonth += h;
   });
-  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth);
+  var weekOver = 0, monthOver = 0, totalOver = 0;
+  Object.keys(dayTot).forEach(function(dIso){
+    if (dIso > tIso) return;
+    var ov = overOf(dIso);
+    if (!ov) return;
+    totalOver += ov;
+    var d2 = parseISO(dIso);
+    if (!d2) return;
+    if (iso(startOfWeek(d2)) === thisWeek) weekOver += ov;
+    if (d2.getMonth() === m && d2.getFullYear() === y) monthOver += ov;
+  });
+  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + (weekOver ? " (ÜS " + fmtH(weekOver) + ")" : "")
+    + " · Dieser Monat: " + fmtH(sumMonth) + (monthOver ? " (ÜS " + fmtH(monthOver) + ")" : "")
+    + (totalOver ? " · Überstunden gesamt: " + fmtH(totalOver) : "");
   var openW = openShift();
   $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + (openW.date === tIso ? "" : "gestern ") + openW.from + " Uhr)") : "Jetzt einstempeln";
+  var todayH = dayTot[tIso] || 0;
+  if (openW && openW.date === tIso && openW.from && !openW.to){
+    var sMin = hmToMin(openW.from);
+    var nowD = new Date();
+    var nowMin = nowD.getHours() * 60 + nowD.getMinutes();
+    if (sMin >= 0 && nowMin > sMin) todayH += (nowMin - sMin) / 60;
+  }
+  var wtBox = $("work-today");
+  if (wtBox){
+    wtBox.hidden = !(todayH > 0 || openW);
+    var ovToday = todayH > NORM_H ? todayH - NORM_H : 0;
+    $("wt-line").textContent = "Gearbeitet: " + fmtH(Math.min(todayH, NORM_H)) + " von 8,5 h"
+      + (ovToday ? " · Überstunden heute: " + fmtH(ovToday) : "")
+      + (openW ? " · Stempeluhr läuft" : "");
+    $("wt-fill").style.width = Math.min(100, Math.round(todayH / NORM_H * 100)) + "%";
+    $("wt-fill").style.background = ovToday ? "var(--warn)" : "";
+  }
 }
 $("work-add").addEventListener("submit", function(ev){
   ev.preventDefault();
@@ -4733,6 +4793,7 @@ $("work-add").addEventListener("submit", function(ev){
   });
 });
 if (!$("wk-date").value) $("wk-date").value = iso(today0());
+setInterval(function(){ if (view === "labor" && openShift()) renderLabor(); }, 60000);
 $("wk-punch").addEventListener("click", function(){
   if (needDb()) return;
   var pIso = iso(today0());
@@ -4758,26 +4819,30 @@ $("wk-punch").addEventListener("click", function(){
   }
 });
 
-function armAction(btn, fn){
+function armAction(btn, fn, label){
   if (!btn.classList.contains("arm")){
     btn.classList.add("arm");
     var orig = btn.textContent;
-    btn.textContent = "Wirklich?";
+    btn.textContent = label || "Wirklich?";
     setTimeout(function(){ btn.classList.remove("arm"); btn.textContent = orig; }, 3000);
     return;
   }
   btn.classList.remove("arm");
   fn();
 }
+function settingsSnapshot(){
+  return { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc };
+}
 function deleteMany(collName, ids, doneMsg){
   if (needDb()) return;
   var chain = Promise.resolve(), ok = 0;
+  pauseRender();
   ids.forEach(function(id){
     chain = chain.then(function(){
       return col(collName).doc(id).delete().then(function(){ ok++; }, function(){});
     });
   });
-  chain.then(function(){ toast(ok + " " + doneMsg); });
+  chain.then(function(){ resumeRender(); toast(ok + " " + doneMsg); });
 }
 $("clean-done").addEventListener("click", function(){
   armAction($("clean-done"), function(){
@@ -4831,7 +4896,7 @@ $("backup-btn").addEventListener("click", function(){
   var data = JSON.stringify({
     exportiert: new Date().toISOString(),
     courses: courses, todos: todos, events: events, study: study, work: work, cards: cards, vocab: vocab.map(function(p){ return { id: "v" + p.idx, idx: p.idx, level: p.level, rating: p.rating, due: p.due, intro: p.intro, lastDay: p.lastDay, seenAt: p.seenAt }; }),
-    settings: { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc }
+    settings: settingsSnapshot()
   }, null, 2);
   saveFile("uni-planer-backup-" + iso(today0()) + ".json", data, "Backup gespeichert.");
 });
@@ -4867,17 +4932,9 @@ $("restore-file").addEventListener("change", function(){
     });
     chain.then(function(){
       if (data.settings && typeof data.settings === "object"){
-        if (data.settings.layout) db.doc("settings/layout").set(data.settings.layout).catch(function(){});
-        if (data.settings.design) db.doc("settings/design").set(data.settings.design).catch(function(){});
-        if (data.settings.semester) db.doc("settings/semester").set(data.settings.semester).catch(function(){});
-        if (data.settings.vokstats) db.doc("settings/vokstats").set(data.settings.vokstats).catch(function(){});
-        if (data.settings.myvocab) db.doc("settings/myvocab").set(data.settings.myvocab).catch(function(){});
-        if (data.settings.ziel) db.doc("settings/ziel").set(data.settings.ziel).catch(function(){});
-        if (data.settings.fokus) db.doc("settings/fokus").set(data.settings.fokus).catch(function(){});
-        if (data.settings.wgoals) db.doc("settings/wgoals").set(data.settings.wgoals).catch(function(){});
-        if (data.settings.kkhist) db.doc("settings/kkhist").set(data.settings.kkhist).catch(function(){});
-        if (data.settings.clean) db.doc("settings/clean").set(data.settings.clean).catch(function(){});
-        if (data.settings.probe) db.doc("settings/probe").set(data.settings.probe).catch(function(){});
+        Object.keys(settingsSnapshot()).forEach(function(sk){
+          if (data.settings[sk]) db.doc("settings/" + sk).set(data.settings[sk]).catch(function(){});
+        });
       }
       toast(ok + " Einträge wiederhergestellt.");
       inp.value = "";
@@ -4936,6 +4993,7 @@ $("import-file").addEventListener("change", function(){
     }
     st.textContent = "Importiere " + items.length + " Termine …";
     var ok = 0, failed = 0;
+    pauseRender();
     var chain = Promise.resolve();
     items.forEach(function(it){
       chain = chain.then(function(){
@@ -4943,6 +5001,7 @@ $("import-file").addEventListener("change", function(){
       });
     });
     chain.then(function(){
+      resumeRender();
       st.textContent = ok + " Termine importiert"
         + (dupes ? ", " + dupes + " Duplikate übersprungen" : "")
         + (skipped ? ", " + skipped + " übersprungen" : "")
@@ -4975,13 +5034,16 @@ render();
     return;
   }
   db = ns;
+  var bannerNet = false;
   function sub(name, map, assign){
     db.collection(name).onSnapshot(function(snap){
       assign(snap.docs.map(function(d){ return map(d.id, d.data() || {}); }));
       loadedColls[name] = true;
       loaded = true;
+      if (bannerNet){ bannerNet = false; $("offline-banner").classList.remove("show"); }
       render();
     }, function(e){
+      bannerNet = true;
       $("offline-banner").classList.add("show");
       toast("Verbindung verloren: " + failMsg(e));
     });

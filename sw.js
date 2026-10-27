@@ -1,4 +1,4 @@
-var CACHE = "uni-planer-20261025094500";
+var CACHE = "uni-planer-20261027141914";
 var SHELL = ["./Uni-Planer-Online.html", "./manifest.json", "./icon-180.png", "./icon-512.png"];
 self.addEventListener("install", function(e){
   e.waitUntil(
@@ -22,7 +22,7 @@ self.addEventListener("fetch", function(e){
   if (url.origin !== self.location.origin) return;
   var isPage = req.mode === "navigate" || req.destination === "document" || /\.html$/.test(url.pathname);
   if (isPage){
-    // Seiten: immer zuerst frisch aus dem Netz, Cache nur als Offline-Ersatz
+    // Seiten: immer zuerst frisch aus dem Netz (am HTTP-Cache vorbei), Cache nur als Offline-Ersatz
     e.respondWith(
       fetch(req, { cache: "no-store" }).catch(function(){ return fetch(req); }).then(function(res){
         if (res && res.ok){
