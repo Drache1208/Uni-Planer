@@ -408,6 +408,11 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.del{transition:none}
 }
 .kq-opt{overflow-wrap:anywhere}
+.editb{background:none; border:1px solid transparent; border-radius:7px; color:var(--muted); cursor:pointer; padding:4px 8px; font-size:14px; flex:none}
+.editb:hover{color:var(--accent); border-color:var(--border)}
+.item-edit{flex:1 1 100%; display:grid; gap:9px; padding:2px 0}
+.item-edit .frow > label.f{flex:1 1 140px}
+@media (pointer: coarse){ .editb{padding:7px 10px} }
 @media (max-width:760px){
   #tabbar button{border-radius:12px}
   #tabbar button[aria-current="true"]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
@@ -765,6 +770,9 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <label class="f" for="wk-from">Von <input type="time" id="wk-from"></label>
       <label class="f" for="wk-to">Bis <input type="time" id="wk-to"></label>
       <label class="f" for="wk-note" style="flex:2 1 160px">Notiz <input type="text" id="wk-note" maxlength="120" placeholder="z. B. Zellkultur, Western Blot"></label>
+      <label class="f" for="wk-kind">Art
+        <select id="wk-kind"><option value="">Arbeitszeit</option><option value="urlaub">Urlaub (zählt 8,5 h)</option></select>
+      </label>
     </div>
     <button class="primary" type="submit">Eintragen</button>
   </form>
@@ -1288,6 +1296,7 @@ function todoRow(t, showFach, idPrefix){
     + (meta ? '<div class="meta">' + meta + '</div>' : '')
     + '</div>'
     + (t.done ? '' : '<label class="sdwrap">Lerntag<input type="date" class="study-date" id="' + px + 'sd-' + esc(t.id) + '" value="' + esc(t.studyDate || "") + '"></label>')
+    + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
     + '<button type="button" class="del" data-coll="todos">Löschen</button></li>';
 }
 function byDue(a,b){
@@ -1453,7 +1462,7 @@ function renderTodosView(){
   var calRows = [];
   itT.exams.forEach(function(x){ calRows.push({ tm: "", txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
   itT.events.forEach(function(e){ if (e.imported) return; calRows.push({ tm: e.time, txt: e.title, cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : "Termin" }); });
-  itT.work.forEach(function(w){ calRows.push({ tm: w.from ? w.from + (w.to ? "–" + w.to : "") : "", txt: "Laborarbeit" + (w.note ? ": " + w.note : ""), cls: "labor", tag: "Labor" }); });
+  itT.work.forEach(function(w){ calRows.push({ tm: w.from ? w.from + (w.to ? "–" + w.to : "") : "", txt: (w.kind === "urlaub" ? "Urlaub" : "Laborarbeit") + (w.note ? ": " + w.note : ""), cls: "labor", tag: w.kind === "urlaub" ? "Urlaub" : "Labor" }); });
   itT.study.forEach(function(s){ if (!s.done) calRows.push({ tm: s.time, txt: s.title, cls: "typ", tag: "Lernen" }); });
   if (calRows.length){
     calRows.sort(function(a,b){ return (a.tm || "99") < (b.tm || "99") ? -1 : 1; });
@@ -1550,7 +1559,7 @@ function renderFachView(){
       + (sd ? '<div class="datebox"><div class="d">' + sd.getDate() + '</div><div class="m">' + MON_K[sd.getMonth()] + '</div></div>' : '')
       + '<div class="main-c"><div class="t">' + esc(s.title) + '</div>'
       + (sd && !s.done ? '<div class="meta"><span class="rel">' + WTAGE[sd.getDay()] + (diffDays(sd) >= 0 ? " – in " + diffDays(sd) + " Tagen" : "") + '</span></div>' : '')
-      + '</div><button type="button" class="del" data-coll="study">Löschen</button></li>';
+      + '</div>' + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>' + '<button type="button" class="del" data-coll="study">Löschen</button></li>';
   }).join("");
   renderSwatches(c);
   renderKk(c);
@@ -1620,7 +1629,7 @@ function chipList(isoDay){
     out.push({ title:"Lernen: " + t.title, col: c ? courseColor(c) : "var(--ok)" });
   });
   it.work.forEach(function(w){
-    out.push({ title:"Labor" + (w.from ? " " + w.from : "") + (w.note ? " – " + w.note : ""), col: "var(--k6)" });
+    out.push({ title:(w.kind === "urlaub" ? "Urlaub" : "Labor") + (w.from ? " " + w.from : "") + (w.note ? " – " + w.note : ""), col: "var(--k6)" });
   });
   it.todos.forEach(function(t){
     var c = courseById(t.courseId);
@@ -1690,8 +1699,10 @@ function renderWoche(){
         + '<span class="tm">' + (e.time ? esc(e.time) : "–") + '</span>'
         + '<span class="t">' + esc(e.title) + '</span>'
         + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '')
+        + (e.prio ? '<span class="tag klausur">Wichtig</span>' : '')
         + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
         + fachTag(e.courseId)
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
         + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
     });
     it.study.forEach(function(s){
@@ -1701,6 +1712,7 @@ function renderWoche(){
         + '<span class="t">' + esc(s.title) + '</span>'
         + '<span class="tag typ">Lernen</span>'
         + fachTag(s.courseId)
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
         + '<button type="button" class="del" data-coll="study">Löschen</button></li>';
     });
     it.studyTodos.forEach(function(t){
@@ -1708,13 +1720,15 @@ function renderWoche(){
         + '<input type="checkbox" class="done-cb" id="wsd-' + esc(t.id) + '" aria-label="Erledigt">'
         + '<span class="t">' + esc(t.title) + '</span>'
         + '<span class="tag typ">Lernen</span>'
-        + fachTag(t.courseId) + '</li>';
+        + fachTag(t.courseId)
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>' + '</li>';
     });
     it.work.forEach(function(w){
       rows += '<li class="wit" draggable="true" data-move="date" data-id="' + esc(w.id) + '" data-coll="work">'
         + '<span class="tm">' + (w.from ? esc(w.from) + (w.to ? "–" + esc(w.to) : "") : "–") + '</span>'
-        + '<span class="t">Laborarbeit' + (w.note ? ": " + esc(w.note) : "") + '</span>'
-        + '<span class="tag labor">Labor</span>'
+        + '<span class="t">' + (w.kind === "urlaub" ? "Urlaub" : "Laborarbeit") + (w.note ? ": " + esc(w.note) : "") + '</span>'
+        + '<span class="tag labor">' + (w.kind === "urlaub" ? "Urlaub" : "Labor") + '</span>'
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
         + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
     });
     it.todos.forEach(function(t){
@@ -1722,7 +1736,8 @@ function renderWoche(){
         + '<input type="checkbox" class="done-cb" id="wcb-' + esc(t.id) + '" aria-label="Erledigt">'
         + '<span class="t">' + esc(t.title) + '</span>'
         + (t.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '')
-        + fachTag(t.courseId) + '</li>';
+        + fachTag(t.courseId)
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>' + '</li>';
     });
     html += '<div class="wday' + (dIso===tIso?" today":"") + '">'
       + '<button type="button" class="wday-h" data-date="' + dIso + '">'
@@ -1758,8 +1773,10 @@ function renderDayPanel(){
       + '<span class="t">' + esc(e.title) + '</span>'
       + '<input type="text" class="nt-edit" data-id="' + esc(e.id) + '" value="' + esc(e.note || "") + '" placeholder="Notiz …" maxlength="200" style="flex:1 1 130px; min-width:100px; padding:4px 6px; font-size:13px">'
       + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '<span class="tag typ">Termin</span>')
+      + (e.prio ? '<span class="tag klausur">Wichtig</span>' : '')
       + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
       + fachTag(e.courseId)
+      + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
       + (e.seriesId ? '<button type="button" class="del" data-seriesdel="1" data-coll="events">Serie löschen</button>' : '')
       + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
   });
@@ -1770,6 +1787,7 @@ function renderDayPanel(){
       + '<span class="t">' + esc(s.title) + '</span>'
       + '<span class="tag typ">Lernen</span>'
       + fachTag(s.courseId)
+      + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
       + (s.seriesId ? '<button type="button" class="del" data-seriesdel="1" data-coll="study">Serie löschen</button>' : '')
       + '<button type="button" class="del" data-coll="study">Löschen</button></li>';
   });
@@ -1777,20 +1795,21 @@ function renderDayPanel(){
     html += '<li draggable="true" data-move="studyDate" data-id="' + esc(t.id) + '" data-coll="todos">'
       + '<input type="checkbox" class="done-cb" id="dsd-' + esc(t.id) + '" aria-label="Erledigt">'
       + '<span class="t">' + esc(t.title) + '</span>'
-      + '<span class="tag typ">Lernen</span>' + fachTag(t.courseId) + '</li>';
+      + '<span class="tag typ">Lernen</span>' + fachTag(t.courseId) + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>' + '</li>';
   });
   it.work.forEach(function(w){
     html += '<li draggable="true" data-move="date" data-id="' + esc(w.id) + '" data-coll="work">'
       + '<span class="tm">' + (w.from ? esc(w.from) + (w.to ? "–" + esc(w.to) : "") : "–") + '</span>'
-      + '<span class="t">Laborarbeit' + (w.note ? ": " + esc(w.note) : "") + '</span>'
-      + '<span class="tag labor">Labor</span>'
+      + '<span class="t">' + (w.kind === "urlaub" ? "Urlaub" : "Laborarbeit") + (w.note ? ": " + esc(w.note) : "") + '</span>'
+      + '<span class="tag labor">' + (w.kind === "urlaub" ? "Urlaub" : "Labor") + '</span>'
+      + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
       + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
   });
   it.todos.forEach(function(t){
     html += '<li draggable="true" data-move="due" data-id="' + esc(t.id) + '" data-coll="todos">'
       + '<input type="checkbox" class="done-cb" id="dcb-' + esc(t.id) + '" aria-label="Erledigt">'
       + '<span class="t">' + esc(t.title) + '</span>'
-      + '<span class="tag typ">fällig</span>' + fachTag(t.courseId) + '</li>';
+      + '<span class="tag typ">fällig</span>' + fachTag(t.courseId) + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>' + '</li>';
   });
   $("dp-items").innerHTML = html;
   $("dp-empty").hidden = !!html;
@@ -1802,7 +1821,7 @@ function resumeRender(){ renderPaused = false; render(); }
 function render(){
   if (renderPaused) return;
   var ae = document.activeElement;
-  if (ae && ae.closest && ae.closest("input.d-edit, input.t-edit, input.tm-edit, input.nt-edit, input.study-date")) return;
+  if (ae && ae.closest && ae.closest("input.d-edit, input.t-edit, input.tm-edit, input.nt-edit, input.study-date, .item-edit input, .item-edit select")) return;
   renderSidebar();
   syncFachSelects();
   $("view-todos").hidden = view !== "todos";
@@ -1822,6 +1841,116 @@ function render(){
   renderDayPanel();
   renderJumpbars();
 }
+
+/* ---- Eintrag bearbeiten (Stift) ---- */
+var editTarget = null;
+function ieText(f, label, val, type, extra){
+  return '<label class="f">' + label + ' <input type="' + (type || "text") + '" data-f="' + f + '" value="' + esc(val == null ? "" : String(val)) + '"' + (extra || "") + '></label>';
+}
+function ieSelect(f, label, opts, cur){
+  var h = '<label class="f">' + label + ' <select data-f="' + f + '">';
+  opts.forEach(function(o){
+    h += '<option value="' + esc(o[0]) + '"' + (String(cur) === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+  });
+  return h + '</select></label>';
+}
+function ieCourseSel(cur){
+  var opts = [["", "– keine –"]];
+  courses.slice().sort(courseOrder).forEach(function(c){ opts.push([c.id, c.name]); });
+  return ieSelect("courseId", "Vorlesung", opts, cur || "");
+}
+function openEditor(li, coll, id){
+  var it = findIn(collArray(coll), id);
+  if (!it) return;
+  var f = "";
+  if (coll === "todos"){
+    f = ieText("title", "Aufgabe", it.title, "text", ' maxlength="200"')
+      + ieCourseSel(it.courseId)
+      + ieText("due", "Fällig am", it.due, "date")
+      + ieSelect("typ", "Art", [["Abgabe","Abgabe"],["Klausur","Klausur"],["Lernen","Lernen"],["Vorlesung","Vorlesung"],["Sonstiges","Sonstiges"]], it.typ || "Sonstiges")
+      + ieSelect("prio", "Priorität", [["","Normal"],["1","Wichtig"]], it.prio ? "1" : "")
+      + ieText("mins", "Dauer (min)", it.mins || "", "number", ' min="0" max="600" step="5"')
+      + ieText("studyDate", "Lerntag", it.studyDate, "date");
+  } else if (coll === "events"){
+    f = ieText("title", "Titel", it.title, "text", ' maxlength="200"')
+      + ieText("date", "Datum", it.date, "date")
+      + ieText("time", "Uhrzeit", it.time, "time")
+      + ieText("timeEnd", "Ende", it.timeEnd, "time")
+      + ieSelect("typ", "Art", [["Termin","Termin"],["Klausur","Klausur"]], it.typ === "Klausur" ? "Klausur" : "Termin")
+      + ieSelect("prio", "Priorität", [["","Normal"],["1","Wichtig"]], it.prio ? "1" : "")
+      + ieCourseSel(it.courseId)
+      + ieText("folder", "Ordner", it.folder, "text", ' maxlength="40"')
+      + ieText("note", "Notiz", it.note, "text", ' maxlength="200"');
+  } else if (coll === "study"){
+    f = ieText("title", "Thema", it.title, "text", ' maxlength="200"')
+      + ieText("date", "Datum", it.date, "date")
+      + ieText("time", "Uhrzeit", it.time, "time")
+      + ieCourseSel(it.courseId);
+  } else if (coll === "work"){
+    f = ieText("date", "Datum", it.date, "date")
+      + ieText("from", "Von", it.from, "time")
+      + ieText("to", "Bis", it.to, "time")
+      + ieSelect("kind", "Art", [["","Arbeitszeit"],["urlaub","Urlaub (zählt 8,5 h)"]], it.kind || "")
+      + ieText("note", "Notiz", it.note, "text", ' maxlength="120"');
+  } else {
+    return;
+  }
+  editTarget = { coll: coll, id: id };
+  li.innerHTML = '<div class="item-edit"><div class="frow">' + f + '</div>'
+    + '<div class="frow"><button type="button" class="primary ie-save" style="flex:none">Speichern</button>'
+    + '<button type="button" class="ghost ie-cancel" style="flex:none">Abbrechen</button></div></div>';
+  var first = li.querySelector("[data-f]");
+  if (first) first.focus();
+}
+function saveEditor(btn){
+  if (!editTarget){ render(); return; }
+  if (needDb()) return;
+  var cont = btn.closest(".item-edit");
+  var coll = editTarget.coll, id = editTarget.id;
+  var patch = {}, bad = "";
+  Array.prototype.forEach.call(cont.querySelectorAll("[data-f]"), function(inp){
+    var f = inp.dataset.f, v = inp.value;
+    if (f === "title"){
+      v = v.trim();
+      if (!v) bad = bad || "Bitte einen Titel eintragen.";
+      patch.title = v;
+    } else if (f === "mins"){
+      patch.mins = Math.max(0, Math.min(600, parseInt(v, 10) || 0));
+    } else if (f === "prio"){
+      patch.prio = v ? 1 : 0;
+    } else if (f === "due" || f === "date" || f === "studyDate"){
+      if (v && !plausibleISO(v)) bad = bad || "Bitte ein gültiges Datum wählen.";
+      if (f === "date" && !v) bad = bad || "Das Datum darf nicht leer sein.";
+      patch[f] = v || "";
+    } else if (f === "note" || f === "folder"){
+      patch[f] = v.trim();
+    } else {
+      patch[f] = v;
+    }
+  });
+  if (bad){ toast(bad); return; }
+  editTarget = null;
+  col(coll).doc(id).update(patch)
+    .then(function(){ toast("Änderungen gespeichert."); render(); })
+    .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); render(); });
+}
+document.addEventListener("click", function(ev){
+  var eb = ev.target.closest(".editb");
+  if (eb){
+    var eli = eb.closest("[data-id][data-coll]");
+    if (eli) openEditor(eli, eli.dataset.coll || "todos", eli.dataset.id);
+    return;
+  }
+  var sv = ev.target.closest(".ie-save");
+  if (sv){ saveEditor(sv); return; }
+  if (ev.target.closest(".ie-cancel")){ editTarget = null; render(); }
+});
+document.addEventListener("keydown", function(ev){
+  if (ev.key === "Escape" && editTarget && ev.target && ev.target.closest && ev.target.closest(".item-edit")){
+    editTarget = null;
+    render();
+  }
+});
 
 /* ---- Schreiboperationen ---- */
 function col(name){ return db ? db.collection(name) : null; }
@@ -4267,7 +4396,7 @@ $("plan-form").addEventListener("submit", function(ev){
   var skipWork = $("pl-skipwork").checked;
 
   var workDays = {};
-  if (skipWork) work.forEach(function(w){ if (w.date) workDays[w.date] = 1; });
+  if (skipWork) work.forEach(function(w){ if (w.date && w.kind !== "urlaub") workDays[w.date] = 1; });
   var examDays = {};
   courses.forEach(function(cc){
     var e2 = cc.exam || {};
@@ -4376,6 +4505,7 @@ function renderPrivatTermine(cid){
             + '<div class="main-c"><div class="t">' + esc(e.title) + '</div>'
             + '<div class="meta"><span class="rel">' + WTAGE[d.getDay()] + (e.time ? ", " + esc(e.time) + " Uhr" : "") + '</span>'
             + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '') + '</div></div>'
+            + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
             + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
         }).join("") + '</ul></section>';
   }).join("") || '<p class="sub" style="margin:0">Noch keine Termine – oben eintragen.</p>';
@@ -4665,7 +4795,9 @@ function renderUpcoming(){
   }).join("");
 }
 
+var WORK_CUT = "2026-12-01", WORK_TARGET = 8.5;
 function workHours(w){
+  if (w.kind === "urlaub") return WORK_TARGET;
   if (!w.from || !w.to) return 0;
   var f = w.from.split(":"), t = w.to.split(":");
   var h = (+t[0] + (+t[1]) / 60) - (+f[0] + (+f[1]) / 60);
@@ -4696,13 +4828,6 @@ function openShift(){
 function renderLabor(){
   $("work-empty").hidden = !(loadedColls.work && !work.length);
   var tIso = iso(today0());
-  var NORM_H = 8.5;
-  var dayTot = {};
-  work.forEach(function(w){
-    if (!w.date) return;
-    dayTot[w.date] = (dayTot[w.date] || 0) + workHours(w);
-  });
-  function overOf(dIso){ var v = dayTot[dIso] || 0; return v > NORM_H ? v - NORM_H : 0; }
   var weeks = {};
   work.forEach(function(w){
     var d = parseISO(w.date);
@@ -4717,21 +4842,23 @@ function renderLabor(){
     var mon = parseISO(wk), sun = addDays(mon, 6);
     var sum = 0;
     ws.forEach(function(w){ sum += workHours(w); });
-    var seenD = {}, wkOver = 0;
-    ws.forEach(function(w){ if (w.date && !seenD[w.date]){ seenD[w.date] = 1; wkOver += overOf(w.date); } });
     ws.sort(function(a,b){ return (a.date + (a.from || "")) < (b.date + (b.from || "")) ? -1 : 1; });
-    html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + (wkOver ? ' · ÜS ' + fmtH(wkOver) : '') + '</span></div><ul class="list">';
+    var wkInfo = "";
+    if (iso(sun) < WORK_CUT) wkInfo = " · zählt als Überstunden";
+    else if (wk >= WORK_CUT) wkInfo = sum >= WORK_TARGET ? " · Soll erfüllt" : " · Soll 8,5 h";
+    html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + wkInfo + '</span></div><ul class="list">';
     ws.forEach(function(w){
       var d = parseISO(w.date);
       var planned = w.date > tIso;
       var hrs = workHours(w);
       html += '<li class="todo" data-id="' + esc(w.id) + '" data-coll="work">'
         + '<div class="datebox"><div class="d">' + d.getDate() + '</div><div class="m">' + MON_K[d.getMonth()] + '</div></div>'
-        + '<div class="main-c"><div class="t">' + WTAGE[d.getDay()] + (w.from ? ", " + esc(w.from) + (w.to ? "–" + esc(w.to) : "") + " Uhr" : "") + (w.note ? " · " + esc(w.note) : "") + '</div>'
-        + '<div class="meta"><span class="tag labor">Labor</span>'
+        + '<div class="main-c"><div class="t">' + WTAGE[d.getDay()] + (w.kind === "urlaub" ? " – Urlaub" : "") + (w.from ? ", " + esc(w.from) + (w.to ? "–" + esc(w.to) : "") + " Uhr" : "") + (w.note ? " · " + esc(w.note) : "") + '</div>'
+        + '<div class="meta"><span class="tag labor">' + (w.kind === "urlaub" ? "Urlaub" : "Labor") + '</span>'
         + (hrs ? '<span>' + fmtH(hrs) + '</span>' : '')
         + (planned ? '<span class="tag typ">geplant</span>' : '')
         + '</div></div>'
+        + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
         + '<button type="button" class="del" data-coll="work">Löschen</button></li>';
     });
     html += '</ul></section>';
@@ -4746,50 +4873,59 @@ function renderLabor(){
     if (iso(startOfWeek(d)) === thisWeek) sumWeek += h;
     if (d.getMonth() === m && d.getFullYear() === y) sumMonth += h;
   });
-  var weekOver = 0, monthOver = 0, totalOver = 0;
-  Object.keys(dayTot).forEach(function(dIso){
-    if (dIso > tIso) return;
-    var ov = overOf(dIso);
-    if (!ov) return;
-    totalOver += ov;
-    var d2 = parseISO(dIso);
-    if (!d2) return;
-    if (iso(startOfWeek(d2)) === thisWeek) weekOver += ov;
-    if (d2.getMonth() === m && d2.getFullYear() === y) monthOver += ov;
+  var saldo = 0;
+  work.forEach(function(w){
+    if (!w.date || w.date > tIso) return;
+    saldo += workHours(w);
   });
-  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + (weekOver ? " (ÜS " + fmtH(weekOver) + ")" : "")
-    + " · Dieser Monat: " + fmtH(sumMonth) + (monthOver ? " (ÜS " + fmtH(monthOver) + ")" : "")
-    + (totalOver ? " · Überstunden gesamt: " + fmtH(totalOver) : "");
+  var dCut = diffDays(parseISO(WORK_CUT));
+  var elapsed = dCut <= 0 ? (-dCut + 1) : 0;
+  saldo -= elapsed * (WORK_TARGET / 7);
+  saldo = Math.round(saldo * 4) / 4;
+  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth)
+    + " · Überstunden-Konto: " + (saldo >= 0 ? "+" : "−") + fmtH(Math.abs(saldo))
+    + (elapsed ? " (Soll 8,5 h/Woche seit 1.12.)" : " (bis 30.11. zählt alles als Überstunden, Soll 8,5 h/Woche ab 1.12.)");
   var openW = openShift();
   $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + (openW.date === tIso ? "" : "gestern ") + openW.from + " Uhr)") : "Jetzt einstempeln";
-  var todayH = dayTot[tIso] || 0;
+  var todayH = 0, runH = 0;
+  work.forEach(function(w){ if (w.date === tIso) todayH += workHours(w); });
   if (openW && openW.date === tIso && openW.from && !openW.to){
     var sMin = hmToMin(openW.from);
     var nowD = new Date();
     var nowMin = nowD.getHours() * 60 + nowD.getMinutes();
-    if (sMin >= 0 && nowMin > sMin) todayH += (nowMin - sMin) / 60;
+    if (sMin >= 0 && nowMin > sMin) runH = (nowMin - sMin) / 60;
   }
+  todayH += runH;
+  var weekLiveH = sumWeek + runH;
   var wtBox = $("work-today");
   if (wtBox){
     wtBox.hidden = !(todayH > 0 || openW);
-    var ovToday = todayH > NORM_H ? todayH - NORM_H : 0;
-    $("wt-line").textContent = "Gearbeitet: " + fmtH(Math.min(todayH, NORM_H)) + " von 8,5 h"
-      + (ovToday ? " · Überstunden heute: " + fmtH(ovToday) : "")
-      + (openW ? " · Stempeluhr läuft" : "");
-    $("wt-fill").style.width = Math.min(100, Math.round(todayH / NORM_H * 100)) + "%";
-    $("wt-fill").style.background = ovToday ? "var(--warn)" : "";
+    if (tIso < WORK_CUT){
+      $("wt-line").textContent = "Heute: " + fmtH(todayH) + " – zählt komplett als Überstunden (Soll gilt ab 1.12.)"
+        + (openW ? " · Stempeluhr läuft" : "");
+      $("wt-fill").style.width = Math.min(100, Math.round(todayH / WORK_TARGET * 100)) + "%";
+      $("wt-fill").style.background = "var(--warn)";
+    } else {
+      var wkOver2 = weekLiveH > WORK_TARGET ? weekLiveH - WORK_TARGET : 0;
+      $("wt-line").textContent = "Heute: " + fmtH(todayH) + " · Diese Woche: " + fmtH(Math.min(weekLiveH, WORK_TARGET)) + " von 8,5 h"
+        + (wkOver2 ? " · Überstunden diese Woche: " + fmtH(wkOver2) : "")
+        + (openW ? " · Stempeluhr läuft" : "");
+      $("wt-fill").style.width = Math.min(100, Math.round(weekLiveH / WORK_TARGET * 100)) + "%";
+      $("wt-fill").style.background = wkOver2 ? "var(--warn)" : "";
+    }
   }
 }
 $("work-add").addEventListener("submit", function(ev){
   ev.preventDefault();
   var date = $("wk-date").value;
   if (!date) return;
+  var wkKind = $("wk-kind").value;
   addDoc("work", {
-    date: date, from: $("wk-from").value || "", to: $("wk-to").value || "",
-    note: $("wk-note").value.trim(), createdAt: Date.now()
+    date: date, from: wkKind ? "" : ($("wk-from").value || ""), to: wkKind ? "" : ($("wk-to").value || ""),
+    note: $("wk-note").value.trim(), kind: wkKind, createdAt: Date.now()
   }, function(){
-    $("wk-note").value = "";
-    toast("Arbeitszeit eingetragen.");
+    $("wk-note").value = ""; $("wk-kind").value = "";
+    toast(wkKind ? "Urlaub eingetragen – zählt 8,5 Stunden." : "Arbeitszeit eingetragen.");
   });
 });
 if (!$("wk-date").value) $("wk-date").value = iso(today0());
@@ -5088,6 +5224,7 @@ render();
       time: typeof b.time === "string" ? b.time : "", timeEnd: typeof b.timeEnd === "string" ? b.timeEnd : "", typ: String(b.typ || "Termin"),
       note: typeof b.note === "string" ? b.note : "",
       courseId: String(b.courseId || ""), imported: !!b.imported,
+      prio: b.prio ? 1 : 0,
       folder: typeof b.folder === "string" ? b.folder : "",
       seriesId: typeof b.seriesId === "string" ? b.seriesId : "",
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
@@ -5107,7 +5244,7 @@ render();
     return {
       id: id, date: typeof b.date === "string" ? b.date : "",
       from: typeof b.from === "string" ? b.from : "", to: typeof b.to === "string" ? b.to : "",
-      note: String(b.note || ""), punch: !!b.punch, createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
+      note: String(b.note || ""), kind: typeof b.kind === "string" ? b.kind : "", punch: !!b.punch, createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
   }, function(v){ work = v; });
   sub("vocab", function(id, b){
