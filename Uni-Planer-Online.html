@@ -427,7 +427,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   #kk-rate button, #vok-rate button, #kp-rate button{width:100%}
 }
 /* v53: Fokus-Garten */
-#deko-canvas-day svg, #deko-canvas-week svg{width:100%; max-width:300px; height:auto; display:block; margin:0 auto}
+#deko-canvas-day svg, #deko-canvas-week svg{width:100%; max-width:210px; height:auto; display:block; margin:0 auto}
 </style>
 </head>
 <body>
@@ -471,6 +471,18 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <input type="number" id="pomo-min" min="1" max="240" step="1" placeholder="z. B. 45">
     </label>
   </div>
+  <div class="card" id="deko-card" style="margin-top:14px; display:grid; gap:8px; padding:12px 14px">
+    <div class="fh">Fokus-Garten</div>
+    <div class="paltabs">
+      <button type="button" class="paltab" id="deko-vase" aria-pressed="true" style="padding:3px 10px; font-size:12px">🌸 Vase</button>
+      <button type="button" class="paltab" id="deko-baum" aria-pressed="false" style="padding:3px 10px; font-size:12px">🎄 Baum</button>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap">
+      <div style="flex:1 1 140px; min-width:140px; display:grid; gap:2px"><div class="fh" style="font-weight:500">Heute</div><div id="deko-canvas-day"></div></div>
+      <div style="flex:1 1 140px; min-width:140px; display:grid; gap:2px"><div class="fh" style="font-weight:500">Diese Woche</div><div id="deko-canvas-week"></div></div>
+    </div>
+    <p class="sub" id="deko-sub" style="margin:0; font-size:12px"></p>
+  </div>
 </aside>
 
 <main>
@@ -493,18 +505,6 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <div class="fh-row"><div class="fh">Tagesplan</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <div id="day-tl"></div>
     <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
-  </div>
-  <div class="card" data-block="garten" style="display:grid; gap:10px; margin-bottom:22px">
-    <div class="fh-row"><div class="fh">Fokus-Garten</div><span class="drag-handle" title="Verschieben">⣿</span></div>
-    <div class="paltabs">
-      <button type="button" class="paltab" id="deko-vase" aria-pressed="true">🌸 Blumenvase</button>
-      <button type="button" class="paltab" id="deko-baum" aria-pressed="false">🎄 Weihnachtsbaum</button>
-    </div>
-    <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center">
-      <div style="flex:1 1 220px; min-width:140px; display:grid; gap:4px"><div class="fh" style="text-align:center">Heute</div><div id="deko-canvas-day"></div></div>
-      <div style="flex:1 1 220px; min-width:140px; display:grid; gap:4px"><div class="fh" style="text-align:center">Diese Woche</div><div id="deko-canvas-week"></div></div>
-    </div>
-    <p class="sub" id="deko-sub" style="margin:0"></p>
   </div>
   <div id="today-cal"></div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add">
@@ -1397,6 +1397,7 @@ function renderSidebar(){
   });
   $("course-list").innerHTML = html || '<div class="side-h">Vorlesungen</div><p class="sub" style="margin:0 10px 8px">Noch keine – unten anlegen.</p>';
   renderSemInfo();
+  renderDeko();
 }
 
 /* ---- Fach-Auswahlfelder ---- */
@@ -1488,7 +1489,6 @@ function renderTodosView(){
     $("today-cal").innerHTML = "";
   }
   renderDayTimeline();
-  renderDeko();
   renderPhaseHints();
   renderWeekStats();
 }
@@ -4147,13 +4147,42 @@ function awardDeko(mins){
   var cut = Date.now() - 84 * 24 * 3600 * 1000;
   items = items.filter(function(it){ return it && (it.t || 0) >= cut; });
   if (items.length > 300) items = items.slice(items.length - 300);
-  dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + 1 };
+  dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + 1, bf: (dekoDoc && dekoDoc.bf) || 0 };
   db.doc("settings/deko").set(dekoDoc).catch(function(){});
   var two = mins >= 60;
   toast(dekoTheme === "baum"
     ? (two ? "Zwei neue Kugeln für deinen Weihnachtsbaum! 🎄" : "Eine neue Kugel für deinen Weihnachtsbaum! 🎄")
     : (two ? "Zwei neue Blumen für deine Vase! 🌸" : "Eine neue Blume für deine Vase! 🌸"));
-  if (view === "todos") renderDeko();
+  renderDeko();
+}
+var dekoBfDone = false;
+function dekoBackfill(){
+  if (dekoBfDone || !db) return;
+  if (dekoDoc && dekoDoc.bf){ dekoBfDone = true; return; }
+  var days = (fokusDoc && fokusDoc.days && typeof fokusDoc.days === "object") ? fokusDoc.days : {};
+  var items = (dekoDoc && Array.isArray(dekoDoc.items)) ? dekoDoc.items.slice() : [];
+  var firstT = Infinity;
+  items.forEach(function(it){ if (it && it.t && it.t < firstT) firstT = it.t; });
+  var cutDay = firstT < Infinity ? iso(new Date(firstT)) : iso(today0());
+  var added = 0;
+  Object.keys(days).sort().forEach(function(dk){
+    if (dk >= cutDay) return;
+    var d = parseISO(dk);
+    if (!d) return;
+    var left = days[dk] || 0;
+    var slot = 0;
+    while (left >= 10 && slot < 12){
+      var m = Math.min(left, 25);
+      if (left - m > 0 && left - m < 10) m = Math.min(left, 60);
+      items.push({ t: d.getTime() + (18 * 60 + slot * 30) * 60000, m: m });
+      left -= m; slot++; added++;
+    }
+  });
+  dekoBfDone = true;
+  if (!added) return;
+  dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + added, bf: 1 };
+  db.doc("settings/deko").set(dekoDoc).catch(function(){});
+  renderDeko();
 }
 function dekoFlowerList(since){
   var ws = since;
@@ -4250,13 +4279,11 @@ function renderDeko(){
   var total = (dekoDoc && dekoDoc.total) || 0;
   var one = dekoTheme === "baum" ? "Kugel" : "Blume", many = dekoTheme === "baum" ? "Kugeln" : "Blumen";
   $("deko-sub").textContent = flW.length
-    ? "Heute: " + flD.length + " · Diese Woche: " + flW.length + " " + (flW.length === 1 ? one : many)
-      + (more > 0 ? " (" + more + " weitere passen nicht mehr ins Bild)" : "")
-      + (total ? " · " + total + " Fokus-Blöcke insgesamt" : "")
-    : (dekoTheme === "baum"
-      ? "Noch leer – jeder Fokus-Block ab 10 min hängt eine Kugel an den Baum: ab 20 min eine glänzende, ab 40 min eine besonders schöne, ab 60 min zwei. Der linke Baum zeigt heute, der rechte die Woche ab Montag."
-      : "Noch leer – jeder Fokus-Block ab 10 min stellt eine Blume in die Vase: ab 20 min eine schönere, ab 40 min eine besonders schöne, ab 60 min zwei. Die linke Vase zeigt heute, die rechte die Woche ab Montag.")
-      + (total ? " Bisher insgesamt: " + total + " Fokus-Blöcke." : "");
+    ? "Heute: " + flD.length + " · Woche: " + flW.length + " " + (flW.length === 1 ? one : many)
+      + (more > 0 ? " (+" + more + " ohne Platz)" : "")
+      + (total ? " · gesamt " + total : "")
+    : "Noch leer – jeder Fokus-Block ab 10 min bringt eine " + one + ": ab 20 min eine schönere, ab 40 min eine besonders schöne, ab 60 min zwei."
+      + (total ? " Gesamt bisher: " + total + "." : "");
 }
 $("deko-vase").addEventListener("click", function(){ dekoTheme = "vase"; try { localStorage.setItem("uni-planer.deko", "vase"); } catch(e){} renderDeko(); });
 $("deko-baum").addEventListener("click", function(){ dekoTheme = "baum"; try { localStorage.setItem("uni-planer.deko", "baum"); } catch(e){} renderDeko(); });
@@ -5445,6 +5472,7 @@ render();
       if (n >= 10000 && Array.isArray(w) && w.length >= 2) customVocab[n] = [String(w[0]), String(w[1])];
     });
     applyDesign();
+    dekoBackfill();
   });
 });
 })();
