@@ -426,6 +426,8 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   #kk-rate, #vok-rate, #kp-rate{flex-direction:column; align-items:stretch}
   #kk-rate button, #vok-rate button, #kp-rate button{width:100%}
 }
+/* v53: Fokus-Garten */
+#deko-canvas-day svg, #deko-canvas-week svg{width:100%; max-width:300px; height:auto; display:block; margin:0 auto}
 </style>
 </head>
 <body>
@@ -491,6 +493,18 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <div class="fh-row"><div class="fh">Tagesplan</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <div id="day-tl"></div>
     <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
+  </div>
+  <div class="card" data-block="garten" style="display:grid; gap:10px; margin-bottom:22px">
+    <div class="fh-row"><div class="fh">Fokus-Garten</div><span class="drag-handle" title="Verschieben">⣿</span></div>
+    <div class="paltabs">
+      <button type="button" class="paltab" id="deko-vase" aria-pressed="true">🌸 Blumenvase</button>
+      <button type="button" class="paltab" id="deko-baum" aria-pressed="false">🎄 Weihnachtsbaum</button>
+    </div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center">
+      <div style="flex:1 1 220px; min-width:140px; display:grid; gap:4px"><div class="fh" style="text-align:center">Heute</div><div id="deko-canvas-day"></div></div>
+      <div style="flex:1 1 220px; min-width:140px; display:grid; gap:4px"><div class="fh" style="text-align:center">Diese Woche</div><div id="deko-canvas-week"></div></div>
+    </div>
+    <p class="sub" id="deko-sub" style="margin:0"></p>
   </div>
   <div id="today-cal"></div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add">
@@ -1147,7 +1161,7 @@ var VOCAB = [
 ];
 var VOK_IV = [1, 3, 7, 14, 30, 60];
 var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
-var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {}, probeDoc = {};
+var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {}, probeDoc = {}, dekoDoc = {};
 var now = new Date();
 var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
 var wCursor = startOfWeek(now);
@@ -1474,6 +1488,7 @@ function renderTodosView(){
     $("today-cal").innerHTML = "";
   }
   renderDayTimeline();
+  renderDeko();
   renderPhaseHints();
   renderWeekStats();
 }
@@ -3128,6 +3143,7 @@ function pomoStartTick(){
       clearInterval(pomoTimer);
       pomoTimer = null;
       if (pomoPhase === "focus" && pomoTotal >= 600) logFokus(Math.round(pomoTotal / 60));
+      if (pomoPhase === "focus" && pomoTotal >= 600) awardDeko(Math.round(pomoTotal / 60));
       if (pomoCycle){
         if (pomoPhase === "focus" && pomoRound >= 4){
           pomoPhase = "long";
@@ -4111,6 +4127,140 @@ function logFokus(mins){
   fokusDoc = { days: days };
   db.doc("settings/fokus").set(fokusDoc).catch(function(){});
 }
+/* ---- v53: Fokus-Garten (Blumenvase / Weihnachtsbaum) ---- */
+var dekoTheme = "vase";
+try { dekoTheme = localStorage.getItem("uni-planer.deko") === "baum" ? "baum" : "vase"; } catch(e){}
+var DEKO_P1 = ["#c9b7dd","#a8d8cf","#e7d39a","#bcc8e8"];
+var DEKO_P2 = ["#f08cb4","#f3a683","#8fb6ef","#c39ae0","#f5c2d0"];
+var DEKO_P3 = ["#e34f8c","#f06d1f","#7b5cf0","#d6336c","#2a7fd4"];
+var DEKO_BALLS1 = ["#c9a9a6","#a8bfd4","#cfc49a","#b7c9b2"];
+var DEKO_BALLS2 = ["#e03131","#4dabf7","#f783ac","#9775fa","#ffa94d"];
+var DEKO_BALLS3 = ["#d6336c","#f5c518","#4263eb","#e8590c"];
+var VASE_SLOTS = [[160,96],[134,104],[186,104],[112,116],[208,116],[146,78],[174,78],[122,90],[198,90],[100,100],[220,100],[160,62],[136,58],[184,58],[112,74],[208,74],[92,120],[228,120],[148,44],[172,44],[124,40],[196,40],[104,56],[216,56]];
+var TREE_SLOTS = [[160,166],[128,170],[192,170],[104,174],[216,174],[144,146],[176,146],[118,154],[202,154],[160,122],[136,128],[184,128],[152,100],[168,104],[132,106],[188,106],[146,84],[174,84],[160,66],[150,56],[170,58],[160,142],[112,166],[208,162]];
+function dekoRnd(seed){ var x = Math.sin((seed % 100000) + 1) * 43758.5453; return x - Math.floor(x); }
+function dekoPick(pal, seed){ return pal[Math.floor(dekoRnd(seed) * pal.length)]; }
+function awardDeko(mins){
+  if (!db) return;
+  var items = (dekoDoc && Array.isArray(dekoDoc.items)) ? dekoDoc.items.slice() : [];
+  items.push({ t: Date.now(), m: mins });
+  var cut = Date.now() - 84 * 24 * 3600 * 1000;
+  items = items.filter(function(it){ return it && (it.t || 0) >= cut; });
+  if (items.length > 300) items = items.slice(items.length - 300);
+  dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + 1 };
+  db.doc("settings/deko").set(dekoDoc).catch(function(){});
+  var two = mins >= 60;
+  toast(dekoTheme === "baum"
+    ? (two ? "Zwei neue Kugeln für deinen Weihnachtsbaum! 🎄" : "Eine neue Kugel für deinen Weihnachtsbaum! 🎄")
+    : (two ? "Zwei neue Blumen für deine Vase! 🌸" : "Eine neue Blume für deine Vase! 🌸"));
+  if (view === "todos") renderDeko();
+}
+function dekoFlowerList(since){
+  var ws = since;
+  var items = (dekoDoc && Array.isArray(dekoDoc.items)) ? dekoDoc.items : [];
+  var out = [];
+  items.forEach(function(it){
+    if (!it || (it.t || 0) < ws) return;
+    var m = it.m || 0;
+    var tier = m >= 40 ? 3 : (m >= 20 ? 2 : 1);
+    out.push({ tier: tier, seed: (it.t || 1) % 99991 });
+    if (m >= 60) out.push({ tier: 2, seed: ((it.t || 1) + 7) % 99991 });
+  });
+  return out;
+}
+function dekoFlowerHead(x, y, f){
+  var s = "", k, a, px, py;
+  if (f.tier === 1){
+    s += '<circle cx="' + x + '" cy="' + y + '" r="4.2" fill="' + dekoPick(DEKO_P1, f.seed) + '"/>'
+      + '<circle cx="' + x + '" cy="' + y + '" r="1.5" fill="#ffffff" opacity=".75"/>';
+  } else if (f.tier === 2){
+    var c2 = dekoPick(DEKO_P2, f.seed);
+    for (k = 0; k < 5; k++){
+      a = (k * 72 - 90) * Math.PI / 180;
+      px = x + Math.cos(a) * 4.6; py = y + Math.sin(a) * 4.6;
+      s += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3.6" fill="' + c2 + '"/>';
+    }
+    s += '<circle cx="' + x + '" cy="' + y + '" r="2.8" fill="#f2c94c"/>';
+  } else {
+    var c3 = dekoPick(DEKO_P3, f.seed);
+    for (k = 0; k < 6; k++){
+      a = (k * 60 - 90) * Math.PI / 180;
+      px = x + Math.cos(a) * 6.4; py = y + Math.sin(a) * 6.4;
+      s += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="4.6" fill="' + c3 + '"/>';
+    }
+    s += '<circle cx="' + x + '" cy="' + y + '" r="3.4" fill="#f2b705"/>'
+      + '<circle cx="' + (x - 1) + '" cy="' + (y - 1) + '" r="1.1" fill="#ffffff" opacity=".85"/>';
+  }
+  return s;
+}
+function dekoVaseSvg(fl){
+  var s = '<svg viewBox="0 0 320 200" role="img" aria-label="Blumenvase">';
+  fl.forEach(function(f, i){
+    var sl = VASE_SLOTS[i];
+    var mx = (160 + sl[0]) / 2 + (dekoRnd(f.seed + 3) * 14 - 7);
+    var my = (140 + sl[1]) / 2;
+    s += '<path d="M160,142 Q' + mx.toFixed(1) + ',' + my.toFixed(1) + ' ' + sl[0] + ',' + (sl[1] + 3) + '" stroke="#4d9e57" stroke-width="1.8" fill="none" opacity=".9"/>';
+  });
+  s += '<ellipse cx="160" cy="190" rx="34" ry="4" fill="var(--muted)" opacity=".25"/>'
+    + '<path d="M134,136 h52 l-7,17 q16,18 -5,35 h-28 q-21,-17 -5,-35 Z" fill="var(--accent)" opacity=".26"/>'
+    + '<path d="M134,136 h52 l-7,17 q16,18 -5,35 h-28 q-21,-17 -5,-35 Z" fill="none" stroke="var(--muted)" opacity=".6"/>'
+    + '<ellipse cx="160" cy="136" rx="26" ry="4.5" fill="var(--muted)" opacity=".35"/>';
+  fl.forEach(function(f, i){
+    var sl = VASE_SLOTS[i];
+    s += dekoFlowerHead(sl[0], sl[1], f);
+  });
+  return s + '</svg>';
+}
+function dekoTreeSvg(fl){
+  var s = '<svg viewBox="0 0 320 212" role="img" aria-label="Weihnachtsbaum">'
+    + '<ellipse cx="160" cy="202" rx="60" ry="5" fill="var(--muted)" opacity=".25"/>'
+    + '<rect x="150" y="180" width="20" height="22" rx="3" fill="#8a5a33"/>'
+    + '<polygon points="160,104 74,182 246,182" fill="#2f7d44"/>'
+    + '<polygon points="160,66 92,140 228,140" fill="#3a9154"/>'
+    + '<polygon points="160,34 110,100 210,100" fill="#45a263"/>'
+    + '<path d="M160,14 l4.6,9.3 10.3,1.5 -7.5,7.3 1.8,10.2 -9.2,-4.8 -9.2,4.8 1.8,-10.2 -7.5,-7.3 10.3,-1.5 Z" fill="#f5c518"/>';
+  fl.forEach(function(f, i){
+    var sl = TREE_SLOTS[i];
+    var x = sl[0], y = sl[1];
+    if (f.tier === 1){
+      s += '<circle cx="' + x + '" cy="' + y + '" r="4" fill="' + dekoPick(DEKO_BALLS1, f.seed) + '"/>';
+    } else if (f.tier === 2){
+      s += '<circle cx="' + x + '" cy="' + y + '" r="5.5" fill="' + dekoPick(DEKO_BALLS2, f.seed) + '"/>'
+        + '<circle cx="' + (x - 1.8) + '" cy="' + (y - 1.8) + '" r="1.5" fill="#ffffff" opacity=".8"/>';
+    } else {
+      s += '<line x1="' + x + '" y1="' + (y - 9) + '" x2="' + x + '" y2="' + (y - 6) + '" stroke="#f5c518" stroke-width="1.4"/>'
+        + '<circle cx="' + x + '" cy="' + y + '" r="6.3" fill="' + dekoPick(DEKO_BALLS3, f.seed) + '" stroke="#f5c518" stroke-width="1.4"/>'
+        + '<circle cx="' + (x - 2) + '" cy="' + (y - 2) + '" r="1.6" fill="#ffffff" opacity=".85"/>';
+    }
+  });
+  return s + '</svg>';
+}
+function renderDeko(){
+  var elD = $("deko-canvas-day"), elW = $("deko-canvas-week");
+  if (!elD || !elW) return;
+  $("deko-vase").setAttribute("aria-pressed", String(dekoTheme === "vase"));
+  $("deko-baum").setAttribute("aria-pressed", String(dekoTheme === "baum"));
+  var flD = dekoFlowerList(today0().getTime());
+  var flW = dekoFlowerList(startOfWeek(new Date()).getTime());
+  var slots = dekoTheme === "baum" ? TREE_SLOTS : VASE_SLOTS;
+  var build = dekoTheme === "baum" ? dekoTreeSvg : dekoVaseSvg;
+  elD.innerHTML = build(flD.slice(0, slots.length));
+  elW.innerHTML = build(flW.slice(0, slots.length));
+  var more = flW.length - Math.min(flW.length, slots.length);
+  var total = (dekoDoc && dekoDoc.total) || 0;
+  var one = dekoTheme === "baum" ? "Kugel" : "Blume", many = dekoTheme === "baum" ? "Kugeln" : "Blumen";
+  $("deko-sub").textContent = flW.length
+    ? "Heute: " + flD.length + " · Diese Woche: " + flW.length + " " + (flW.length === 1 ? one : many)
+      + (more > 0 ? " (" + more + " weitere passen nicht mehr ins Bild)" : "")
+      + (total ? " · " + total + " Fokus-Blöcke insgesamt" : "")
+    : (dekoTheme === "baum"
+      ? "Noch leer – jeder Fokus-Block ab 10 min hängt eine Kugel an den Baum: ab 20 min eine glänzende, ab 40 min eine besonders schöne, ab 60 min zwei. Der linke Baum zeigt heute, der rechte die Woche ab Montag."
+      : "Noch leer – jeder Fokus-Block ab 10 min stellt eine Blume in die Vase: ab 20 min eine schönere, ab 40 min eine besonders schöne, ab 60 min zwei. Die linke Vase zeigt heute, die rechte die Woche ab Montag.")
+      + (total ? " Bisher insgesamt: " + total + " Fokus-Blöcke." : "");
+}
+$("deko-vase").addEventListener("click", function(){ dekoTheme = "vase"; try { localStorage.setItem("uni-planer.deko", "vase"); } catch(e){} renderDeko(); });
+$("deko-baum").addEventListener("click", function(){ dekoTheme = "baum"; try { localStorage.setItem("uni-planer.deko", "baum"); } catch(e){} renderDeko(); });
+
 function renderWeekStats(){
   var el = $("week-stats");
   if (!el) return;
@@ -4967,7 +5117,7 @@ function armAction(btn, fn, label){
   fn();
 }
 function settingsSnapshot(){
-  return { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc };
+  return { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc, deko: dekoDoc };
 }
 function deleteMany(collName, ids, doneMsg){
   if (needDb()) return;
@@ -5274,7 +5424,7 @@ render();
   sub("settings", function(id, b){
     return { id: id, data: b };
   }, function(v){
-    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {}; probeDoc = {};
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {}; probeDoc = {}; dekoDoc = {};
     v.forEach(function(d){
       if (d.id === "layout") layoutDoc = d.data || {};
       if (d.id === "design") designDoc = d.data || {};
@@ -5287,6 +5437,7 @@ render();
       if (d.id === "kkhist") kkHistDoc = d.data || {};
       if (d.id === "clean") cleanDoc = d.data || {};
       if (d.id === "probe") probeDoc = d.data || {};
+      if (d.id === "deko") dekoDoc = d.data || {};
     });
     customVocab = {};
     Object.keys((myVocabDoc && myVocabDoc.words) || {}).forEach(function(k){
