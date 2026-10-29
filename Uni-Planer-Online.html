@@ -436,6 +436,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 <aside>
   <div class="brand">Uni-<em>Planer</em></div>
   <p class="sub" id="sem-info" hidden style="margin:-12px 0 16px; font-size:12.5px"></p>
+  <div id="sem-bar" hidden style="margin:-10px 0 14px"><div class="pbar" style="margin-top:0"><span id="sem-fill" style="background:var(--accent)"></span></div></div>
   <nav aria-label="Ansichten">
     <button type="button" class="nav-btn" data-nav="todos" id="nav-todos">Alle To-Dos <span class="count" id="nav-todos-n" hidden></span></button>
     <div class="side-h">Lernplanung</div>
@@ -474,7 +475,8 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <div class="card" id="deko-card" style="margin-top:14px; display:grid; gap:8px; padding:12px 14px">
     <div class="fh">Fokus-Garten</div>
     <div class="paltabs">
-      <button type="button" class="paltab" id="deko-vase" aria-pressed="true" style="padding:3px 10px; font-size:12px">🌸 Vase</button>
+      <button type="button" class="paltab" id="deko-auto" aria-pressed="true" style="padding:3px 10px; font-size:12px">Auto</button>
+      <button type="button" class="paltab" id="deko-vase" aria-pressed="false" style="padding:3px 10px; font-size:12px">🌸 Vase</button>
       <button type="button" class="paltab" id="deko-baum" aria-pressed="false" style="padding:3px 10px; font-size:12px">🎄 Baum</button>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap">
@@ -499,6 +501,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <div class="upcoming" id="upcoming" style="margin-bottom:0"></div>
   </div>
   <div id="phase-hints"></div>
+  <div id="week-review"></div>
   <div id="today-box"></div>
   <div id="sched-box"></div>
   <div class="card" data-block="tagesplan" style="display:grid; gap:11px; margin-bottom:22px">
@@ -643,6 +646,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <button type="button" class="primary" id="kk-start" style="flex:none">Lernen</button>
       <button type="button" class="ghost" id="kk-shuffle" style="flex:none">Alle durchgehen</button>
       <button type="button" class="ghost" id="kk-marked" style="flex:none">Markierte üben</button>
+      <button type="button" class="ghost" id="kk-hard" style="flex:none">Schwerste zuerst</button>
       <button type="button" class="ghost" id="kk-quiz" style="flex:none">Quiz</button>
       <button type="button" class="ghost" id="kk-probe" style="flex:none">Probeklausur</button>
       <button type="button" class="ghost" id="kk-export" style="flex:none">Als Datei speichern</button>
@@ -776,7 +780,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 
 <!-- Laborarbeit -->
 <section id="view-labor" hidden>
-  <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-punch"></button></div>
+  <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-export" style="flex:none">Monats-CSV</button><button type="button" class="ghost" id="wk-punch"></button></div>
   <form class="card" id="work-add" autocomplete="off">
     <div class="fh">Arbeitszeit eintragen oder planen</div>
     <div class="frow">
@@ -1490,6 +1494,7 @@ function renderTodosView(){
   }
   renderDayTimeline();
   renderPhaseHints();
+  renderWeekReview();
   renderWeekStats();
 }
 
@@ -1548,7 +1553,7 @@ function renderFachView(){
     $("ex-t2ab").value = ex.t2ab || "";
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
-    kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
     kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
     kpCards = []; var kpb = $("kk-probe-box"); if (kpb) kpb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
@@ -1663,6 +1668,21 @@ function renderMonat(){
   var weeks = Math.ceil((offset + dim) / 7);
   var start = addDays(first, -offset);
   var tIso = iso(today0());
+  var phases = {};
+  courses.forEach(function(c){
+    if ((c.group || "") === "Privat") return;
+    var pid = "plan-" + c.id;
+    var pDays = study.filter(function(s){ return s.seriesId === pid && s.date; }).map(function(s){ return s.date; }).sort();
+    if (!pDays.length) return;
+    var pex = c.exam || {};
+    var pEnd = (pex.t1 && pex.t1 >= pDays[0]) ? pex.t1 : ((pex.t2 && pex.t2 >= pDays[0]) ? pex.t2 : pDays[pDays.length - 1]);
+    var pd = parseISO(pDays[0]), pe = parseISO(pEnd);
+    if (!pd || !pe || Math.round((pe - pd) / 86400000) > 60) return;
+    for (var pdd = pd; pdd <= pe; pdd = addDays(pdd, 1)){
+      var pk = iso(pdd);
+      (phases[pk] = phases[pk] || []).push(courseColor(c));
+    }
+  });
   var html = "";
   for (var i=0; i<weeks*7; i++){
     var d = addDays(start, i);
@@ -1675,8 +1695,12 @@ function renderMonat(){
       chips += '<span class="chipev" style="--cc:' + x.col + '"><span class="lbl">' + esc(x.title) + '</span></span>';
     });
     if (all.length > maxShow) chips += '<span class="chipev more">+' + (all.length - maxShow) + '</span>';
+    var ph = phases[dIso] || [];
+    var phStyle = "";
+    if (ph.length === 1) phStyle = ' style="background:color-mix(in srgb, ' + ph[0] + ' 12%, var(--surface))"';
+    else if (ph.length > 1) phStyle = ' style="background:linear-gradient(135deg, color-mix(in srgb, ' + ph[0] + ' 12%, var(--surface)) 50%, color-mix(in srgb, ' + ph[1] + ' 12%, var(--surface)) 50%)"';
     html += '<button type="button" class="cell' + (inMonth?"":" out") + ((d.getDay()===0||d.getDay()===6)?" wknd":"") + (dIso===tIso?" today":"") + (dIso===selectedDay?" sel":"")
-      + '" data-date="' + dIso + '"><span class="num">' + d.getDate() + '</span>'
+      + '" data-date="' + dIso + '"' + phStyle + '><span class="num">' + d.getDate() + '</span>'
       + (chips ? '<span class="chips">' + chips + '</span>' : '') + '</button>';
   }
   $("m-grid").innerHTML = html;
@@ -3142,8 +3166,10 @@ function pomoStartTick(){
     if (pomoLeft <= 0){
       clearInterval(pomoTimer);
       pomoTimer = null;
-      if (pomoPhase === "focus" && pomoTotal >= 600) logFokus(Math.round(pomoTotal / 60));
-      if (pomoPhase === "focus" && pomoTotal >= 600) awardDeko(Math.round(pomoTotal / 60));
+      if (pomoPhase === "focus" && pomoTotal >= 600){
+        logFokus(Math.round(pomoTotal / 60));
+        awardDeko(Math.round(pomoTotal / 60), pomoCycle);
+      }
       if (pomoCycle){
         if (pomoPhase === "focus" && pomoRound >= 4){
           pomoPhase = "long";
@@ -3332,6 +3358,20 @@ function renderPhaseHints(){
       + '<span style="flex:1; min-width:160px">Klausur <strong>' + esc(c.name) + '</strong> ' + (dd === 0 ? "ist heute" : "in " + dd + " Tagen") + ' – noch kein Lernplan angelegt.</span>'
       + '<button type="button" class="primary phase-go" data-course="' + esc(c.id) + '" style="flex:none">Lernplan erstellen</button></div>';
   });
+  var osh = openShift();
+  if (osh){
+    var osd = parseISO(osh.date);
+    var osm = hmToMin(osh.from);
+    if (osd && osm >= 0){
+      var runMs = Date.now() - (osd.getTime() + osm * 60000);
+      if (runMs >= 10 * 3600000){
+        var runH = Math.round(runMs / 360000) / 10;
+        html = '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; border-left:4px solid var(--warn)">'
+          + '<span style="flex:1; min-width:160px">Die Stempeluhr läuft seit ' + (osh.date === iso(today0()) ? "" : "gestern ") + esc(osh.from) + ' Uhr (' + runH.toLocaleString("de-DE") + ' h) – Ausstempeln vergessen?</span>'
+          + '<button type="button" class="ghost" data-gonav="labor" style="flex:none">Zu den Arbeitszeiten</button></div>' + html;
+      }
+    }
+  }
   el.innerHTML = html;
 }
 document.addEventListener("click", function(ev){
@@ -3482,7 +3522,7 @@ $("kq-stop").addEventListener("click", function(){
 $("kk-quiz").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
-  kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+  kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
   kqCards = kqShuffle(my.slice()).slice(0, 20);
   kqIdx = 0; kqScore = 0;
   renderQuiz();
@@ -3551,7 +3591,7 @@ function kpRate(ok){
 $("kk-probe").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 5){ toast("Für eine Probeklausur brauchst du mindestens 5 Karten in diesem Fach."); return; }
-  kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kqCards = [];
+  kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kqCards = [];
   kpCards = kqShuffle(my.slice()).slice(0, 15);
   kpIdx = 0; kpOk = 0; kpShowing = false; kpStart = Date.now();
   renderProbe();
@@ -3681,6 +3721,12 @@ function renderDayTimeline(){
     var top = Math.round((it.s - h0 * 60) * pxm);
     var endM = Math.min(it.e, h1 * 60);
     var hp = Math.max(20, Math.round((endM - it.s) * pxm) - 2);
+    var aS = (it.lane || 0) / (it.cols || 1), aE = ((it.lane || 0) + (it.span || 1)) / (it.cols || 1);
+    items.forEach(function(o){
+      if (o === it || o.s < it.e) return;
+      var bS = (o.lane || 0) / (o.cols || 1), bE = ((o.lane || 0) + (o.span || 1)) / (o.cols || 1);
+      if (aS < bE && bS < aE) hp = Math.min(hp, Math.max(12, Math.round((o.s - it.s) * pxm) - 2));
+    });
     var n = it.cols || 1;
     var sp = it.span || 1;
     var pos = n > 1
@@ -3778,7 +3824,7 @@ setTimeout(autoSweep, 4000);
 setTimeout(autoSweep, 25000);
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false;
+var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false;
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
@@ -3791,7 +3837,7 @@ function renderKk(c){
   $("kk-status").textContent = kkMode
     ? (kkRequeue
       ? "Lern-Runde: noch " + kkQueue.length + " Karten – „Kann ich noch nicht“ kommt gleich wieder, „Kann ich“ später nochmal."
-      : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch ") + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
+      : (kkHardRound ? "Schwerste zuerst: noch " : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch ")) + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
     : (my.length
       ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " zum Lernen offen" : "für heute alles wiederholt")
       : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
@@ -3802,6 +3848,10 @@ function renderKk(c){
   my.forEach(function(k){ if (k.mark) markedN++; });
   $("kk-marked").textContent = markedN ? "Markierte üben (" + markedN + ")" : "Markierte üben";
   $("kk-marked").disabled = !markedN;
+  var hardN = 0;
+  my.forEach(function(k){ if ((k.fails || 0) > 0) hardN++; });
+  $("kk-hard").textContent = hardN ? "Schwerste zuerst (" + Math.min(hardN, 20) + ")" : "Schwerste zuerst";
+  $("kk-hard").disabled = !hardN;
   $("kk-quiz").disabled = my.length < 4;
   $("kk-probe").disabled = my.length < 5;
   $("kk-export").disabled = !my.length;
@@ -3854,7 +3904,7 @@ function renderKk(c){
     if (cur && kkCurrent !== cur.id){ kkCurrent = cur.id; kkShowing = false; }
   }
   if (!kkMode || !cur){
-    if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : (kkMarkRound ? "Alle markierten Karten durchgegangen!" : "Alle Karten einmal durchgegangen!"));
+    if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : (kkHardRound ? "Schwerste Karten durchgearbeitet – stark!" : (kkMarkRound ? "Alle markierten Karten durchgegangen!" : "Alle Karten einmal durchgegangen!")));
     kkMode = false;
     $("kk-practice").hidden = true;
     $("kk-ctl").hidden = !!kqCards.length || !!kpCards.length;
@@ -3885,6 +3935,8 @@ function rateKk(rating){
   if (extra && rating === "easy"){ level = k.level || 0; nextDue = k.due; }
   if (extra && rating === "mid" && k.due < nextDue) nextDue = k.due;
   var patch = { level: level, rating: rating, due: nextDue, lastDay: tIso, seenAt: Date.now() };
+  if (rating === "hard") patch.fails = (k.fails || 0) + 1;
+  else if (rating === "easy" && k.fails > 0) patch.fails = k.fails - 1;
   Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
   col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
   var hd = (kkHistDoc && kkHistDoc.days && typeof kkHistDoc.days === "object") ? kkHistDoc.days : {};
@@ -3930,6 +3982,7 @@ $("kk-start").addEventListener("click", function(){
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkMarkRound = false;
+  kkHardRound = false;
   kkEasyCnt = {};
   kkRequeue = true;
   kkMode = true;
@@ -3942,6 +3995,7 @@ $("kk-shuffle").addEventListener("click", function(){
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkMarkRound = false;
+  kkHardRound = false;
   kkEasyCnt = {};
   kkRequeue = false;
   kkMode = true;
@@ -3950,7 +4004,7 @@ $("kk-shuffle").addEventListener("click", function(){
   if (c) renderKk(c);
 });
 $("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); });
-$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
@@ -3993,6 +4047,7 @@ $("kk-marked").addEventListener("click", function(){
   kkEasyCnt = {};
   kkRequeue = false;
   kkMarkRound = true;
+  kkHardRound = false;
   kkMode = true;
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
@@ -4004,7 +4059,7 @@ $("kk-delall").addEventListener("click", function(){
     var my = kkCardsFor(fachId);
     if (!my.length){ toast("Keine Karten vorhanden."); return; }
     var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
-    kkMode = false; kkMarkRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
     kqCards = []; kpCards = [];
     var kqb2 = $("kk-quiz-box"); if (kqb2) kqb2.hidden = true;
     var kpb2 = $("kk-probe-box"); if (kpb2) kpb2.hidden = true;
@@ -4118,7 +4173,7 @@ $("kk-file").addEventListener("change", function(){
 
 /* ---- Wochenrückblick ---- */
 function logFokus(mins){
-  if (!db) return;
+  if (!db || !loadedColls.settings) return;
   var fIso = iso(today0());
   var days = (fokusDoc && fokusDoc.days && typeof fokusDoc.days === "object") ? fokusDoc.days : {};
   days[fIso] = (days[fIso] || 0) + mins;
@@ -4128,31 +4183,55 @@ function logFokus(mins){
   db.doc("settings/fokus").set(fokusDoc).catch(function(){});
 }
 /* ---- v53: Fokus-Garten (Blumenvase / Weihnachtsbaum) ---- */
-var dekoTheme = "vase";
-try { dekoTheme = localStorage.getItem("uni-planer.deko") === "baum" ? "baum" : "vase"; } catch(e){}
-var DEKO_P1 = ["#c9b7dd","#a8d8cf","#e7d39a","#bcc8e8"];
-var DEKO_P2 = ["#f08cb4","#f3a683","#8fb6ef","#c39ae0","#f5c2d0"];
-var DEKO_P3 = ["#e34f8c","#f06d1f","#7b5cf0","#d6336c","#2a7fd4"];
+var dekoTheme = "auto";
+try { var dekoLs = localStorage.getItem("uni-planer.deko"); if (dekoLs === "baum" || dekoLs === "vase" || dekoLs === "auto") dekoTheme = dekoLs; } catch(e){}
+function dekoSeason(){
+  var mo = new Date().getMonth();
+  if (mo >= 2 && mo <= 4) return "fruehling";
+  if (mo >= 5 && mo <= 7) return "sommer";
+  if (mo >= 8 && mo <= 10) return "herbst";
+  return "winter";
+}
+function dekoResolved(){
+  if (dekoTheme !== "auto") return dekoTheme;
+  var mo = new Date().getMonth();
+  if (mo === 11) return "baum";
+  if (mo === 0 || mo === 1) return "schneemann";
+  return "vase";
+}
+var DEKO_SEASON_PALS = {
+  fruehling: [["#d9c7ee","#bfe3d9","#f3d9e4","#cdd8f2"], ["#f2a7c3","#b7a9e8","#9fd0b8","#f5c2d0","#a3c3ec"], ["#e06a9f","#8a6fe8","#d6336c","#4f8edb","#e8739a"]],
+  sommer: [["#efd98a","#f0c9a0","#dce3a0","#f5d5b0"], ["#f5c518","#ff9f45","#f3a683","#ffd43b","#f08c5a"], ["#f5a623","#e8590c","#fab005","#d9480f","#f59f00"]],
+  herbst: [["#d9b38c","#cfa98a","#e0c08f","#c9a9a6"], ["#e8590c","#d9480f","#c92a2a","#e67700","#b35c37"], ["#d9480f","#a61e4d","#e8590c","#862e9c","#c92a2a"]],
+  winter: [["#c5d4e8","#d5dde8","#cfd8dd","#dde3ea"], ["#74c0fc","#a5d8ff","#91a7ff","#d0bfff","#99e9f2"], ["#4dabf7","#4263eb","#15aabf","#7048e8","#1971c2"]]
+};
+function dekoPals(){ return DEKO_SEASON_PALS[dekoSeason()] || DEKO_SEASON_PALS.herbst; }
+var SNOW_SLOTS = [[160,148],[142,148],[178,148],[160,116],[151,164],[169,164],[133,164],[187,164],[160,180],[151,100],[169,100],[142,180],[178,180],[160,84]];
 var DEKO_BALLS1 = ["#c9a9a6","#a8bfd4","#cfc49a","#b7c9b2"];
 var DEKO_BALLS2 = ["#e03131","#4dabf7","#f783ac","#9775fa","#ffa94d"];
 var DEKO_BALLS3 = ["#d6336c","#f5c518","#4263eb","#e8590c"];
-var VASE_SLOTS = [[160,96],[134,104],[186,104],[112,116],[208,116],[146,78],[174,78],[122,90],[198,90],[100,100],[220,100],[160,62],[136,58],[184,58],[112,74],[208,74],[92,120],[228,120],[148,44],[172,44],[124,40],[196,40],[104,56],[216,56]];
-var TREE_SLOTS = [[160,166],[128,170],[192,170],[104,174],[216,174],[144,146],[176,146],[118,154],[202,154],[160,122],[136,128],[184,128],[152,100],[168,104],[132,106],[188,106],[146,84],[174,84],[160,66],[150,56],[170,58],[160,142],[112,166],[208,162]];
+var VASE_SLOTS = [[148,95],[172,95],[160,116],[160,74],[136,116],[184,116],[136,74],[184,74],[124,95],[196,95],[148,53],[172,53],[112,116],[208,116],[112,74],[208,74],[124,53],[196,53],[100,95],[220,95],[160,32],[136,32],[184,32]];
+var TREE_SLOTS = [[160,126],[151,142],[169,142],[142,126],[178,126],[151,110],[169,110],[160,158],[133,142],[187,142],[142,158],[178,158],[133,110],[187,110],[124,126],[196,126],[160,94],[142,94],[178,94],[151,174],[169,174],[124,158],[196,158],[133,174],[187,174],[124,94],[196,94],[151,78],[169,78],[115,174],[205,174],[160,62],[97,174],[223,174]];
 function dekoRnd(seed){ var x = Math.sin((seed % 100000) + 1) * 43758.5453; return x - Math.floor(x); }
 function dekoPick(pal, seed){ return pal[Math.floor(dekoRnd(seed) * pal.length)]; }
-function awardDeko(mins){
-  if (!db) return;
+function awardDeko(mins, quiet){
+  if (!db || !loadedColls.settings) return;
   var items = (dekoDoc && Array.isArray(dekoDoc.items)) ? dekoDoc.items.slice() : [];
   items.push({ t: Date.now(), m: mins });
   var cut = Date.now() - 84 * 24 * 3600 * 1000;
   items = items.filter(function(it){ return it && (it.t || 0) >= cut; });
   if (items.length > 300) items = items.slice(items.length - 300);
   dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + 1, bf: (dekoDoc && dekoDoc.bf) || 0 };
-  db.doc("settings/deko").set(dekoDoc).catch(function(){});
   var two = mins >= 60;
-  toast(dekoTheme === "baum"
-    ? (two ? "Zwei neue Kugeln für deinen Weihnachtsbaum! 🎄" : "Eine neue Kugel für deinen Weihnachtsbaum! 🎄")
-    : (two ? "Zwei neue Blumen für deine Vase! 🌸" : "Eine neue Blume für deine Vase! 🌸"));
+  db.doc("settings/deko").set(dekoDoc).then(function(){
+    if (quiet) return;
+    var th = dekoResolved();
+    toast(th === "baum"
+      ? (two ? "Zwei neue Kugeln für deinen Weihnachtsbaum! 🎄" : "Eine neue Kugel für deinen Weihnachtsbaum! 🎄")
+      : (th === "schneemann"
+        ? (two ? "Zwei neue Kugeln für deinen Schneemann! ⛄" : "Eine neue Kugel für deinen Schneemann! ⛄")
+        : (two ? "Zwei neue Blumen für deine Vase! 🌸" : "Eine neue Blume für deine Vase! 🌸")));
+  }, function(e){ toast("Belohnung konnte nicht gespeichert werden: " + failMsg(e)); });
   renderDeko();
 }
 var dekoBfDone = false;
@@ -4179,10 +4258,9 @@ function dekoBackfill(){
     }
   });
   dekoBfDone = true;
-  if (!added) return;
   dekoDoc = { items: items, total: ((dekoDoc && dekoDoc.total) || 0) + added, bf: 1 };
-  db.doc("settings/deko").set(dekoDoc).catch(function(){});
-  renderDeko();
+  db.doc("settings/deko").set(dekoDoc).catch(function(){ dekoBfDone = false; });
+  if (added) renderDeko();
 }
 function dekoFlowerList(since){
   var ws = since;
@@ -4200,10 +4278,10 @@ function dekoFlowerList(since){
 function dekoFlowerHead(x, y, f){
   var s = "", k, a, px, py;
   if (f.tier === 1){
-    s += '<circle cx="' + x + '" cy="' + y + '" r="4.2" fill="' + dekoPick(DEKO_P1, f.seed) + '"/>'
+    s += '<circle cx="' + x + '" cy="' + y + '" r="4.2" fill="' + dekoPick(dekoPals()[0], f.seed) + '"/>'
       + '<circle cx="' + x + '" cy="' + y + '" r="1.5" fill="#ffffff" opacity=".75"/>';
   } else if (f.tier === 2){
-    var c2 = dekoPick(DEKO_P2, f.seed);
+    var c2 = dekoPick(dekoPals()[1], f.seed);
     for (k = 0; k < 5; k++){
       a = (k * 72 - 90) * Math.PI / 180;
       px = x + Math.cos(a) * 4.6; py = y + Math.sin(a) * 4.6;
@@ -4211,13 +4289,13 @@ function dekoFlowerHead(x, y, f){
     }
     s += '<circle cx="' + x + '" cy="' + y + '" r="2.8" fill="#f2c94c"/>';
   } else {
-    var c3 = dekoPick(DEKO_P3, f.seed);
+    var c3 = dekoPick(dekoPals()[2], f.seed);
     for (k = 0; k < 6; k++){
       a = (k * 60 - 90) * Math.PI / 180;
       px = x + Math.cos(a) * 6.4; py = y + Math.sin(a) * 6.4;
       s += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="4.6" fill="' + c3 + '"/>';
     }
-    s += '<circle cx="' + x + '" cy="' + y + '" r="3.4" fill="#f2b705"/>'
+    s += '<circle cx="' + x + '" cy="' + y + '" r="3.4" fill="' + (dekoSeason() === "sommer" ? "#7a4a22" : "#f2b705") + '"/>'
       + '<circle cx="' + (x - 1) + '" cy="' + (y - 1) + '" r="1.1" fill="#ffffff" opacity=".85"/>';
   }
   return s;
@@ -4238,7 +4316,7 @@ function dekoVaseSvg(fl){
     var sl = VASE_SLOTS[i];
     s += dekoFlowerHead(sl[0], sl[1], f);
   });
-  return s + '</svg>';
+  return s + dekoMilestones("vase") + '</svg>';
 }
 function dekoTreeSvg(fl){
   var s = '<svg viewBox="0 0 320 212" role="img" aria-label="Weihnachtsbaum">'
@@ -4249,44 +4327,96 @@ function dekoTreeSvg(fl){
     + '<polygon points="160,34 110,100 210,100" fill="#45a263"/>'
     + '<path d="M160,14 l4.6,9.3 10.3,1.5 -7.5,7.3 1.8,10.2 -9.2,-4.8 -9.2,4.8 1.8,-10.2 -7.5,-7.3 10.3,-1.5 Z" fill="#f5c518"/>';
   fl.forEach(function(f, i){
-    var sl = TREE_SLOTS[i];
-    var x = sl[0], y = sl[1];
-    if (f.tier === 1){
-      s += '<circle cx="' + x + '" cy="' + y + '" r="4" fill="' + dekoPick(DEKO_BALLS1, f.seed) + '"/>';
-    } else if (f.tier === 2){
-      s += '<circle cx="' + x + '" cy="' + y + '" r="5.5" fill="' + dekoPick(DEKO_BALLS2, f.seed) + '"/>'
-        + '<circle cx="' + (x - 1.8) + '" cy="' + (y - 1.8) + '" r="1.5" fill="#ffffff" opacity=".8"/>';
-    } else {
-      s += '<line x1="' + x + '" y1="' + (y - 9) + '" x2="' + x + '" y2="' + (y - 6) + '" stroke="#f5c518" stroke-width="1.4"/>'
-        + '<circle cx="' + x + '" cy="' + y + '" r="6.3" fill="' + dekoPick(DEKO_BALLS3, f.seed) + '" stroke="#f5c518" stroke-width="1.4"/>'
-        + '<circle cx="' + (x - 2) + '" cy="' + (y - 2) + '" r="1.6" fill="#ffffff" opacity=".85"/>';
-    }
+    s += dekoBall(TREE_SLOTS[i][0], TREE_SLOTS[i][1], f);
   });
-  return s + '</svg>';
+  return s + dekoMilestones("baum") + '</svg>';
 }
+function dekoBall(x, y, f){
+  if (f.tier === 1) return '<circle cx="' + x + '" cy="' + y + '" r="4" fill="' + dekoPick(DEKO_BALLS1, f.seed) + '"/>';
+  if (f.tier === 2) return '<circle cx="' + x + '" cy="' + y + '" r="5.5" fill="' + dekoPick(DEKO_BALLS2, f.seed) + '"/>'
+    + '<circle cx="' + (x - 1.8) + '" cy="' + (y - 1.8) + '" r="1.5" fill="#ffffff" opacity=".8"/>';
+  return '<line x1="' + x + '" y1="' + (y - 8) + '" x2="' + x + '" y2="' + (y - 6) + '" stroke="#f5c518" stroke-width="1.4"/>'
+    + '<circle cx="' + x + '" cy="' + y + '" r="6.3" fill="' + dekoPick(DEKO_BALLS3, f.seed) + '" stroke="#f5c518" stroke-width="1.4"/>'
+    + '<circle cx="' + (x - 2) + '" cy="' + (y - 2) + '" r="1.6" fill="#ffffff" opacity=".85"/>';
+}
+function dekoSnowSvg(fl){
+  var s = '<svg viewBox="0 0 320 212" role="img" aria-label="Schneemann">'
+    + '<ellipse cx="160" cy="204" rx="64" ry="5" fill="var(--muted)" opacity=".25"/>'
+    + '<circle cx="160" cy="164" r="40" fill="#f4f8fb" stroke="#c9d6e2"/>'
+    + '<circle cx="160" cy="104" r="30" fill="#f4f8fb" stroke="#c9d6e2"/>'
+    + '<circle cx="160" cy="56" r="20" fill="#f4f8fb" stroke="#c9d6e2"/>'
+    + '<line x1="131" y1="100" x2="104" y2="82" stroke="#8a5a33" stroke-width="3"/>'
+    + '<line x1="189" y1="100" x2="216" y2="82" stroke="#8a5a33" stroke-width="3"/>'
+    + '<rect x="132" y="34" width="56" height="5" rx="2" fill="#3b4b59"/>'
+    + '<rect x="142" y="16" width="36" height="19" rx="2" fill="#3b4b59"/>'
+    + '<circle cx="153" cy="52" r="1.8" fill="#2a3540"/><circle cx="167" cy="52" r="1.8" fill="#2a3540"/>'
+    + '<polygon points="160,58 178,62 160,65" fill="#f76707"/>';
+  fl.forEach(function(f, i){
+    var sl = SNOW_SLOTS[i];
+    if (sl) s += dekoBall(sl[0], sl[1], f);
+  });
+  return s + dekoMilestones("schneemann") + '</svg>';
+}
+function dekoMilestones(kind){
+  var total = (dekoDoc && dekoDoc.total) || 0;
+  var ms = total >= 100 ? 3 : (total >= 50 ? 2 : (total >= 25 ? 1 : 0));
+  if (!ms) return "";
+  var s = "";
+  function spark(x, y, r, col){
+    return '<path d="M' + x + ',' + (y - r) + ' L' + (x + r * 0.3) + ',' + (y - r * 0.3) + ' L' + (x + r) + ',' + y + ' L' + (x + r * 0.3) + ',' + (y + r * 0.3) + ' L' + x + ',' + (y + r) + ' L' + (x - r * 0.3) + ',' + (y + r * 0.3) + ' L' + (x - r) + ',' + y + ' L' + (x - r * 0.3) + ',' + (y - r * 0.3) + ' Z" fill="' + col + '"/>';
+  }
+  function butterfly(x, y, col){
+    return '<g transform="translate(' + x + ',' + y + ')">'
+      + '<ellipse cx="-5" cy="-3" rx="6" ry="4.5" fill="' + col + '" transform="rotate(-25)"/>'
+      + '<ellipse cx="5" cy="-3" rx="6" ry="4.5" fill="' + col + '" transform="rotate(25)"/>'
+      + '<ellipse cx="0" cy="2" rx="1.6" ry="5" fill="#5a4632"/></g>';
+  }
+  if (kind === "vase"){
+    if (ms >= 1) s += butterfly(248, 52, "#e8739a");
+    if (ms >= 2) s += butterfly(76, 84, "#4dabf7");
+    if (ms >= 3) s += butterfly(226, 140, "#f5c518") + spark(262, 100, 5, "#f5c518");
+  } else {
+    if (ms >= 1) s += spark(126, 36, 6, "#f5c518");
+    if (ms >= 2) s += spark(216, 60, 5, "#f5c518") + spark(102, 96, 4, "#ffd43b");
+    if (ms >= 3) s += spark(236, 126, 5, "#ffd43b") + spark(84, 150, 4, "#f5c518");
+  }
+  return s;
+}
+var dekoSig = "";
 function renderDeko(){
   var elD = $("deko-canvas-day"), elW = $("deko-canvas-week");
   if (!elD || !elW) return;
+  var th = dekoResolved();
+  var sig = dekoTheme + "|" + th + "|" + dekoSeason() + "|" + iso(today0()) + "|" + ((dekoDoc && dekoDoc.total) || 0) + "|" + ((dekoDoc && Array.isArray(dekoDoc.items)) ? dekoDoc.items.length : 0);
+  if (sig === dekoSig) return;
+  dekoSig = sig;
+  $("deko-auto").setAttribute("aria-pressed", String(dekoTheme === "auto"));
   $("deko-vase").setAttribute("aria-pressed", String(dekoTheme === "vase"));
   $("deko-baum").setAttribute("aria-pressed", String(dekoTheme === "baum"));
   var flD = dekoFlowerList(today0().getTime());
   var flW = dekoFlowerList(startOfWeek(new Date()).getTime());
-  var slots = dekoTheme === "baum" ? TREE_SLOTS : VASE_SLOTS;
-  var build = dekoTheme === "baum" ? dekoTreeSvg : dekoVaseSvg;
+  var slots = th === "baum" ? TREE_SLOTS : (th === "schneemann" ? SNOW_SLOTS : VASE_SLOTS);
+  var build = th === "baum" ? dekoTreeSvg : (th === "schneemann" ? dekoSnowSvg : dekoVaseSvg);
   elD.innerHTML = build(flD.slice(0, slots.length));
   elW.innerHTML = build(flW.slice(0, slots.length));
   var more = flW.length - Math.min(flW.length, slots.length);
   var total = (dekoDoc && dekoDoc.total) || 0;
-  var one = dekoTheme === "baum" ? "Kugel" : "Blume", many = dekoTheme === "baum" ? "Kugeln" : "Blumen";
+  var one = th === "vase" ? "Blume" : "Kugel", many = th === "vase" ? "Blumen" : "Kugeln";
+  var msTxt = total >= 100 ? "" : (total >= 50 ? " · nächster Meilenstein: 100" : (total >= 25 ? " · nächster Meilenstein: 50" : (total ? " · erster Meilenstein: 25" : "")));
   $("deko-sub").textContent = flW.length
     ? "Heute: " + flD.length + " · Woche: " + flW.length + " " + (flW.length === 1 ? one : many)
       + (more > 0 ? " (+" + more + " ohne Platz)" : "")
-      + (total ? " · gesamt " + total : "")
+      + (total ? " · gesamt " + total : "") + msTxt
     : "Noch leer – jeder Fokus-Block ab 10 min bringt eine " + one + ": ab 20 min eine schönere, ab 40 min eine besonders schöne, ab 60 min zwei."
       + (total ? " Gesamt bisher: " + total + "." : "");
 }
-$("deko-vase").addEventListener("click", function(){ dekoTheme = "vase"; try { localStorage.setItem("uni-planer.deko", "vase"); } catch(e){} renderDeko(); });
-$("deko-baum").addEventListener("click", function(){ dekoTheme = "baum"; try { localStorage.setItem("uni-planer.deko", "baum"); } catch(e){} renderDeko(); });
+["auto","vase","baum"].forEach(function(tk){
+  $("deko-" + tk).addEventListener("click", function(){
+    dekoTheme = tk;
+    try { localStorage.setItem("uni-planer.deko", tk); } catch(e){}
+    renderDeko();
+  });
+});
 
 function renderWeekStats(){
   var el = $("week-stats");
@@ -4398,6 +4528,97 @@ function renderWeekStats(){
     : "";
 }
 
+/* ---- v57: Wochen-Review, Arbeitszeiten-CSV, Schwerste zuerst ---- */
+function renderWeekReview(){
+  var el = $("week-review");
+  if (!el) return;
+  var nd = new Date();
+  if (nd.getDay() !== 0 || !loadedColls.study || !loadedColls.todos || !loadedColls.cards || !loadedColls.settings){ el.innerHTML = ""; return; }
+  var ws = startOfWeek(nd), wsIso = iso(ws), tIso = iso(today0());
+  var wsMs = ws.getTime();
+  var tDone = todos.filter(function(t){ return t.done && (t.doneAt || 0) >= wsMs; }).length;
+  var sDone = study.filter(function(s){ return s.done && (s.doneAt || 0) >= wsMs; }).length;
+  var kkN = cards.filter(function(k){ return (k.seenAt || 0) >= wsMs; }).length;
+  var fok = 0, fdw = (fokusDoc && fokusDoc.days) || {};
+  Object.keys(fdw).forEach(function(k){ if (k >= wsIso) fok += fdw[k] || 0; });
+  var left = study.filter(function(s){ return !s.done && s.date >= wsIso && s.date < tIso; });
+  var parts = [];
+  if (fok) parts.push(fmtMins(fok) + " Fokus");
+  if (sDone) parts.push(sDone + (sDone === 1 ? " Lernblock" : " Lernblöcke"));
+  if (kkN) parts.push(kkN + " Karten");
+  if (tDone) parts.push(tDone + " Aufgaben erledigt");
+  el.innerHTML = '<div class="card" style="display:grid; gap:9px; margin-bottom:14px; border-left:4px solid var(--accent)">'
+    + '<div class="fh">Wochen-Review</div>'
+    + '<p class="sub" style="margin:0">Deine Woche: ' + (parts.length ? parts.join(" · ") : "noch keine Lernaktivität erfasst") + '.'
+    + (left.length ? " <strong>" + left.length + (left.length === 1 ? " Lernblock ist" : " Lernblöcke sind") + " liegen geblieben.</strong>" : " Keine liegengebliebenen Lernblöcke – stark!") + '</p>'
+    + (left.length ? '<div class="frow"><button type="button" class="ghost" id="wr-move" style="flex:none">Auf nächste Woche verschieben (' + left.length + ')</button></div>' : '')
+    + '</div>';
+}
+document.addEventListener("click", function(ev){
+  var b = ev.target.closest("#wr-move");
+  if (!b || b.disabled || needDb()) return;
+  var wsIso = iso(startOfWeek(new Date())), tIso = iso(today0());
+  var left = study.filter(function(s){ return !s.done && s.date >= wsIso && s.date < tIso; });
+  if (!left.length) return;
+  var olds = left.map(function(s){ return { id: s.id, date: s.date }; });
+  b.disabled = true;
+  pauseRender();
+  var chain = Promise.resolve(), ok = 0;
+  left.forEach(function(s){
+    var nd2 = parseISO(s.date);
+    chain = chain.then(function(){ return col("study").doc(s.id).update({ date: iso(addDays(nd2, 7)) }).then(function(){ ok++; }, function(){}); });
+  });
+  chain.then(function(){
+    resumeRender();
+    toast(ok + " Lernblöcke auf nächste Woche verschoben.", ok ? { label: "Rückgängig", fn: function(){
+      olds.forEach(function(o){ col("study").doc(o.id).update({ date: o.date }).catch(function(){}); });
+    }} : null);
+  });
+});
+$("wk-export").addEventListener("click", function(){
+  if (!work.length){ toast("Noch keine Arbeitszeiten eingetragen."); return; }
+  var rows = [["Datum","Wochentag","Von","Bis","Stunden","Art","Notiz"]];
+  var sorted = work.filter(function(w){ return w.date; }).sort(function(a, b){ return (a.date + (a.from || "")) < (b.date + (b.from || "")) ? -1 : 1; });
+  var dec = function(h){ return (Math.round(h * 100) / 100).toLocaleString("de-DE"); };
+  var tIso = iso(today0());
+  var curMon = "", monSum = 0, monPlan = 0;
+  var flushMon = function(){
+    if (curMon){
+      var mp = curMon.split("-");
+      rows.push(["Summe " + MONATE[+mp[1] - 1] + " " + mp[0], "", "", "", dec(monSum), "", monPlan ? "dazu " + dec(monPlan) + " h geplant" : ""]);
+    }
+    monSum = 0; monPlan = 0;
+  };
+  sorted.forEach(function(w){
+    var mon = w.date.slice(0, 7);
+    if (mon !== curMon){ flushMon(); curMon = mon; }
+    var d = parseISO(w.date);
+    var h = workHours(w);
+    if (w.date > tIso) monPlan += h; else monSum += h;
+    rows.push([w.date, d ? WTAGE[d.getDay()] : "", w.from || "", w.to || "", h ? dec(h) : "", w.kind === "urlaub" ? "Urlaub" : (w.date > tIso ? "geplant" : "Labor"), w.note || ""]);
+  });
+  flushMon();
+  var saldo = workSaldo();
+  rows.push(["Überstunden-Konto (Stand " + tIso + ")", "", "", "", (saldo >= 0 ? "+" : "") + dec(saldo), "", ""]);
+  var csv = "\ufeff" + rows.map(function(r){ return r.map(function(cx){ return csvCell(cx, ";"); }).join(";"); }).join("\r\n");
+  saveFile("arbeitszeiten-" + tIso + ".csv", csv, "Arbeitszeiten als CSV gespeichert (Semikolon-Spalten, Excel-tauglich).");
+});
+$("kk-hard").addEventListener("click", function(){
+  var pool = kkCardsFor(fachId).filter(function(k){ return (k.fails || 0) > 0; })
+    .sort(function(a, b){ return (b.fails || 0) - (a.fails || 0) || (a.seenAt || 0) - (b.seenAt || 0); })
+    .slice(0, 20);
+  if (!pool.length){ toast("Noch keine Wackelkandidaten – gezählt wird, wie oft eine Karte „Kann ich noch nicht“ bekommt."); return; }
+  kkQueue = pool.map(function(k){ return k.id; });
+  kkTotal = kkQueue.length;
+  kkEasyCnt = {};
+  kkRequeue = false;
+  kkMarkRound = false;
+  kkHardRound = true;
+  kkMode = true;
+  kkCurrent = null; kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
 /* ---- Noten-Ziel ---- */
 function gradeGoalText(){
   var g = zielDoc && zielDoc.avg;
@@ -4532,6 +4753,25 @@ function renderSemInfo(){
         line = "Semester beendet";
       }
     }
+  }
+  var ee = parseISO(semesterDoc.end);
+  var pct = -1;
+  if (s && ee && ee > s){
+    pct = Math.round((today0() - s) / (ee - s) * 100);
+    if (pct < 0 || pct > 100) pct = -1;
+  }
+  if (pct >= 0) line += (line ? " · " : "") + "Semester zu " + pct + " %";
+  var exLeft = 0;
+  courses.forEach(function(cx){
+    if (cx.grade > 0) return;
+    var exx = cx.exam || {};
+    if ((exx.t1 && diffDays(parseISO(exx.t1)) >= 0) || (exx.t2 && diffDays(parseISO(exx.t2)) >= 0)) exLeft++;
+  });
+  if (exLeft) line += (line ? " · " : "") + "noch " + exLeft + (exLeft === 1 ? " Klausur" : " Klausuren");
+  var semBar = $("sem-bar");
+  if (semBar){
+    semBar.hidden = pct < 0;
+    if (pct >= 0) $("sem-fill").style.width = pct + "%";
   }
   var g = gradeAvg();
   if (g) line += (line ? " · " : "") + "Schnitt " + g;
@@ -4945,7 +5185,19 @@ function renderUpcoming(){
     if (ex.t1 && diffDays(parseISO(ex.t1)) >= 0) examPick = ["t1", "1. Termin"];
     else if (ex.t2 && diffDays(parseISO(ex.t2)) >= 0) examPick = ["t2", "2. Termin"];
     if (examPick){
-      items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")" });
+      var exInfo = null;
+      var exCards = cards.filter(function(k){ return k.courseId === c.id; });
+      if (exCards.length){
+        var exEasy = 0;
+        exCards.forEach(function(k){ if (k.rating === "easy") exEasy++; });
+        var exPct = Math.round(exEasy / exCards.length * 100);
+        var exRuns = ((probeDoc && Array.isArray(probeDoc.runs)) ? probeDoc.runs : []).filter(function(r){ return r && r.c === c.id; });
+        var exProbe = exRuns.length ? exRuns[exRuns.length - 1].pct : -1;
+        var exDd = Math.max(1, diffDays(parseISO(ex[examPick[0]])));
+        var exPace = (100 - exPct) / exDd;
+        exInfo = { pct: exPct, probe: exProbe, amp: exPace > 5 ? "var(--danger)" : (exPace > 2 ? "var(--warn)" : "var(--ok)") };
+      }
+      items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")", info: exInfo });
     }
     var t1over = !ex.t1 || diffDays(parseISO(ex.t1)) < 0;
     var fr = [["t1an","Anmeldung","1. Termin","reg1"],["t1ab","Abmeldung","1. Termin","reg1"]];
@@ -4967,6 +5219,7 @@ function renderUpcoming(){
     var when = x.days === 0 ? "heute" : (x.days === 1 ? "morgen" : "in " + x.days + " Tagen");
     return '<div class="up-item"><span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span>'
       + '<span style="flex:1; min-width:0">' + esc(x.txt) + '</span>'
+      + (x.info ? '<span style="display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px"><span style="width:9px; height:9px; border-radius:50%; background:' + x.info.amp + '; flex:none"></span>' + x.info.pct + ' % sitzen' + (x.info.probe >= 0 ? ' · Probe: ' + x.info.probe + ' %' : '') + '</span>' : '')
       + (x.date ? '<span style="color:var(--muted)">' + fmtShort(x.date) + '</span>' : '')
       + '<strong>' + when + '</strong></div>';
   }).join("");
@@ -4983,6 +5236,14 @@ function workHours(w){
 }
 function fmtH(h){
   return (Math.round(h * 4) / 4).toLocaleString("de-DE") + " h";
+}
+function workSaldo(){
+  var tIso = iso(today0());
+  var saldo = 0;
+  work.forEach(function(w){ if (w.date && w.date <= tIso) saldo += workHours(w); });
+  var dCut = diffDays(parseISO(WORK_CUT));
+  if (dCut <= 0) saldo -= (-dCut + 1) * (WORK_TARGET / 7);
+  return Math.round(saldo * 4) / 4;
 }
 function openShift(){
   var tIso = iso(today0());
@@ -5050,18 +5311,11 @@ function renderLabor(){
     if (iso(startOfWeek(d)) === thisWeek) sumWeek += h;
     if (d.getMonth() === m && d.getFullYear() === y) sumMonth += h;
   });
-  var saldo = 0;
-  work.forEach(function(w){
-    if (!w.date || w.date > tIso) return;
-    saldo += workHours(w);
-  });
-  var dCut = diffDays(parseISO(WORK_CUT));
-  var elapsed = dCut <= 0 ? (-dCut + 1) : 0;
-  saldo -= elapsed * (WORK_TARGET / 7);
-  saldo = Math.round(saldo * 4) / 4;
+  var saldo = workSaldo();
+  var afterCut = diffDays(parseISO(WORK_CUT)) <= 0;
   $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth)
     + " · Überstunden-Konto: " + (saldo >= 0 ? "+" : "−") + fmtH(Math.abs(saldo))
-    + (elapsed ? " (Soll 8,5 h/Woche seit 1.12.)" : " (bis 30.11. zählt alles als Überstunden, Soll 8,5 h/Woche ab 1.12.)");
+    + (afterCut ? " (Soll 8,5 h/Woche seit 1.12.)" : " (bis 30.11. zählt alles als Überstunden, Soll 8,5 h/Woche ab 1.12.)");
   var openW = openShift();
   $("wk-punch").textContent = openW ? ("Ausstempeln (seit " + (openW.date === tIso ? "" : "gestern ") + openW.from + " Uhr)") : "Jetzt einstempeln";
   var todayH = 0, runH = 0;
@@ -5106,7 +5360,11 @@ $("work-add").addEventListener("submit", function(ev){
   });
 });
 if (!$("wk-date").value) $("wk-date").value = iso(today0());
-setInterval(function(){ if (view === "labor" && openShift()) renderLabor(); }, 60000);
+setInterval(function(){
+  if (!openShift()) return;
+  if (view === "labor") renderLabor();
+  else if (view === "todos") renderPhaseHints();
+}, 60000);
 $("wk-punch").addEventListener("click", function(){
   if (needDb()) return;
   var pIso = iso(today0());
@@ -5177,9 +5435,10 @@ function saveFile(filename, data, okMsg){
     toast("Download fehlgeschlagen: " + failMsg(e));
   });
 }
-function csvCell(s){
+function csvCell(s, sep){
   s = String(s == null ? "" : s);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  sep = (typeof sep === "string" && sep.length === 1) ? sep : ",";
+  return (/["\n\r]/.test(s) || s.indexOf(sep) >= 0) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 $("csv-btn").addEventListener("click", function(){
   var rows = [["Subject","Start Date","Start Time","All Day Event","Description"]];
@@ -5445,6 +5704,7 @@ render();
       lastDay: typeof b.lastDay === "string" ? b.lastDay : "",
       seenAt: typeof b.seenAt === "number" ? b.seenAt : 0,
       mark: !!b.mark,
+      fails: typeof b.fails === "number" ? b.fails : 0,
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
   }, function(v){ cards = v; });
