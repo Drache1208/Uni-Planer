@@ -367,7 +367,7 @@ div[data-block] form.card{margin-bottom:14px}
   #sem-info{margin:-6px 0 10px}
   #course-add{max-width:320px; margin-bottom:4px}
   /* Mobil-Feinschliff */
-  #nav-todos, #nav-lernwoche, #nav-lernmonat, #nav-vokabeln, #nav-design{display:none}
+  #nav-todos, #nav-lernen, #nav-lernwoche, #nav-lernmonat, #nav-vokabeln, #nav-design{display:none}
   nav .side-h{display:none}
   aside{margin-block:10px 10px; padding:12px}
   .brand{font-size:20px; margin-bottom:8px}
@@ -438,19 +438,20 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <p class="sub" id="sem-info" hidden style="margin:-12px 0 16px; font-size:12.5px"></p>
   <div id="sem-bar" hidden style="margin:-10px 0 14px"><div class="pbar" style="margin-top:0"><span id="sem-fill" style="background:var(--accent)"></span></div></div>
   <nav aria-label="Ansichten">
-    <button type="button" class="nav-btn" data-nav="todos" id="nav-todos">Alle To-Dos <span class="count" id="nav-todos-n" hidden></span></button>
-    <div class="side-h">Lernplanung</div>
-    <button type="button" class="nav-btn" data-nav="lernwoche" id="nav-lernwoche">Lernwoche</button>
-    <button type="button" class="nav-btn" data-nav="lernmonat" id="nav-lernmonat">Lernmonat</button>
-    <div class="side-h">Laborarbeit</div>
-    <button type="button" class="nav-btn" data-nav="labor" id="nav-labor">Arbeitszeiten</button>
-    <div class="side-h">Englisch</div>
+    <button type="button" class="nav-btn" data-nav="todos" id="nav-todos">Overview <span class="count" id="nav-todos-n" hidden></span></button>
+    <button type="button" class="nav-btn" data-nav="lernen" id="nav-lernen">Lernen</button>
+    <div class="side-h">Kalender</div>
+    <button type="button" class="nav-btn" data-nav="lernwoche" id="nav-lernwoche">Woche</button>
+    <button type="button" class="nav-btn" data-nav="lernmonat" id="nav-lernmonat">Monat</button>
+    <div class="side-h">Mehr</div>
+    <button type="button" class="nav-btn" data-nav="labor" id="nav-labor">Arbeit</button>
     <button type="button" class="nav-btn" data-nav="vokabeln" id="nav-vokabeln">Vokabeln <span class="count" id="nav-vok-n" hidden></span></button>
+    <button type="button" class="nav-btn" data-nav="stats" id="nav-stats">Statistik</button>
   </nav>
   <div id="course-list"></div>
   <form id="course-add" autocomplete="off">
-    <input type="text" id="course-in" placeholder="Neue Vorlesung …" maxlength="60" aria-label="Neue Vorlesung anlegen">
-    <button type="submit" aria-label="Vorlesung anlegen">+</button>
+    <input type="text" id="course-in" placeholder="Neues Fach …" maxlength="60" aria-label="Neues Fach anlegen">
+    <button type="submit" aria-label="Fach anlegen">+</button>
   </form>
   <nav aria-label="Einstellungen" style="margin-top:18px">
     <button type="button" class="nav-btn" data-nav="design" id="nav-design">Einstellungen</button>
@@ -492,9 +493,9 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 
 <div id="banner" hidden></div>
 
-<!-- Alle To-Dos -->
+<!-- Overview (Startseite) -->
 <section id="view-todos" hidden>
-  <div class="vhead"><div class="grow"><h1>Alle To-Dos</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
+  <div class="vhead"><div class="grow"><h1>Overview</h1><p class="sub" id="todos-summary">Lade …</p></div></div>
   <nav class="jumpbar" id="jump-todos" hidden></nav>
   <div class="card" data-block="fristen" id="fristen-box" style="display:grid; gap:10px; margin-bottom:22px" hidden>
     <div class="fh-row"><div class="fh">Klausuren &amp; Fristen</div></div>
@@ -503,20 +504,19 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <div id="phase-hints"></div>
   <div id="week-review"></div>
   <div id="today-box"></div>
-  <div id="sched-box"></div>
   <div class="card" data-block="tagesplan" style="display:grid; gap:11px; margin-bottom:22px">
-    <div class="fh-row"><div class="fh">Tagesplan</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="fh-row"><div class="fh">Heute</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <div id="day-tl"></div>
     <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
+    <div id="day-rest"></div>
   </div>
-  <div id="today-cal"></div>
-  <form class="card" id="todo-add" autocomplete="off" data-block="add">
+  <form class="card" id="todo-add" autocomplete="off" data-block="add" data-clpsdefault="1">
     <div class="fh-row"><div class="fh">Neue Aufgabe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <label class="f" for="todo-title">Aufgabe
       <input type="text" id="todo-title" placeholder="z. B. Übungsblatt 3 abgeben" required maxlength="200">
     </label>
     <div class="frow">
-      <label class="f" for="todo-fach">Vorlesung
+      <label class="f" for="todo-fach">Fach
         <select id="todo-fach"><option value="">– keine –</option></select>
       </label>
       <label class="f" for="todo-due">Fällig am
@@ -551,14 +551,13 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <ul class="list" id="todo-done-list"></ul>
     </details>
   </div>
-  <div id="week-stats"></div>
 </section>
 
 <!-- Eine Vorlesung -->
 <section id="view-fach" hidden>
   <div class="vhead">
     <div class="grow"><h1 id="fach-title"></h1><p class="sub" id="fach-sub"></p><div class="pbar" id="fach-pbar" hidden><span id="fach-pfill"></span></div></div>
-    <button type="button" class="ghost" id="fach-del">Vorlesung löschen</button>
+    <button type="button" class="ghost" id="fach-del">Fach löschen</button>
   </div>
   <nav class="jumpbar" id="jump-fach" hidden></nav>
   <div class="card" data-block="ptermine" style="display:grid; gap:11px; margin-bottom:24px" hidden>
@@ -720,14 +719,14 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <ul class="list" id="plan-list"></ul>
   </form>
   <div class="card" data-block="notes" style="display:grid; gap:11px; margin-bottom:24px">
-    <div class="fh-row"><div class="fh">Brainstorming &amp; Notizen</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="fh-row"><div class="fh">Notizen</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <textarea id="fach-notes" rows="6" maxlength="20000" placeholder="Ideen, offene Fragen, Merkzettel zu diesem Fach …"></textarea>
     <p class="sub" style="margin:0" id="notes-status">Wird automatisch gespeichert.</p>
   </div>
   <div class="card" id="color-card" style="display:grid; gap:11px" data-block="color">
     <div class="fh-row"><div class="fh">Name &amp; Farbe</div><span class="drag-handle" title="Verschieben">⠿</span></div>
     <form id="rename-form" autocomplete="off" style="display:flex; gap:8px; flex-wrap:wrap">
-      <input type="text" id="rename-in" maxlength="60" aria-label="Name der Vorlesung" style="flex:1 1 180px; min-width:0">
+      <input type="text" id="rename-in" maxlength="60" aria-label="Name des Fachs" style="flex:1 1 180px; min-width:0">
       <button class="primary" type="submit">Umbenennen</button>
     </form>
     <div class="paltabs">
@@ -780,7 +779,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 
 <!-- Laborarbeit -->
 <section id="view-labor" hidden>
-  <div class="vhead"><div class="grow"><h1>Laborarbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-export" style="flex:none">Monats-CSV</button><button type="button" class="ghost" id="wk-punch"></button></div>
+  <div class="vhead"><div class="grow"><h1>Arbeit</h1><p class="sub" id="labor-sub"></p></div><button type="button" class="ghost" id="wk-export" style="flex:none">Monats-CSV</button><button type="button" class="ghost" id="wk-punch"></button></div>
   <form class="card" id="work-add" autocomplete="off">
     <div class="fh">Arbeitszeit eintragen oder planen</div>
     <div class="frow">
@@ -803,7 +802,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <div class="empty" id="work-empty" hidden>
     <div class="big">Noch keine Arbeitszeiten</div>
     Trag oben ein, wann du gearbeitet hast oder arbeiten willst – zukünftige Einträge gelten als geplant,
-    die Stunden werden pro Woche summiert und erscheinen auch in Lernwoche und Lernmonat.
+    die Stunden werden pro Woche summiert und erscheinen auch in Woche und Monat.
   </div>
 </section>
 
@@ -849,6 +848,18 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <div id="vok-lists" style="margin-top:12px; display:grid; gap:14px"></div>
   </details>
   <p class="sub">An jedem Übungstag kommen genau 10 neue Vokabeln dazu. „Kann ich noch nicht“ → kommt in derselben Runde gleich nochmal, „Mittel“ → in 3 Tagen, „Kann ich“ → in wachsenden Abständen (3, 7, 14, 30, 60 Tage). Nach der Runde kannst du endlos weiterüben (alle gelernten Vokabeln, immer neu gemischt) – das verändert die Lernabstände nicht zusätzlich.</p>
+</section>
+
+<!-- Lernen (Hub) -->
+<section id="view-lernen" hidden>
+  <div class="vhead"><div class="grow"><h1>Lernen</h1><p class="sub" id="lernen-sub"></p></div></div>
+  <div id="lernen-list" style="display:grid; gap:10px"></div>
+</section>
+
+<!-- Statistik -->
+<section id="view-stats" hidden>
+  <div class="vhead"><div class="grow"><h1>Statistik</h1><p class="sub">Wochenrückblick, Ziele, Fokus-Verlauf und Lern-Heatmap.</p></div></div>
+  <div id="week-stats"></div>
 </section>
 
 <!-- Einstellungen -->
@@ -936,7 +947,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   </div>
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
     <div class="fh">Gruppen in der Seitenleiste</div>
-    <p class="sub" style="margin:0">Benenne die Oberthemen um, unter denen deine Vorlesungen gruppiert sind. Der neue Name gilt für alle Fächer der Gruppe.</p>
+    <p class="sub" style="margin:0">Benenne die Oberthemen um, unter denen deine Fächer gruppiert sind. Der neue Name gilt für alle Fächer der Gruppe.</p>
     <div id="group-list" style="display:grid; gap:10px"></div>
   </div>
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
@@ -1015,7 +1026,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <details class="card" id="import-box" style="margin-bottom:22px" open>
     <summary style="cursor:pointer; font-weight:600">Termine aus Kalenderdatei (.ics) importieren</summary>
     <div style="display:grid; gap:10px; margin-top:12px">
-      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch der Vorlesung zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (mit Enddatum bis zu 60 Termine, ohne Enddatum etwa ein Semester).</p>
+      <p class="sub" style="margin:0">Eine .ics-Datei bekommst du aus den meisten Uni-Portalen („Stundenplan/Kalender exportieren“) sowie aus Apple-, Google- und Outlook-Kalendern. Enthält der Termintitel einen Fachnamen, wird er automatisch dem Fach zugeordnet; steht „Klausur“ im Titel, wird er rot als Klausur markiert. Wöchentlich wiederkehrende Serientermine werden automatisch ausgerollt (mit Enddatum bis zu 60 Termine, ohne Enddatum etwa ein Semester).</p>
       <label class="f" for="import-file">Datei wählen
         <input type="file" id="import-file" accept=".ics,text/calendar">
       </label>
@@ -1056,7 +1067,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <label class="f" for="ev-typ">Art
         <select id="ev-typ"><option>Klausur</option><option selected>Termin</option></select>
       </label>
-      <label class="f" for="ev-fach">Vorlesung
+      <label class="f" for="ev-fach">Fach
         <select id="ev-fach"><option value="">– keine –</option></select>
       </label>
       <label class="f" for="ev-rep">Wiederholen
@@ -1077,7 +1088,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <label class="f" for="st-time">Uhrzeit
         <input type="time" id="st-time">
       </label>
-      <label class="f" for="st-fach">Vorlesung
+      <label class="f" for="st-fach">Fach
         <select id="st-fach"><option value="">– keine –</option></select>
       </label>
       <label class="f" for="st-rep">Wiederholen
@@ -1094,10 +1105,10 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 </div>
 
 <nav id="tabbar" aria-label="Schnellnavigation">
-  <button type="button" data-nav="todos" id="tab-todos"><span class="ti">🏠</span>Start</button>
+  <button type="button" data-nav="todos" id="tab-todos"><span class="ti">🏠</span>Overview</button>
   <button type="button" data-nav="lernwoche" id="tab-lernwoche"><span class="ti">📅</span>Woche</button>
   <button type="button" data-nav="lernmonat" id="tab-lernmonat"><span class="ti">🗓</span>Monat</button>
-  <button type="button" data-nav="vokabeln" id="tab-vokabeln"><span class="ti">🔤</span>Vokabeln</button>
+  <button type="button" data-nav="lernen" id="tab-lernen"><span class="ti">📚</span>Lernen</button>
   <button type="button" data-nav="design" id="tab-design"><span class="ti">⚙️</span>Mehr</button>
 </nav>
 <div id="toast" role="status"></div>
@@ -1172,7 +1183,7 @@ var wCursor = startOfWeek(now);
 var busy = {};
 
 var h = (location.hash || "").slice(1);
-if (h === "monat" || h === "woche" || h === "todos" || h === "design" || h === "labor" || h === "vokabeln") view = h;
+if (h === "monat" || h === "woche" || h === "todos" || h === "design" || h === "labor" || h === "vokabeln" || h === "lernen" || h === "stats") view = h;
 else if (h === "lernmonat") view = "monat";
 else if (h === "lernwoche") view = "woche";
 
@@ -1362,6 +1373,8 @@ function renderSidebar(){
     "lernmonat": view === "monat",
     "labor": view === "labor",
     "vokabeln": view === "vokabeln",
+    "lernen": view === "lernen",
+    "stats": view === "stats",
     "design": view === "design"
   };
   Object.keys(states).forEach(function(v){
@@ -1390,7 +1403,7 @@ function renderSidebar(){
   });
   var html = "";
   gNames.forEach(function(g){
-    html += '<div class="side-h">' + (g ? esc(g) : "Vorlesungen") + '</div>';
+    html += '<div class="side-h">' + (g ? esc(g) : "Fächer") + '</div>';
     groups[g].sort(courseOrder).forEach(function(c){
       var n = todos.filter(function(t){ return !t.done && t.courseId === c.id; }).length;
       html += '<button type="button" class="nav-btn course-item" draggable="true" data-course="' + esc(c.id) + '" aria-current="' + String(view==="fach" && fachId===c.id) + '" style="--cc:' + courseColor(c) + '">'
@@ -1399,7 +1412,7 @@ function renderSidebar(){
         + '</button>';
     });
   });
-  $("course-list").innerHTML = html || '<div class="side-h">Vorlesungen</div><p class="sub" style="margin:0 10px 8px">Noch keine – unten anlegen.</p>';
+  $("course-list").innerHTML = html || '<div class="side-h">Fächer</div><p class="sub" style="margin:0 10px 8px">Noch keine – unten anlegen.</p>';
   renderSemInfo();
   renderDeko();
 }
@@ -1446,15 +1459,15 @@ function renderTodosView(){
   function dayList(dIso){
     return todos.filter(function(t){ return !t.done && (t.due === dIso || t.studyDate === dIso); }).sort(byDue);
   }
-  var tbList = dayList(tbIso), tbLabel = "Heute";
+  var tbList = dayList(tbIso), tbLabel = "Aufgaben heute";
   if (!tbList.length){
     tbList = dayList(tmIso);
-    tbLabel = "Morgen";
+    tbLabel = "Aufgaben morgen";
   }
   var tbMins = 0;
   tbList.forEach(function(t){ tbMins += t.mins || 0; });
   var doneToday = todos.some(function(t){ return t.done && (t.due === tbIso || t.studyDate === tbIso); });
-  var celebrate = (tbLabel === "Morgen" && doneToday)
+  var celebrate = (tbLabel === "Aufgaben morgen" && doneToday)
     ? '<p class="sub" style="margin:0 0 10px; color:var(--ok); font-weight:600">Alles für heute erledigt – stark!</p>'
     : "";
   $("today-box").innerHTML = celebrate + (tbList.length
@@ -1462,40 +1475,40 @@ function renderTodosView(){
       + tbList.map(function(t){ return todoRow(t, true, "tb"); }).join("")
       + '</ul></section>'
     : "");
-  function schedOn(dIso){
-    return events.filter(function(e){ return e.date === dIso && e.imported; })
-      .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
-  }
-  var spList = schedOn(tbIso), spLabel = "heute";
-  if (!spList.length){ spList = schedOn(tmIso); spLabel = "morgen"; }
-  $("sched-box").innerHTML = spList.length
-    ? '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Stundenplan ' + spLabel + '</div><ul class="list" style="gap:6px">'
-      + spList.map(function(e){
-          var c = courseById(e.courseId);
-          return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "\u2013") + '</span><span class="t">' + esc(e.title) + (e.note ? ' <span style="color:var(--muted)">– ' + esc(e.note) + '</span>' : '') + '</span>'
-            + (c ? '<span style="display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:12.5px"><span style="width:10px; height:10px; border-radius:50%; background:' + courseColor(c) + '; flex:none"></span>' + esc(c.name) + '</span>' : '<span class="tag typ">Vorlesung</span>')
-            + '</li>';
-        }).join("") + '</ul></div>'
-    : "";
   var itT = itemsOn(tbIso);
-  var calRows = [];
-  itT.exams.forEach(function(x){ calRows.push({ tm: "", txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
-  itT.events.forEach(function(e){ if (e.imported) return; calRows.push({ tm: e.time, txt: e.title, cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : "Termin" }); });
-  itT.work.forEach(function(w){ calRows.push({ tm: w.from ? w.from + (w.to ? "–" + w.to : "") : "", txt: (w.kind === "urlaub" ? "Urlaub" : "Laborarbeit") + (w.note ? ": " + w.note : ""), cls: "labor", tag: w.kind === "urlaub" ? "Urlaub" : "Labor" }); });
-  itT.study.forEach(function(s){ if (!s.done) calRows.push({ tm: s.time, txt: s.title, cls: "typ", tag: "Lernen" }); });
-  if (calRows.length){
-    calRows.sort(function(a,b){ return (a.tm || "99") < (b.tm || "99") ? -1 : 1; });
-    $("today-cal").innerHTML = '<div class="card" style="display:grid; gap:8px; margin-bottom:22px"><div class="fh">Heute im Kalender</div><ul class="list" style="gap:6px">'
-      + calRows.map(function(r){
-          return '<li class="wit"><span class="tm">' + (r.tm ? esc(r.tm) : "–") + '</span><span class="t">' + esc(r.txt) + '</span><span class="tag ' + r.cls + '">' + r.tag + '</span></li>';
-        }).join("") + '</ul></div>';
+  var restRows = [];
+  itT.exams.forEach(function(x){ restRows.push({ txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
+  itT.events.forEach(function(e){
+    if (hmToMin(e.time) >= 0) return;
+    restRows.push({ txt: e.title + (e.note ? " – " + e.note : ""), cls: e.typ === "Klausur" ? "klausur" : "typ", tag: e.typ === "Klausur" ? "Klausur" : (e.imported ? "Stundenplan" : "Termin") });
+  });
+  itT.work.forEach(function(w){
+    if (hmToMin(w.from) >= 0) return;
+    restRows.push({ txt: (w.kind === "urlaub" ? "Urlaub" : "Laborarbeit") + (w.note ? ": " + w.note : ""), cls: "labor", tag: w.kind === "urlaub" ? "Urlaub" : "Labor" });
+  });
+  itT.study.forEach(function(s2){
+    if (s2.done || hmToMin(s2.time) >= 0) return;
+    restRows.push({ txt: s2.title, cls: "typ", tag: "Lernen" });
+  });
+  var dr = $("day-rest");
+  if (restRows.length){
+    dr.innerHTML = '<div class="fh" style="font-weight:500">Ohne Uhrzeit</div><ul class="list" style="gap:6px">'
+      + restRows.map(function(r){
+          return '<li class="wit"><span class="t">' + esc(r.txt) + '</span><span class="tag ' + r.cls + '">' + r.tag + '</span></li>';
+        }).join("") + '</ul>';
   } else {
-    $("today-cal").innerHTML = "";
+    var morgen = events.filter(function(e){ return e.date === tmIso && e.imported; })
+      .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
+    dr.innerHTML = morgen.length
+      ? '<div class="fh" style="font-weight:500">Stundenplan morgen</div><ul class="list" style="gap:6px">'
+        + morgen.map(function(e){
+            return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "–") + '</span><span class="t">' + esc(e.title) + '</span>' + fachTag(e.courseId) + '</li>';
+          }).join("") + '</ul>'
+      : "";
   }
   renderDayTimeline();
   renderPhaseHints();
   renderWeekReview();
-  renderWeekStats();
 }
 
 function renderSwatches(c){
@@ -1659,7 +1672,7 @@ function chipList(isoDay){
 }
 
 function renderMonat(){
-  $("m-title").textContent = "Lernmonat · " + MONATE[mCursor.getMonth()] + " " + mCursor.getFullYear();
+  $("m-title").textContent = "Monat · " + MONATE[mCursor.getMonth()] + " " + mCursor.getFullYear();
   $("m-plan").textContent = hideSchedule ? "Stundenplan einblenden" : "Stundenplan ausblenden";
   $("m-sub").textContent = "Tag anklicken, um Termine, Klausuren oder Lernblöcke einzutragen.";
   var first = new Date(mCursor.getFullYear(), mCursor.getMonth(), 1);
@@ -1709,7 +1722,7 @@ function renderMonat(){
 function renderWoche(){
   var end = addDays(wCursor, 6);
   var sameMonth = wCursor.getMonth() === end.getMonth();
-  $("w-title").textContent = "Lernwoche · KW " + isoWeek(wCursor) + " · "
+  $("w-title").textContent = "Woche · KW " + isoWeek(wCursor) + " · "
     + wCursor.getDate() + "." + (sameMonth ? "" : " " + MON_K[wCursor.getMonth()]) + "–"
     + end.getDate() + ". " + MON_K[end.getMonth()] + " " + end.getFullYear();
   $("w-sub").textContent = "Tag anklicken, um Termine, Klausuren oder Lernblöcke einzutragen.";
@@ -1870,6 +1883,8 @@ function render(){
   $("view-design").hidden = view !== "design";
   $("view-labor").hidden = view !== "labor";
   $("view-vokabeln").hidden = view !== "vokabeln";
+  $("view-lernen").hidden = view !== "lernen";
+  $("view-stats").hidden = view !== "stats";
   if (view === "todos"){ renderTodosView(); applyLayout("todos"); }
   else if (view === "fach"){ renderFachView(); applyLayout("fach"); }
   else if (view === "monat") renderMonat();
@@ -1877,6 +1892,8 @@ function render(){
   else if (view === "design") renderDesignView();
   else if (view === "labor") renderLabor();
   else if (view === "vokabeln") renderVokabeln();
+  else if (view === "lernen") renderLernen();
+  else if (view === "stats") renderWeekStats();
   renderDayPanel();
   renderJumpbars();
 }
@@ -1896,7 +1913,7 @@ function ieSelect(f, label, opts, cur){
 function ieCourseSel(cur){
   var opts = [["", "– keine –"]];
   courses.slice().sort(courseOrder).forEach(function(c){ opts.push([c.id, c.name]); });
-  return ieSelect("courseId", "Vorlesung", opts, cur || "");
+  return ieSelect("courseId", "Fach", opts, cur || "");
 }
 function openEditor(li, coll, id){
   var it = findIn(collArray(coll), id);
@@ -2171,7 +2188,7 @@ document.addEventListener("click", function(ev){
         events.forEach(function(e3){ if (e3.courseId === cid) col("events").doc(e3.id).update({ courseId: "" }).catch(function(){}); });
         view = "todos";
         render();
-        toast("Vorlesung samt Aufgaben, Karten und Lernblöcken gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
+        toast("Fach samt Aufgaben, Karten und Lernblöcken gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
           col("courses").doc(cid).set(cBody).catch(function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
           casc.forEach(function(it){ col(it.cn).doc(it.id).set(it.body).catch(function(){}); });
         }} : null);
@@ -2204,7 +2221,7 @@ function commitStudyDate(sd){
   if (nv && !plausibleISO(nv)) return;
   if (!db){ toast("Kein Speicher verbunden."); return; }
   col("todos").doc(sli.dataset.id).update({ studyDate: nv })
-    .then(function(){ toast(nv ? "Lerntag zugeordnet – erscheint in Lernwoche und Lernmonat." : "Lerntag entfernt."); })
+    .then(function(){ toast(nv ? "Lerntag zugeordnet – erscheint in Woche und Monat." : "Lerntag entfernt."); })
     .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
 }
 function commitTime(tm){
@@ -2282,7 +2299,7 @@ $("rename-form").addEventListener("submit", function(ev){
   var name = $("rename-in").value.trim();
   if (!name) return;
   col("courses").doc(fachId).update({ name: name })
-    .then(function(){ toast("Vorlesung umbenannt."); })
+    .then(function(){ toast("Fach umbenannt."); })
     .catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
 });
 
@@ -2389,8 +2406,6 @@ function applyLayout(vk){
     var el = cont.querySelector('[data-block="' + id + '"]');
     if (el) cont.appendChild(el);
   });
-  var tail = cont.querySelector("#week-stats");
-  if (tail) cont.appendChild(tail);
 }
 function saveLayout(vk, arr){
   if (needDb()) return;
@@ -2452,7 +2467,7 @@ function renderDesignView(){
       return '<div class="frow" style="align-items:flex-end" data-group="' + esc(g) + '">'
         + '<label class="f" style="flex:1">Gruppenname <input type="text" class="grp-in" value="' + esc(g) + '" maxlength="60"></label>'
         + '<button type="button" class="ghost grp-save" style="flex:none">Umbenennen</button></div>';
-    }).join("") || '<p class="sub" style="margin:0">Noch keine Vorlesungen angelegt.</p>';
+    }).join("") || '<p class="sub" style="margin:0">Noch keine Fächer angelegt.</p>';
   }
   var graded = courses.filter(function(c){ return c.grade > 0; }).sort(courseOrder);
   var anyFach = courses.some(function(c){ return (c.group || "") !== "Privat"; });
@@ -3251,7 +3266,7 @@ function initCollapse(){
     c.className = "clps-c";
     var dh = head.querySelector(".drag-handle");
     if (dh) head.insertBefore(c, dh); else head.appendChild(c);
-    var on = !!clpsState[key];
+    var on = (key in clpsState) ? !!clpsState[key] : box.dataset.clpsdefault === "1";
     if (on) box.classList.add("clpsd");
     c.textContent = on ? "▸ aufklappen" : "▾";
     head.addEventListener("click", function(ev){
@@ -3259,7 +3274,9 @@ function initCollapse(){
       var now = !box.classList.contains("clpsd");
       box.classList.toggle("clpsd", now);
       c.textContent = now ? "▸ aufklappen" : "▾";
-      if (now) clpsState[key] = 1; else delete clpsState[key];
+      if (now) clpsState[key] = 1;
+      else if (box.dataset.clpsdefault === "1") clpsState[key] = 0;
+      else delete clpsState[key];
       try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
     });
   });
@@ -3309,7 +3326,7 @@ document.addEventListener("click", function(ev){
     box.classList.remove("clpsd");
     var ch = box.querySelector(".clps-c");
     if (ch) ch.textContent = "▾";
-    delete clpsState[key];
+    if (box.dataset.clpsdefault === "1") clpsState[key] = 0; else delete clpsState[key];
     try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
   }
   box.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3414,7 +3431,7 @@ function renderSearchHits(){
     }
   });
   courses.forEach(function(c){
-    if (rows.length < 25 && hit(c.notes)) rows.push({ txt: "Notizen: " + c.notes.slice(0, 120), tag: "Brainstorming", cid: c.id, sub: c.name });
+    if (rows.length < 25 && hit(c.notes)) rows.push({ txt: "Notizen: " + c.notes.slice(0, 120), tag: "Notizen", cid: c.id, sub: c.name });
   });
   vocab.forEach(function(p){
     var w = vw(p.idx);
@@ -3972,7 +3989,7 @@ $("kk-add").addEventListener("submit", function(ev){
     $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qen").value = ""; $("kk-aen").value = ""; $("kk-qin").focus();
   });
 });
-$("kk-start").addEventListener("click", function(){
+function kkStartLearn(){
   var tIso = iso(today0());
   var pool = kqShuffle(kkDueList(fachId).slice());
   var first = [], repeat = [];
@@ -3989,7 +4006,8 @@ $("kk-start").addEventListener("click", function(){
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
   if (c) renderKk(c);
-});
+}
+$("kk-start").addEventListener("click", kkStartLearn);
 $("kk-shuffle").addEventListener("click", function(){
   var pool = kqShuffle(kkCardsFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
@@ -4086,6 +4104,49 @@ $("kk-delall").addEventListener("click", function(){
   });
 });
 
+/* ---- v60: Lern-Hub ---- */
+function renderLernen(){
+  var el = $("lernen-list");
+  if (!el) return;
+  var vb = vokBadge();
+  var rows = '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">'
+    + '<span style="flex:1; min-width:140px"><strong>Englisch-Vokabeln</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (loadedColls.vocab ? (vb ? vb + " offen (Wiederholungen + neue)" : "für heute alles erledigt") : "Lade …") + '</span></span>'
+    + '<button type="button" class="' + (vb ? "primary" : "ghost") + '" data-gonav="vokabeln" style="flex:none">' + (vb ? "Üben" : "Ansehen") + '</button></div>';
+  var tot = 0;
+  courses.slice().sort(courseOrder).forEach(function(c){
+    if ((c.group || "") === "Privat") return;
+    var my = kkCardsFor(c.id);
+    if (!my.length) return;
+    var due = kkDueList(c.id).length;
+    tot += due;
+    rows += '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-left:4px solid ' + courseColor(c) + '">'
+      + '<span style="flex:1; min-width:140px"><strong>' + esc(c.name) + '</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (due ? due + " Karten offen" : "alles wiederholt") + " · " + my.length + " gesamt</span></span>"
+      + '<button type="button" class="' + (due ? "primary" : "ghost") + ' lh-go" data-course="' + esc(c.id) + '" style="flex:none">' + (due ? "Lernen" : "Extra-Runde") + '</button></div>';
+  });
+  el.innerHTML = rows;
+  $("lernen-sub").textContent = (loadedColls.cards && loadedColls.vocab)
+    ? "Heute offen: " + vb + " Vokabeln · " + tot + " Karteikarten"
+    : "Lade …";
+}
+document.addEventListener("click", function(ev){
+  var g = ev.target.closest(".lh-go");
+  if (!g) return;
+  fachId = g.dataset.course;
+  view = "fach";
+  render();
+  kkStartLearn();
+  var cb = document.querySelector('#view-fach [data-block="cards"]');
+  if (cb){
+    if (cb.classList.contains("clpsd")){
+      cb.classList.remove("clpsd");
+      var ch = cb.querySelector(".clps-c");
+      if (ch) ch.textContent = "▾";
+      delete clpsState[cb.dataset.clps];
+      try { localStorage.setItem("uni-planer.clps", JSON.stringify(clpsState)); } catch(e){}
+    }
+    cb.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
 /* ---- Karteikarten-Import ---- */
 function parseCardsFile(text){
   var out = [];
@@ -4892,7 +4953,7 @@ $("plan-form").addEventListener("submit", function(ev){
       + (reviewDays.length ? ", danach " + reviewDays.length + " Wiederholungstage" : "")
       + " – Klausur am " + fmtShort(examIso)
       + (bufCount ? ", " + bufCount + " Puffertage an den gewählten Wochentagen" : "") + ".";
-    toast("Lernplan erstellt – sichtbar in Lernwoche und Lernmonat.");
+    toast("Lernplan erstellt – sichtbar in Woche und Monat.");
   });
 });
 $("pl-clear").addEventListener("click", function(){
@@ -4938,7 +4999,7 @@ $("ptermin-add").addEventListener("submit", function(ev){
     createdAt: Date.now()
   }, function(){
     $("pt-title").value = "";
-    toast("Termin eingetragen – erscheint auch in Lernwoche und Lernmonat.");
+    toast("Termin eingetragen – erscheint auch in Woche und Monat.");
   });
 });
 
