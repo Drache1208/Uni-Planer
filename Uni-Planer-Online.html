@@ -117,6 +117,9 @@ button.primary{box-shadow:0 2px 10px -3px color-mix(in srgb,var(--accent) 50%,tr
 button.primary:hover{filter:brightness(1.05)}
 button.ghost:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
 ::selection{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+#kk-practice, #vok-card{cursor:pointer}
+@keyframes kkflip{from{transform:perspective(650px) rotateY(80deg); opacity:.25} to{transform:perspective(650px) rotateY(0deg); opacity:1}}
+.flipin{animation:kkflip .4s ease-out}
 /* Tagesplan-Zeitachse */
 .tl-wrap{position:relative; border-left:2px solid var(--border); margin-left:40px; overflow:hidden}
 @supports (clip-path: inset(0 0 0 -44px)){ .tl-wrap{overflow:visible; clip-path:inset(0 0 0 -44px)} }
@@ -423,8 +426,8 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   #kk-ctl .primary{grid-column:1 / -1}
 }
 @media (max-width:420px){
-  #kk-rate, #vok-rate, #kp-rate{flex-direction:column; align-items:stretch}
-  #kk-rate button, #vok-rate button, #kp-rate button{width:100%}
+  #kk-rate, #vok-rate{flex-direction:column; align-items:stretch}
+  #kk-rate button, #vok-rate button{width:100%}
 }
 /* v53: Fokus-Garten */
 #deko-canvas-day svg, #deko-canvas-week svg{width:100%; max-width:210px; height:auto; display:block; margin:0 auto}
@@ -505,9 +508,9 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <div id="week-review"></div>
   <div id="today-box"></div>
   <div class="card" data-block="tagesplan" style="display:grid; gap:11px; margin-bottom:22px">
-    <div class="fh-row"><div class="fh">Heute</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <div class="fh-row"><div class="fh" id="day-head">Heute</div><button type="button" class="ghost" id="day-prev" aria-label="Voriger Tag" style="flex:none; padding:2px 11px">‹</button><button type="button" class="ghost" id="day-today" style="flex:none; padding:2px 10px; font-size:12px" hidden>Heute</button><button type="button" class="ghost" id="day-next" aria-label="Nächster Tag" style="flex:none; padding:2px 11px">›</button><span class="drag-handle" title="Verschieben">⠿</span></div>
     <div id="day-tl"></div>
-    <p class="sub" id="day-tl-empty" style="margin:0" hidden>Heute stehen keine Termine mit Uhrzeit an.</p>
+    <p class="sub" id="day-tl-empty" style="margin:0" hidden>Keine Termine mit Uhrzeit an diesem Tag.</p>
     <div id="day-rest"></div>
   </div>
   <form class="card" id="todo-add" autocomplete="off" data-block="add" data-clpsdefault="1">
@@ -608,18 +611,6 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
         <button type="button" class="ghost" id="kq-stop" style="flex:none">Quiz beenden</button>
       </div>
     </div>
-    <div id="kk-probe-box" style="display:grid; gap:12px; text-align:center" hidden>
-      <div class="fh" id="kp-prog"></div>
-      <div id="kp-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
-      <div id="kp-a" style="color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere" hidden></div>
-      <div class="frow" id="kp-showrow" style="justify-content:center"><button type="button" class="primary" id="kp-show" style="flex:none">Antwort zeigen</button></div>
-      <div class="frow" id="kp-rate" hidden style="justify-content:center; gap:8px">
-        <button type="button" class="ghost" style="color:var(--ok); flex:none" id="kp-ok">Gewusst</button>
-        <button type="button" class="ghost" style="color:var(--danger); flex:none" id="kp-no">Nicht gewusst</button>
-      </div>
-      <p class="sub" id="kp-fb" style="margin:0"></p>
-      <div class="frow" style="justify-content:center"><button type="button" class="ghost" id="kp-stop" style="flex:none">Probeklausur beenden</button></div>
-    </div>
     <div id="kk-practice" style="display:grid; gap:12px; text-align:center" hidden>
       <div class="fh" id="kk-kind"></div>
       <div id="kk-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
@@ -640,14 +631,13 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <p class="sub" id="kk-status" style="margin:0"></p>
     <div id="kk-prog" class="sub" style="margin:0" hidden></div>
     <div class="pbar" id="kk-pbar" hidden><span id="kk-pfill"></span></div>
-    <div id="kk-probe-hist" class="sub" style="margin:0" hidden></div>
     <div class="frow" id="kk-ctl">
       <button type="button" class="primary" id="kk-start" style="flex:none">Lernen</button>
       <button type="button" class="ghost" id="kk-shuffle" style="flex:none">Alle durchgehen</button>
       <button type="button" class="ghost" id="kk-marked" style="flex:none">Markierte üben</button>
       <button type="button" class="ghost" id="kk-hard" style="flex:none">Schwerste zuerst</button>
       <button type="button" class="ghost" id="kk-quiz" style="flex:none">Quiz</button>
-      <button type="button" class="ghost" id="kk-probe" style="flex:none">Probeklausur</button>
+      <button type="button" class="ghost" id="kk-alt" style="flex:none">Altklausur-Fragen</button>
       <button type="button" class="ghost" id="kk-export" style="flex:none">Als Datei speichern</button>
     </div>
     <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
@@ -657,12 +647,13 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
         <label class="f" for="kk-qen" style="flex:1">Frage auf Englisch (optional) <input type="text" id="kk-qen" maxlength="300"></label>
         <label class="f" for="kk-aen" style="flex:1">Antwort auf Englisch (optional) <input type="text" id="kk-aen" maxlength="1000"></label>
       </div>
+      <label style="display:flex; gap:8px; align-items:center; font-size:14px"><input type="checkbox" id="kk-altin" style="width:17px; height:17px"> Altklausur-Frage</label>
       <button class="primary" type="submit">Karte hinzufügen</button>
     </form>
     <details id="kk-imp-det">
       <summary style="cursor:pointer; font-weight:600">Karteikarten aus Datei importieren</summary>
       <div style="display:grid; gap:10px; margin-top:10px">
-        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Alle importierten Karten stehen sofort zum Lernen bereit.</p>
+        <p class="sub" style="margin:0">Textdatei (.txt oder .csv), eine Karte pro Zeile: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>. Vorhandene Karten werden beim erneuten Import automatisch um die englische Übersetzung ergänzt. Alle importierten Karten stehen sofort zum Lernen bereit. Mit <b>;;ALT</b> am Zeilenende wird eine Karte als Altklausur-Frage einsortiert.</p>
         <label class="f" for="kk-file">Datei wählen <input type="file" id="kk-file" accept=".txt,.csv,text/plain,text/csv"></label>
         <p class="sub" id="kk-imp-status" style="margin:0"></p>
       </div>
@@ -808,7 +799,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
 
 <!-- Englisch-Vokabeln -->
 <section id="view-vokabeln" hidden>
-  <div class="vhead"><div class="grow"><h1>Englisch-Vokabeln</h1><p class="sub" id="vok-sub"></p></div></div>
+  <div class="vhead"><div class="grow"><h1>Englisch-Vokabeln</h1><p class="sub" id="vok-sub"></p></div><button type="button" class="ghost" id="vok-dir" style="flex:none"></button></div>
   <div class="card" id="vok-card" style="display:grid; gap:14px; margin-bottom:24px; text-align:center; padding:30px 18px">
     <div class="fh" id="vok-kind"></div>
     <div id="vok-word" style="font-family:var(--font-display); font-size:clamp(26px,5vw,36px); font-weight:700; overflow-wrap:anywhere"></div>
@@ -1475,7 +1466,16 @@ function renderTodosView(){
       + tbList.map(function(t){ return todoRow(t, true, "tb"); }).join("")
       + '</ul></section>'
     : "");
-  var itT = itemsOn(tbIso);
+  var dpIso = iso(addDays(today0(), dayOff));
+  var dh = $("day-head");
+  if (dh){
+    var dpD = addDays(today0(), dayOff);
+    dh.textContent = dayOff === 0 ? "Heute"
+      : (dayOff === 1 ? "Morgen" : (dayOff === -1 ? "Gestern"
+      : dpD.toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "short" })));
+    $("day-today").hidden = dayOff === 0;
+  }
+  var itT = itemsOn(dpIso);
   var restRows = [];
   itT.exams.forEach(function(x){ restRows.push({ txt: x.title, cls: x.kind === "exam" ? "klausur" : "frist", tag: x.kind === "exam" ? "Klausur" : "Frist" }); });
   itT.events.forEach(function(e){
@@ -1497,7 +1497,7 @@ function renderTodosView(){
           return '<li class="wit"><span class="t">' + esc(r.txt) + '</span><span class="tag ' + r.cls + '">' + r.tag + '</span></li>';
         }).join("") + '</ul>';
   } else {
-    var morgen = events.filter(function(e){ return e.date === tmIso && e.imported; })
+    var morgen = (dayOff !== 0 ? [] : events.filter(function(e){ return e.date === tmIso && e.imported; }))
       .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; });
     dr.innerHTML = morgen.length
       ? '<div class="fh" style="font-weight:500">Stundenplan morgen</div><ul class="list" style="gap:6px">'
@@ -1566,9 +1566,8 @@ function renderFachView(){
     $("ex-t2ab").value = ex.t2ab || "";
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
-    kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
     kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
-    kpCards = []; var kpb = $("kk-probe-box"); if (kpb) kpb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
     $("fach-notes").value = c.notes || "";
@@ -3539,7 +3538,7 @@ $("kq-stop").addEventListener("click", function(){
 $("kk-quiz").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
-  kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+  kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
   kqCards = kqShuffle(my.slice()).slice(0, 20);
   kqIdx = 0; kqScore = 0;
   renderQuiz();
@@ -3547,83 +3546,26 @@ $("kk-quiz").addEventListener("click", function(){
   if (c) renderKk(c);
 });
 
-/* ---- Probeklausur ---- */
-var kpCards = [], kpIdx = 0, kpOk = 0, kpShowing = false, kpStart = 0;
-function fmtProbeSecs(s){ return s >= 60 ? Math.floor(s / 60) + " min " + (s % 60) + " s" : s + " s"; }
-function saveProbeRun(){
-  var secs = Math.round((Date.now() - kpStart) / 1000);
-  var pct = Math.round(kpOk / kpCards.length * 100);
-  var runs = (probeDoc && Array.isArray(probeDoc.runs)) ? probeDoc.runs.slice() : [];
-  runs.push({ c: fachId, t: Date.now(), ok: kpOk, n: kpCards.length, s: secs, pct: pct });
-  var perC = {};
-  for (var ri = runs.length - 1; ri >= 0; ri--){
-    var rc = (runs[ri] && runs[ri].c) || "";
-    perC[rc] = (perC[rc] || 0) + 1;
-    if (perC[rc] > 20) runs.splice(ri, 1);
-  }
-  probeDoc = { runs: runs };
-  if (db) db.doc("settings/probe").set(probeDoc).catch(function(){});
-  else toast("Kein Speicher verbunden – das Ergebnis geht beim Neuladen verloren.");
-}
-function renderProbe(){
-  var box = $("kk-probe-box");
-  if (!box) return;
-  if (!kpCards.length){ box.hidden = true; return; }
-  box.hidden = false;
-  $("kk-practice").hidden = true;
-  $("kk-quiz-box").hidden = true;
-  $("kk-ctl").hidden = true;
-  if (kpIdx >= kpCards.length){
-    var secs = Math.round((Date.now() - kpStart) / 1000);
-    var pct = Math.round(kpOk / kpCards.length * 100);
-    $("kp-prog").textContent = "Probeklausur beendet";
-    $("kp-q").textContent = kpOk + " von " + kpCards.length + " gewusst (" + pct + " %)";
-    $("kp-a").hidden = true;
-    $("kp-showrow").hidden = true;
-    $("kp-rate").hidden = true;
-    $("kp-fb").textContent = "Dauer: " + fmtProbeSecs(secs) + " · " + (pct >= 90 ? "Klausurreif!" : (pct >= 70 ? "Gut dabei – die Lücken gleich im Lern-Modus schließen." : "Noch Luft nach oben – die Karten am besten nochmal lernen."));
-    return;
-  }
-  var cur = kpCards[kpIdx];
-  $("kp-prog").textContent = "Frage " + (kpIdx + 1) + " von " + kpCards.length + " · bisher " + kpOk + " gewusst";
-  $("kp-q").textContent = kkQ(cur);
-  $("kp-a").textContent = kkA(cur);
-  $("kp-a").hidden = !kpShowing;
-  $("kp-showrow").hidden = kpShowing;
-  $("kp-rate").hidden = !kpShowing;
-  $("kp-fb").textContent = "";
-}
-function kpRate(ok){
-  if (!kpCards.length || kpIdx >= kpCards.length) return;
-  if (ok) kpOk++;
-  kpIdx++;
-  kpShowing = false;
-  if (kpIdx >= kpCards.length){
-    saveProbeRun();
-    var ck = courseById(fachId);
-    if (ck) renderKk(ck);
-  }
-  renderProbe();
-}
-$("kk-probe").addEventListener("click", function(){
-  var my = kkCardsFor(fachId);
-  if (my.length < 5){ toast("Für eine Probeklausur brauchst du mindestens 5 Karten in diesem Fach."); return; }
-  kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kqCards = [];
-  kpCards = kqShuffle(my.slice()).slice(0, 15);
-  kpIdx = 0; kpOk = 0; kpShowing = false; kpStart = Date.now();
-  renderProbe();
+/* ---- Altklausur-Fragen ---- */
+function kkAltList(cid){ return kkCardsFor(cid).filter(function(k){ return k.alt; }); }
+function kkStartAlt(){
+  var pool = kqShuffle(kkAltList(fachId));
+  if (!pool.length){ toast("Noch keine Altklausur-Fragen in diesem Fach – beim Anlegen oder Import als Altklausur-Frage markieren."); return; }
+  kqCards = [];
+  var kqb3 = $("kk-quiz-box"); if (kqb3) kqb3.hidden = true;
+  kkQueue = pool.map(function(k){ return k.id; });
+  kkTotal = kkQueue.length;
+  kkEasyCnt = {};
+  kkRequeue = false;
+  kkMarkRound = false;
+  kkHardRound = false;
+  kkAltRound = true;
+  kkMode = true;
+  kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
   if (c) renderKk(c);
-});
-$("kp-show").addEventListener("click", function(){ kpShowing = true; renderProbe(); });
-$("kp-ok").addEventListener("click", function(){ kpRate(true); });
-$("kp-no").addEventListener("click", function(){ kpRate(false); });
-$("kp-stop").addEventListener("click", function(){
-  kpCards = [];
-  $("kk-probe-box").hidden = true;
-  var c = courseById(fachId);
-  if (c) renderKk(c);
-});
+}
+$("kk-alt").addEventListener("click", kkStartAlt);
 
 function srsNext(level, rating, sameDay){
   var days;
@@ -3656,11 +3598,36 @@ $("kk-lang").addEventListener("click", function(ev){
   var c = courseById(fachId);
   if (c) renderKk(c);
   if (kqCards.length && !kqAnswered) renderQuiz();
-  if (kpCards.length && kpIdx < kpCards.length) renderProbe();
 });
 kkLangBtn();
 
+/* ---- Vokabel-Richtung (EN→DE / DE→EN) ---- */
+var vokDir = "en";
+try { vokDir = localStorage.getItem("uni-planer.vokdir") === "de" ? "de" : "en"; } catch(e){}
+function vokDirBtn(){
+  var b = $("vok-dir");
+  if (b) b.textContent = vokDir === "de" ? "Richtung: DE → EN" : "Richtung: EN → DE";
+}
+$("vok-dir").addEventListener("click", function(){
+  vokDir = vokDir === "de" ? "en" : "de";
+  try { localStorage.setItem("uni-planer.vokdir", vokDir); } catch(e){}
+  vokDirBtn();
+  vokShowing = false;
+  renderVokabeln();
+});
+vokDirBtn();
+function flipEl(el){
+  if (!el) return;
+  el.classList.remove("flipin");
+  void el.offsetWidth;
+  el.classList.add("flipin");
+}
+
 /* ---- v37: Tagesplan, Vorlesen, Aufraeumen ---- */
+var dayOff = 0;
+$("day-prev").addEventListener("click", function(ev){ ev.stopPropagation(); dayOff = Math.max(-60, dayOff - 1); renderTodosView(); });
+$("day-next").addEventListener("click", function(ev){ ev.stopPropagation(); dayOff = Math.min(60, dayOff + 1); renderTodosView(); });
+$("day-today").addEventListener("click", function(ev){ ev.stopPropagation(); dayOff = 0; renderTodosView(); });
 function hmToMin(t){
   var m = /^(\d{1,2}):(\d{2})/.exec(t || "");
   return m ? (+m[1]) * 60 + (+m[2]) : -1;
@@ -3668,7 +3635,7 @@ function hmToMin(t){
 function renderDayTimeline(){
   var el = $("day-tl");
   if (!el) return;
-  var tIso = iso(today0());
+  var tIso = iso(addDays(today0(), dayOff));
   var items = [];
   events.forEach(function(e){
     if (e.date !== tIso) return;
@@ -3802,10 +3769,14 @@ function speak(txt, lang, keep){
     window.speechSynthesis.speak(u);
   } catch(e){}
 }
-$("vok-speak").addEventListener("click", function(){
+$("vok-speak").addEventListener("click", function(ev){
+  ev.stopPropagation();
   if (vokCurrent === null) return;
   var w = vw(vokCurrent);
-  if (w) speak(w[0], "en-US");
+  if (!w) return;
+  var fi = vokDir === "de" ? 1 : 0;
+  speak(w[fi], fi === 0 ? "en-US" : "de-DE");
+  if (vokShowing) speak(w[1 - fi], fi === 0 ? "de-DE" : "en-US", true);
 });
 $("kk-speak").addEventListener("click", function(){
   var k = kkCurrent ? findIn(cards, kkCurrent) : null;
@@ -3841,7 +3812,7 @@ setTimeout(autoSweep, 4000);
 setTimeout(autoSweep, 25000);
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false;
+var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false, kkAltRound = false;
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
@@ -3854,7 +3825,7 @@ function renderKk(c){
   $("kk-status").textContent = kkMode
     ? (kkRequeue
       ? "Lern-Runde: noch " + kkQueue.length + " Karten – „Kann ich noch nicht“ kommt gleich wieder, „Kann ich“ später nochmal."
-      : (kkHardRound ? "Schwerste zuerst: noch " : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch ")) + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
+      : (kkAltRound ? "Altklausur-Fragen: noch " : (kkHardRound ? "Schwerste zuerst: noch " : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch "))) + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
     : (my.length
       ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " zum Lernen offen" : "für heute alles wiederholt")
       : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
@@ -3870,7 +3841,10 @@ function renderKk(c){
   $("kk-hard").textContent = hardN ? "Schwerste zuerst (" + Math.min(hardN, 20) + ")" : "Schwerste zuerst";
   $("kk-hard").disabled = !hardN;
   $("kk-quiz").disabled = my.length < 4;
-  $("kk-probe").disabled = my.length < 5;
+  var altN = 0;
+  my.forEach(function(k){ if (k.alt) altN++; });
+  $("kk-alt").textContent = altN ? "Altklausur-Fragen (" + altN + ")" : "Altklausur-Fragen";
+  $("kk-alt").disabled = !altN;
   $("kk-export").disabled = !my.length;
   $("kk-delall").disabled = !my.length;
   var kc = { easy: 0, mid: 0, hard: 0, neu: 0 };
@@ -3892,23 +3866,14 @@ function renderKk(c){
     if (baseVal !== null && kc.easy > baseVal) kdelta = " · +" + (kc.easy - baseVal) + " diese Woche";
     $("kk-prog").textContent = kc.easy + " von " + my.length + " sitzen (" + kpct + " %) · " + kc.mid + " mittel · " + kc.hard + " noch nicht · " + kc.neu + " neu" + kdelta;
   }
-  var ph = $("kk-probe-hist");
-  if (ph){
-    var pruns = ((probeDoc && Array.isArray(probeDoc.runs)) ? probeDoc.runs : []).filter(function(r){ return r && r.c === c.id; }).slice(-5).reverse();
-    ph.hidden = !pruns.length;
-    ph.textContent = pruns.length ? "Probeklausuren: " + pruns.map(function(r){
-      var rd = new Date(r.t || 0);
-      return rd.getDate() + ". " + MON_K[rd.getMonth()] + ": " + r.pct + " %";
-    }).join(" · ") : "";
-  }
   $("kk-list-sum").textContent = "Alle Karten · " + my.length;
   $("kk-list").innerHTML = my.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
     return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
-      + '<div class="main-c"><div class="t">' + (k.mark ? "★ " : "") + esc(kkQ(k)) + '</div><div class="meta"><span>' + esc(kkA(k)) + '</span>'
+      + '<div class="main-c"><div class="t">' + (k.alt ? "🎓 " : "") + (k.mark ? "★ " : "") + esc(kkQ(k)) + '</div><div class="meta">' + (k.alt ? '<span>Altklausur ·</span>' : '') + '<span>' + esc(kkA(k)) + '</span>'
       + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
       + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
   }).join("");
-  var busyKk = kkMode || !!kqCards.length || !!kpCards.length;
+  var busyKk = kkMode || !!kqCards.length;
   $("kk-add").hidden = busyKk;
   var kImp = $("kk-imp-det"); if (kImp) kImp.hidden = busyKk;
   var kLst = $("kk-list-det"); if (kLst) kLst.hidden = busyKk;
@@ -3921,16 +3886,16 @@ function renderKk(c){
     if (cur && kkCurrent !== cur.id){ kkCurrent = cur.id; kkShowing = false; }
   }
   if (!kkMode || !cur){
-    if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : (kkHardRound ? "Schwerste Karten durchgearbeitet – stark!" : (kkMarkRound ? "Alle markierten Karten durchgegangen!" : "Alle Karten einmal durchgegangen!")));
+    if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : (kkAltRound ? "Alle Altklausur-Fragen durchgegangen!" : (kkHardRound ? "Schwerste Karten durchgearbeitet – stark!" : (kkMarkRound ? "Alle markierten Karten durchgegangen!" : "Alle Karten einmal durchgegangen!"))));
     kkMode = false;
     $("kk-practice").hidden = true;
-    $("kk-ctl").hidden = !!kqCards.length || !!kpCards.length;
+    $("kk-ctl").hidden = !!kqCards.length;
     return;
   }
   $("kk-practice").hidden = false;
   $("kk-ctl").hidden = true;
   var tIso = iso(today0());
-  $("kk-kind").textContent = !cur.rating ? "Neue Karte" : (cur.lastDay === tIso && cur.rating === "hard" ? "Gleich nochmal" : (cur.due && cur.due <= tIso ? "Wiederholung" : "Nochmal zur Sicherheit"));
+  $("kk-kind").textContent = (kkAltRound ? "Altklausur-Frage · " : "") + (!cur.rating ? "Neue Karte" : (cur.lastDay === tIso && cur.rating === "hard" ? "Gleich nochmal" : (cur.due && cur.due <= tIso ? "Wiederholung" : "Nochmal zur Sicherheit")));
   $("kk-q").textContent = kkQ(cur);
   $("kk-a").textContent = kkA(cur);
   $("kk-mark").textContent = cur.mark ? "★ Markiert" : "☆ Markieren";
@@ -3985,8 +3950,8 @@ $("kk-add").addEventListener("submit", function(ev){
   if (needDb() || !fachId) return;
   var q = $("kk-qin").value.trim(), a = $("kk-ain").value.trim();
   if (!q || !a){ toast("Bitte Frage und Antwort eintragen."); return; }
-  addDoc("cards", { courseId: fachId, q: q, a: a, qe: $("kk-qen").value.trim(), ae: $("kk-aen").value.trim(), level: 0, rating: "", due: iso(today0()), lastDay: "", seenAt: 0, createdAt: Date.now() }, function(){
-    $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qen").value = ""; $("kk-aen").value = ""; $("kk-qin").focus();
+  addDoc("cards", { courseId: fachId, q: q, a: a, qe: $("kk-qen").value.trim(), ae: $("kk-aen").value.trim(), alt: $("kk-altin").checked, level: 0, rating: "", due: iso(today0()), lastDay: "", seenAt: 0, createdAt: Date.now() }, function(){
+    $("kk-qin").value = ""; $("kk-ain").value = ""; $("kk-qen").value = ""; $("kk-aen").value = ""; $("kk-altin").checked = false; $("kk-qin").focus();
   });
 });
 function kkStartLearn(){
@@ -4000,6 +3965,7 @@ function kkStartLearn(){
   kkTotal = kkQueue.length;
   kkMarkRound = false;
   kkHardRound = false;
+  kkAltRound = false;
   kkEasyCnt = {};
   kkRequeue = true;
   kkMode = true;
@@ -4014,6 +3980,7 @@ $("kk-shuffle").addEventListener("click", function(){
   kkTotal = kkQueue.length;
   kkMarkRound = false;
   kkHardRound = false;
+  kkAltRound = false;
   kkEasyCnt = {};
   kkRequeue = false;
   kkMode = true;
@@ -4021,8 +3988,15 @@ $("kk-shuffle").addEventListener("click", function(){
   var c = courseById(fachId);
   if (c) renderKk(c);
 });
-$("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); });
-$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); flipEl($("kk-practice")); });
+$("kk-practice").addEventListener("click", function(ev){
+  if (ev.target.closest("button") || !kkMode || kkShowing || !kkCurrent) return;
+  kkShowing = true;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+  flipEl($("kk-practice"));
+});
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
@@ -4066,6 +4040,7 @@ $("kk-marked").addEventListener("click", function(){
   kkRequeue = false;
   kkMarkRound = true;
   kkHardRound = false;
+  kkAltRound = false;
   kkMode = true;
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
@@ -4077,10 +4052,9 @@ $("kk-delall").addEventListener("click", function(){
     var my = kkCardsFor(fachId);
     if (!my.length){ toast("Keine Karten vorhanden."); return; }
     var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
-    kkMode = false; kkMarkRound = false; kkHardRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
-    kqCards = []; kpCards = [];
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kqCards = [];
     var kqb2 = $("kk-quiz-box"); if (kqb2) kqb2.hidden = true;
-    var kpb2 = $("kk-probe-box"); if (kpb2) kpb2.hidden = true;
     var chain = Promise.resolve(), ok = 0;
     bodies.forEach(function(it){
       chain = chain.then(function(){ return col("cards").doc(it.id).delete().then(function(){ ok++; }, function(){}); });
@@ -4119,8 +4093,10 @@ function renderLernen(){
     if (!my.length) return;
     var due = kkDueList(c.id).length;
     tot += due;
+    var altN = kkAltList(c.id).length;
     rows += '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-left:4px solid ' + courseColor(c) + '">'
-      + '<span style="flex:1; min-width:140px"><strong>' + esc(c.name) + '</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (due ? due + " Karten offen" : "alles wiederholt") + " · " + my.length + " gesamt</span></span>"
+      + '<span style="flex:1; min-width:140px"><strong>' + esc(c.name) + '</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (due ? due + " Karten offen" : "alles wiederholt") + " · " + my.length + " gesamt" + (altN ? " · " + altN + " Altklausur-Fragen" : "") + "</span></span>"
+      + (altN ? '<button type="button" class="ghost lh-alt" data-course="' + esc(c.id) + '" style="flex:none">🎓 Altklausur</button>' : '')
       + '<button type="button" class="' + (due ? "primary" : "ghost") + ' lh-go" data-course="' + esc(c.id) + '" style="flex:none">' + (due ? "Lernen" : "Extra-Runde") + '</button></div>';
   });
   el.innerHTML = rows;
@@ -4129,12 +4105,12 @@ function renderLernen(){
     : "Lade …";
 }
 document.addEventListener("click", function(ev){
-  var g = ev.target.closest(".lh-go");
+  var g = ev.target.closest(".lh-go, .lh-alt");
   if (!g) return;
   fachId = g.dataset.course;
   view = "fach";
   render();
-  kkStartLearn();
+  if (g.classList.contains("lh-alt")) kkStartAlt(); else kkStartLearn();
   var cb = document.querySelector('#view-fach [data-block="cards"]');
   if (cb){
     if (cb.classList.contains("clpsd")){
@@ -4153,17 +4129,18 @@ function parseCardsFile(text){
   String(text).split(/\r?\n/).forEach(function(line){
     line = line.trim();
     if (!line) return;
-    var q = "", a = "", qe = "", ae = "";
+    var q = "", a = "", qe = "", ae = "", alt = false;
     if (line.indexOf(";;") > 0){
       var parts = line.split(";;");
       q = parts[0]; a = parts[1] || ""; qe = parts[2] || ""; ae = parts[3] || "";
+      alt = String(parts[4] || "").trim().toUpperCase() === "ALT";
     } else {
       var i = line.indexOf("\t") > 0 ? line.indexOf("\t") : line.indexOf(";");
       if (i <= 0) return;
       q = line.slice(0, i); a = line.slice(i + 1);
     }
     q = q.trim(); a = a.trim().replace(/\\n/g, "\n"); qe = qe.trim().slice(0, 300); ae = ae.trim().slice(0, 1000).replace(/\\n/g, "\n");
-    if (q && a && q.length <= 300 && a.length <= 1000) out.push({ q: q, a: a, qe: qe, ae: ae });
+    if (q && a && q.length <= 300 && a.length <= 1000) out.push({ q: q, a: a, qe: qe, ae: ae, alt: alt });
   });
   return out;
 }
@@ -4193,7 +4170,8 @@ $("kk-file").addEventListener("change", function(){
         var patch2 = {};
         if (p.qe && p.qe !== ex.qe) patch2.qe = p.qe;
         if (p.ae && p.ae !== ex.ae) patch2.ae = p.ae;
-        if (patch2.qe || patch2.ae) upd.push({ id: ex.id, patch: patch2 });
+        if (p.alt && !ex.alt) patch2.alt = true;
+        if (patch2.qe || patch2.ae || patch2.alt) upd.push({ id: ex.id, patch: patch2 });
       } else {
         if (p.qe && !ex.qe) ex.qe = p.qe;
         if (p.ae && !ex.ae) ex.ae = p.ae;
@@ -4225,7 +4203,7 @@ $("kk-file").addEventListener("change", function(){
       var p = fresh[i2];
       var dueDay = iso(today0());
       i2++;
-      col("cards").add({ courseId: fachId, q: p.q, a: p.a, qe: p.qe, ae: p.ae, level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
+      col("cards").add({ courseId: fachId, q: p.q, a: p.a, qe: p.qe, ae: p.ae, alt: !!p.alt, level: 0, rating: "", due: dueDay, lastDay: "", seenAt: 0, createdAt: Date.now() + i2 })
         .then(next, function(e){ resumeRender(); st.textContent = "Import abgebrochen: " + failMsg(e); inp.value = ""; });
     })();
   };
@@ -4678,6 +4656,7 @@ $("kk-hard").addEventListener("click", function(){
   kkRequeue = false;
   kkMarkRound = false;
   kkHardRound = true;
+  kkAltRound = false;
   kkMode = true;
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
@@ -4910,7 +4889,7 @@ $("plan-form").addEventListener("submit", function(ev){
   var chosen = avail.slice(Math.max(0, avail.length - D));
   var base = Math.floor(count / chosen.length), extra = count % chosen.length;
   var lecNo = 1;
-  var lecTodos = todos.filter(function(t){ return t.courseId === fachId && !t.done && t.typ === "Vorlesung"; })
+  var lecTodos = todos.filter(function(t){ return t.courseId === fachId && t.typ === "Vorlesung"; })
     .sort(function(a, b){ return a.title.localeCompare(b.title, "de", { numeric: true }); });
   var planId = "plan-" + fachId;
   var oldIds = study.filter(function(s){ return s.seriesId === planId; }).map(function(s){ return s.id; });
@@ -5084,8 +5063,8 @@ function renderVokabeln(){
     else if (cpr.due && cpr.due <= tIso) kind = (cpr.lastDay === tIso ? "Gleich nochmal" : "Wiederholung");
     else kind = "Extra-Runde";
     $("vok-kind").textContent = kind;
-    $("vok-word").textContent = w[0];
-    $("vok-answer").textContent = w[1];
+    $("vok-word").textContent = vokDir === "de" ? w[1] : w[0];
+    $("vok-answer").textContent = vokDir === "de" ? w[0] : w[1];
     $("vok-answer").hidden = !vokShowing;
     $("vok-actions").hidden = vokShowing;
     $("vok-rate").hidden = !vokShowing;
@@ -5173,13 +5152,20 @@ document.addEventListener("keydown", function(ev){
     ev.preventDefault();
     vokShowing = true;
     renderVokabeln();
+    flipEl($("vok-card"));
   } else if (vokShowing){
     if (ev.key === "1"){ ev.preventDefault(); rateVocab("hard"); }
     else if (ev.key === "2"){ ev.preventDefault(); rateVocab("mid"); }
     else if (ev.key === "3"){ ev.preventDefault(); rateVocab("easy"); }
   }
 });
-$("vok-show").addEventListener("click", function(){ vokShowing = true; renderVokabeln(); });
+$("vok-show").addEventListener("click", function(){ vokShowing = true; renderVokabeln(); flipEl($("vok-card")); });
+$("vok-card").addEventListener("click", function(ev){
+  if (ev.target.closest("button") || vokShowing || vokCurrent === null) return;
+  vokShowing = true;
+  renderVokabeln();
+  flipEl($("vok-card"));
+});
 $("vr-easy").addEventListener("click", function(){ rateVocab("easy"); });
 $("vr-mid").addEventListener("click", function(){ rateVocab("mid"); });
 $("vr-hard").addEventListener("click", function(){ rateVocab("hard"); });
@@ -5255,11 +5241,9 @@ function renderUpcoming(){
         var exEasy = 0;
         exCards.forEach(function(k){ if (k.rating === "easy") exEasy++; });
         var exPct = Math.round(exEasy / exCards.length * 100);
-        var exRuns = ((probeDoc && Array.isArray(probeDoc.runs)) ? probeDoc.runs : []).filter(function(r){ return r && r.c === c.id; });
-        var exProbe = exRuns.length ? exRuns[exRuns.length - 1].pct : -1;
         var exDd = Math.max(1, diffDays(parseISO(ex[examPick[0]])));
         var exPace = (100 - exPct) / exDd;
-        exInfo = { pct: exPct, probe: exProbe, amp: exPace > 5 ? "var(--danger)" : (exPace > 2 ? "var(--warn)" : "var(--ok)") };
+        exInfo = { pct: exPct, amp: exPace > 5 ? "var(--danger)" : (exPace > 2 ? "var(--warn)" : "var(--ok)") };
       }
       items.push({ days: diffDays(parseISO(ex[examPick[0]])), kind: "exam", date: ex[examPick[0]], txt: "Klausur " + c.name + " (" + examPick[1] + ")", info: exInfo });
     }
@@ -5283,7 +5267,7 @@ function renderUpcoming(){
     var when = x.days === 0 ? "heute" : (x.days === 1 ? "morgen" : "in " + x.days + " Tagen");
     return '<div class="up-item"><span class="tag ' + (x.kind === "exam" ? "klausur" : "frist") + '">' + (x.kind === "exam" ? "Klausur" : "Frist") + '</span>'
       + '<span style="flex:1; min-width:0">' + esc(x.txt) + '</span>'
-      + (x.info ? '<span style="display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px"><span style="width:9px; height:9px; border-radius:50%; background:' + x.info.amp + '; flex:none"></span>' + x.info.pct + ' % sitzen' + (x.info.probe >= 0 ? ' · Probe: ' + x.info.probe + ' %' : '') + '</span>' : '')
+      + (x.info ? '<span style="display:inline-flex; align-items:center; gap:5px; color:var(--muted); font-size:12px"><span style="width:9px; height:9px; border-radius:50%; background:' + x.info.amp + '; flex:none"></span>' + x.info.pct + ' % sitzen</span>' : '')
       + (x.date ? '<span style="color:var(--muted)">' + fmtShort(x.date) + '</span>' : '')
       + '<strong>' + when + '</strong></div>';
   }).join("");
@@ -5768,6 +5752,7 @@ render();
       lastDay: typeof b.lastDay === "string" ? b.lastDay : "",
       seenAt: typeof b.seenAt === "number" ? b.seenAt : 0,
       mark: !!b.mark,
+      alt: !!b.alt,
       fails: typeof b.fails === "number" ? b.fails : 0,
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
