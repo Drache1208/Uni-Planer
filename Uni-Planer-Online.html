@@ -411,11 +411,12 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.del{transition:none}
 }
 .kq-opt{overflow-wrap:anywhere}
-.editb{background:none; border:1px solid transparent; border-radius:7px; color:var(--muted); cursor:pointer; padding:4px 8px; font-size:14px; flex:none}
-.editb:hover{color:var(--accent); border-color:var(--border)}
+.editb, .gcal-btn{background:none; border:1px solid transparent; border-radius:7px; color:var(--muted); cursor:pointer; padding:4px 8px; font-size:14px; flex:none}
+.editb:hover, .gcal-btn:hover{color:var(--accent); border-color:var(--border)}
+.gcal-btn{text-decoration:none; line-height:1.4; font-weight:700}
 .item-edit{flex:1 1 100%; display:grid; gap:9px; padding:2px 0}
 .item-edit .frow > label.f{flex:1 1 140px}
-@media (pointer: coarse){ .editb{padding:7px 10px} }
+@media (pointer: coarse){ .editb, .gcal-btn{padding:7px 10px} }
 @media (max-width:760px){
   #tabbar button{border-radius:12px}
   #tabbar button[aria-current="true"]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
@@ -987,13 +988,14 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
     <div class="fh">Export &amp; Sicherung</div>
     <div class="frow">
+      <button type="button" class="ghost" id="ics-btn">Kalenderdatei (.ics) exportieren</button>
       <button type="button" class="ghost" id="csv-btn">Termine als CSV exportieren</button>
       <button type="button" class="ghost" id="backup-btn">Backup speichern (.json)</button>
     </div>
     <label class="f" for="restore-file">Backup wiederherstellen
       <input type="file" id="restore-file" accept=".json,application/json">
     </label>
-    <p class="sub" style="margin:0">Die CSV-Datei lässt sich in Google Kalender über „Einstellungen → Importieren“ einlesen. Das Backup enthält alle Vorlesungen, Aufgaben, Termine und Lernblöcke.</p>
+    <p class="sub" style="margin:0"><b>Google-Kalender-Verknüpfung:</b> Die .ics-Kalenderdatei (mit Von-Bis-Zeiten) in Google Kalender über „Einstellungen → Importieren“ einlesen; die CSV geht dort ebenfalls. Rückweg Google → Planer: In Google Kalender unter „Einstellungen → [Kalender] → Kalender integrieren“ die „Privatadresse im iCal-Format“ im Browser öffnen (lädt eine .ics) und diese hier in der Monats-Ansicht importieren. Einzelne Termine kannst du im Tages-Panel mit dem G-Knopf direkt in Google Kalender eintragen. Eine vollautomatische Synchronisation bräuchte eine Google-API-Anmeldung (OAuth) und ist bewusst nicht eingebaut. Das Backup enthält alle Vorlesungen, Aufgaben, Termine und Lernblöcke.</p>
   </div>
   <div class="card" style="display:grid; gap:11px; margin-bottom:24px">
     <div class="fh">Aufräumen &amp; Speicher</div>
@@ -1836,6 +1838,7 @@ function renderDayPanel(){
       + (e.prio ? '<span class="tag klausur">Wichtig</span>' : '')
       + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '')
       + fachTag(e.courseId)
+      + '<a class="gcal-btn" title="In Google Kalender eintragen" aria-label="In Google Kalender eintragen" target="_blank" rel="noopener" href="' + esc(gcalHref(e)) + '">G</a>'
       + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
       + (e.seriesId ? '<button type="button" class="del" data-seriesdel="1" data-coll="events">Serie löschen</button>' : '')
       + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
@@ -2246,10 +2249,36 @@ function commitTime(tm){
     toast("„Bis“ muss nach der Beginn-Uhrzeit liegen.");
     return;
   }
+  var oldVal = item[fld] || "";
   var patch = {};
   patch[fld] = nv;
   col(collName).doc(eli.dataset.id).update(patch)
-    .then(function(){ toast(fld === "timeEnd" ? "Ende geändert." : "Uhrzeit geändert."); })
+    .then(function(){
+      var baseMsg = fld === "timeEnd" ? "Ende geändert." : "Uhrzeit geändert.";
+      if (collName !== "events"){ toast(baseMsg); return; }
+      var tIso = iso(today0());
+      var sel = events.filter(function(o){
+        return o.id !== item.id && o.title === item.title && (o.typ || "") === (item.typ || "")
+          && (o[fld] || "") === oldVal && o.date && o.date >= tIso;
+      });
+      if (!sel.length){ toast(baseMsg); return; }
+      toast(baseMsg + " " + sel.length + " weitere „" + item.title + "“ ab heute gefunden.", {
+        label: "Alle angleichen (" + sel.length + ")",
+        fn: function(){
+          pauseRender();
+          var chain = Promise.resolve(), ok = 0;
+          sel.forEach(function(o){
+            var p2 = {};
+            p2[fld] = nv;
+            chain = chain.then(function(){ return col("events").doc(o.id).update(p2).then(function(){ ok++; }, function(){}); });
+          });
+          chain.then(function(){
+            resumeRender();
+            toast(ok + " Termine angeglichen.");
+          });
+        }
+      });
+    })
     .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
 }
 document.addEventListener("focusout", function(ev){
@@ -4036,6 +4065,13 @@ $("kk-prev").addEventListener("click", function(){
   var c = courseById(fachId);
   if (c) renderKk(c);
 });
+document.addEventListener("keydown", function(ev){
+  if (view !== "fach" || !kkMode) return;
+  var tg = ev.target;
+  if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName || "")) return;
+  if (ev.key === "ArrowRight"){ ev.preventDefault(); $("kk-skip").click(); }
+  else if (ev.key === "ArrowLeft"){ ev.preventDefault(); $("kk-prev").click(); }
+});
 $("kk-show").addEventListener("click", function(){ kkShowing = true; var c = courseById(fachId); if (c) renderKk(c); flipEl($("kk-practice")); });
 $("kk-practice").addEventListener("click", function(ev){
   if (ev.target.closest("button") || !kkMode || kkShowing || !kkCurrent) return;
@@ -4945,7 +4981,7 @@ $("plan-form").addEventListener("submit", function(ev){
   });
   var units = [];
   for (var un = 1; un <= Math.max(count, maxNum); un++){
-    if (byNum[un]) units.push({ t: byNum[un] });
+    if (byNum[un]) units.push({ t: byNum[un], num: un });
     else if (un <= count) units.push({ num: un });
   }
   unnumbered.sort(function(a, b){ return a.title.localeCompare(b.title, "de", { numeric: true }); });
@@ -4973,7 +5009,7 @@ $("plan-form").addEventListener("submit", function(ev){
       runA = 0;
     };
     picks.forEach(function(u){
-      if (u.t){ flushRun(); parts.push(u.t.title.replace(/\s*bearbeiten\s*$/i, "")); }
+      if (!u.num){ flushRun(); parts.push(u.t.title.replace(/\s*bearbeiten\s*$/i, "")); }
       else if (runA && u.num === runB + 1){ runB = u.num; }
       else { flushRun(); runA = u.num; runB = u.num; }
     });
@@ -5564,6 +5600,62 @@ function csvCell(s, sep){
   sep = (typeof sep === "string" && sep.length === 1) ? sep : ",";
   return (/["\n\r]/.test(s) || s.indexOf(sep) >= 0) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
+function hmPlus(hm, add){
+  var m = hmToMin(hm) + add;
+  if (m > 1439) m = 1439;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+function gcalHref(e){
+  var href = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent((e.typ === "Klausur" ? "Klausur: " : "") + e.title);
+  var d8 = e.date.replace(/-/g, "");
+  if (e.time){
+    var endHm = (e.timeEnd && e.timeEnd > e.time) ? e.timeEnd : hmPlus(e.time, 90);
+    href += "&dates=" + d8 + "T" + e.time.replace(":", "") + "00/" + d8 + "T" + endHm.replace(":", "") + "00";
+  } else {
+    href += "&dates=" + d8 + "/" + iso(addDays(parseISO(e.date), 1)).replace(/-/g, "");
+  }
+  if (e.note) href += "&details=" + encodeURIComponent(e.note);
+  return href;
+}
+$("ics-btn").addEventListener("click", function(){
+  var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Uni-Planer//DE", "CALSCALE:GREGORIAN"];
+  function icsEsc(s){ return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n"); }
+  var stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z";
+  function addVEv(uid, title, dIso, from, to, desc){
+    if (!dIso) return;
+    L.push("BEGIN:VEVENT");
+    L.push("UID:" + uid + "@uni-planer");
+    L.push("DTSTAMP:" + stamp);
+    L.push("SUMMARY:" + icsEsc(title));
+    var d8 = dIso.replace(/-/g, "");
+    if (from){
+      L.push("DTSTART:" + d8 + "T" + from.replace(":", "") + "00");
+      var endHm = (to && to > from) ? to : hmPlus(from, 90);
+      L.push("DTEND:" + d8 + "T" + endHm.replace(":", "") + "00");
+    } else {
+      L.push("DTSTART;VALUE=DATE:" + d8);
+      L.push("DTEND;VALUE=DATE:" + iso(addDays(parseISO(dIso), 1)).replace(/-/g, ""));
+    }
+    if (desc) L.push("DESCRIPTION:" + icsEsc(desc));
+    L.push("END:VEVENT");
+  }
+  events.forEach(function(e){
+    if (e.date) addVEv("ev-" + e.id, (e.typ === "Klausur" ? "Klausur: " : "") + e.title, e.date, e.time || "", e.timeEnd || "", e.note || "");
+  });
+  courses.forEach(function(c){
+    var ex = c.exam || {};
+    [["t1","Klausur " + c.name + " (1. Termin)"],["t2","Klausur " + c.name + " (2. Termin)"],
+     ["t1an","Letzte Anmeldung " + c.name + " (1. Termin)"],["t1ab","Letzte Abmeldung " + c.name + " (1. Termin)"],
+     ["t2an","Letzte Anmeldung " + c.name + " (2. Termin)"],["t2ab","Letzte Abmeldung " + c.name + " (2. Termin)"]].forEach(function(k){
+      if (ex[k[0]]) addVEv("ex-" + c.id + "-" + k[0], k[1], ex[k[0]], "", "", "");
+    });
+  });
+  study.forEach(function(s){
+    if (s.date && !s.done) addVEv("st-" + s.id, "Lernblock: " + s.title, s.date, s.time || "", "", "");
+  });
+  L.push("END:VCALENDAR");
+  saveFile("uni-planer-termine-" + iso(today0()) + ".ics", L.join("\r\n") + "\r\n", "Kalenderdatei gespeichert – in Google Kalender über „Einstellungen → Importieren“ einlesen.");
+});
 $("csv-btn").addEventListener("click", function(){
   var rows = [["Subject","Start Date","Start Time","End Time","All Day Event","Description"]];
   function usDate(s){
