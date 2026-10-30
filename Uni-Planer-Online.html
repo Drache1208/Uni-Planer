@@ -401,7 +401,7 @@ div[data-block] form.card{margin-bottom:14px}
   summary{padding:4px 0}
   button.ghost{padding:8px 14px}
   .paltab{padding:7px 15px}
-  #kk-speak,#kk-mark,#kk-delcur,#vok-speak{padding:8px 14px !important}
+  #kk-prev,#kk-skip,#kk-speak,#kk-mark,#kk-delcur,#vok-speak{padding:8px 14px !important}
 }
 /* v46: Feinschliff */
 html{scroll-behavior:smooth}
@@ -570,6 +570,7 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
         <label class="f" for="pt-title" style="flex:2 1 180px">Titel <input type="text" id="pt-title" required maxlength="200" placeholder="z. B. Volleyball"></label>
         <label class="f" for="pt-date">Datum <input type="date" id="pt-date" required></label>
         <label class="f" for="pt-from">Uhrzeit <input type="time" id="pt-from"></label>
+        <label class="f" for="pt-to">Bis <input type="time" id="pt-to"></label>
         <label class="f" for="pt-folder">Ordner
           <input type="text" id="pt-folder" list="pt-folders" maxlength="40" placeholder="Sport, Familie …">
           <datalist id="pt-folders">
@@ -615,6 +616,10 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <div class="fh" id="kk-kind"></div>
       <div id="kk-q" style="font-size:18px; font-weight:600; overflow-wrap:anywhere"></div>
       <div id="kk-a" style="color:var(--muted); white-space:pre-wrap; overflow-wrap:anywhere" hidden></div>
+      <div class="frow" style="justify-content:center; gap:8px">
+        <button type="button" class="ghost" id="kk-prev" style="flex:none; padding:4px 14px; font-size:13px">‹ Zurück</button>
+        <button type="button" class="ghost" id="kk-skip" style="flex:none; padding:4px 14px; font-size:13px">Weiter ›</button>
+      </div>
       <div class="frow" style="justify-content:center; gap:8px">
         <button type="button" class="ghost" id="kk-speak" style="flex:none; padding:4px 14px; font-size:13px">🔊 Vorlesen</button>
         <button type="button" class="ghost" id="kk-mark" style="flex:none; padding:4px 14px; font-size:13px">☆ Markieren</button>
@@ -1054,6 +1059,9 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       </label>
       <label class="f" for="ev-time">Uhrzeit
         <input type="time" id="ev-time">
+      </label>
+      <label class="f" for="ev-to">Bis
+        <input type="time" id="ev-to">
       </label>
       <label class="f" for="ev-typ">Art
         <select id="ev-typ"><option>Klausur</option><option selected>Termin</option></select>
@@ -1502,7 +1510,7 @@ function renderTodosView(){
     dr.innerHTML = morgen.length
       ? '<div class="fh" style="font-weight:500">Stundenplan morgen</div><ul class="list" style="gap:6px">'
         + morgen.map(function(e){
-            return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) : "–") + '</span><span class="t">' + esc(e.title) + '</span>' + fachTag(e.courseId) + '</li>';
+            return '<li class="wit"><span class="tm">' + (e.time ? esc(e.time) + (e.timeEnd ? "–" + esc(e.timeEnd) : "") : "–") + '</span><span class="t">' + esc(e.title) + '</span>' + fachTag(e.courseId) + '</li>';
           }).join("") + '</ul>'
       : "";
   }
@@ -1566,7 +1574,7 @@ function renderFachView(){
     $("ex-t2ab").value = ex.t2ab || "";
     $("ex-reg1").checked = !!ex.reg1;
     $("ex-reg2").checked = !!ex.reg2;
-    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = [];
     kqCards = []; var kqb = $("kk-quiz-box"); if (kqb) kqb.hidden = true;
     $("gr-note").value = c.grade > 0 ? c.grade : "";
     $("gr-ects").value = c.ects > 0 ? c.ects : "";
@@ -1747,7 +1755,7 @@ function renderWoche(){
     });
     it.events.forEach(function(e){
       rows += '<li class="wit" draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
-        + '<span class="tm">' + (e.time ? esc(e.time) : "–") + '</span>'
+        + '<span class="tm">' + (e.time ? esc(e.time) + (e.timeEnd ? "–" + esc(e.timeEnd) : "") : "–") + '</span>'
         + '<span class="t">' + esc(e.title) + '</span>'
         + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '')
         + (e.prio ? '<span class="tag klausur">Wichtig</span>' : '')
@@ -1821,6 +1829,7 @@ function renderDayPanel(){
   it.events.forEach(function(e){
     html += '<li draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
       + '<input type="time" class="tm-edit" id="tm-' + esc(e.id) + '" value="' + esc(e.time || "") + '" aria-label="Uhrzeit ändern">'
+      + '<input type="time" class="tm-edit tm-end" id="tme-' + esc(e.id) + '" value="' + esc(e.timeEnd || "") + '" aria-label="Ende ändern" title="Bis (Ende)">'
       + '<span class="t">' + esc(e.title) + '</span>'
       + '<input type="text" class="nt-edit" data-id="' + esc(e.id) + '" value="' + esc(e.note || "") + '" placeholder="Notiz …" maxlength="200" style="flex:1 1 130px; min-width:100px; padding:4px 6px; font-size:13px">'
       + (e.typ === "Klausur" ? '<span class="tag klausur">Klausur</span>' : '<span class="tag typ">Termin</span>')
@@ -2228,11 +2237,19 @@ function commitTime(tm){
   if (!eli) return;
   var collName = eli.dataset.coll || "events";
   var item = findIn(collArray(collName), eli.dataset.id);
+  var fld = tm.classList.contains("tm-end") ? "timeEnd" : "time";
   var nv = tm.value || "";
-  if (!item || nv === (item.time || "")) return;
+  if (!item || nv === (item[fld] || "")) return;
   if (!db){ toast("Kein Speicher verbunden."); return; }
-  col(collName).doc(eli.dataset.id).update({ time: nv })
-    .then(function(){ toast("Uhrzeit geändert."); })
+  if (fld === "timeEnd" && nv && item.time && nv <= item.time){
+    tm.value = item.timeEnd || "";
+    toast("„Bis“ muss nach der Beginn-Uhrzeit liegen.");
+    return;
+  }
+  var patch = {};
+  patch[fld] = nv;
+  col(collName).doc(eli.dataset.id).update(patch)
+    .then(function(){ toast(fld === "timeEnd" ? "Ende geändert." : "Uhrzeit geändert."); })
     .catch(function(e2){ toast("Speichern fehlgeschlagen: " + failMsg(e2)); });
 }
 document.addEventListener("focusout", function(ev){
@@ -2366,11 +2383,14 @@ $("event-add").addEventListener("submit", function(ev){
     $("ev-rep-end").focus();
     return;
   }
+  var evT = $("ev-time").value || "", evTo = $("ev-to").value || "";
+  if (evTo && !evT){ toast("Bitte zuerst eine Beginn-Uhrzeit eintragen."); $("ev-time").focus(); return; }
+  if (evTo && evTo <= evT){ toast("„Bis“ muss nach der Beginn-Uhrzeit liegen."); $("ev-to").focus(); return; }
   addSeries("events", {
-    title: title, time: $("ev-time").value || "",
+    title: title, time: evT, timeEnd: evTo,
     typ: $("ev-typ").value, courseId: $("ev-fach").value, createdAt: Date.now()
   }, repeatDates(selectedDay, $("ev-rep").value, $("ev-rep-end").value), function(){
-    $("ev-title").value = ""; $("ev-time").value = ""; $("ev-rep").value = ""; $("ev-rep-end").value = "";
+    $("ev-title").value = ""; $("ev-time").value = ""; $("ev-to").value = ""; $("ev-rep").value = ""; $("ev-rep-end").value = "";
   });
 });
 $("study-add").addEventListener("submit", function(ev){
@@ -3538,7 +3558,7 @@ $("kq-stop").addEventListener("click", function(){
 $("kk-quiz").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
-  kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+  kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = [];
   kqCards = kqShuffle(my.slice()).slice(0, 20);
   kqIdx = 0; kqScore = 0;
   renderQuiz();
@@ -3556,6 +3576,7 @@ function kkStartAlt(){
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkEasyCnt = {};
+  kkBack = [];
   kkRequeue = false;
   kkMarkRound = false;
   kkHardRound = false;
@@ -3812,7 +3833,7 @@ setTimeout(autoSweep, 4000);
 setTimeout(autoSweep, 25000);
 
 /* ---- Karteikarten pro Fach ---- */
-var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false, kkAltRound = false;
+var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false, kkAltRound = false, kkBack = [];
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
@@ -3894,6 +3915,8 @@ function renderKk(c){
   }
   $("kk-practice").hidden = false;
   $("kk-ctl").hidden = true;
+  $("kk-prev").disabled = !kkBack.length;
+  $("kk-skip").disabled = kkQueue.length <= 1;
   var tIso = iso(today0());
   $("kk-kind").textContent = (kkAltRound ? "Altklausur-Frage · " : "") + (!cur.rating ? "Neue Karte" : (cur.lastDay === tIso && cur.rating === "hard" ? "Gleich nochmal" : (cur.due && cur.due <= tIso ? "Wiederholung" : "Nochmal zur Sicherheit")));
   $("kk-q").textContent = kkQ(cur);
@@ -3930,6 +3953,8 @@ function rateKk(rating){
   kkHistDoc = { days: hd };
   db.doc("settings/kkhist").set(kkHistDoc).catch(function(){});
   if (kkQueue[0] === k.id) kkQueue.shift();
+  kkBack.push(k.id);
+  if (kkBack.length > 50) kkBack.shift();
   if (kkRequeue){
     if (rating === "easy"){
       kkEasyCnt[k.id] = (kkEasyCnt[k.id] || 0) + 1;
@@ -3967,6 +3992,7 @@ function kkStartLearn(){
   kkHardRound = false;
   kkAltRound = false;
   kkEasyCnt = {};
+  kkBack = [];
   kkRequeue = true;
   kkMode = true;
   kkCurrent = null; kkShowing = false;
@@ -3982,8 +4008,30 @@ $("kk-shuffle").addEventListener("click", function(){
   kkHardRound = false;
   kkAltRound = false;
   kkEasyCnt = {};
+  kkBack = [];
   kkRequeue = false;
   kkMode = true;
+  kkCurrent = null; kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+$("kk-skip").addEventListener("click", function(){
+  if (!kkMode || kkQueue.length <= 1 || !kkCurrent) return;
+  if (kkQueue[0] === kkCurrent){
+    kkQueue.shift();
+    kkQueue.push(kkCurrent);
+    kkBack.push(kkCurrent);
+    if (kkBack.length > 50) kkBack.shift();
+  }
+  kkCurrent = null; kkShowing = false;
+  var c = courseById(fachId);
+  if (c) renderKk(c);
+});
+$("kk-prev").addEventListener("click", function(){
+  if (!kkMode || !kkBack.length) return;
+  var pid = kkBack.pop();
+  kkQueue = kkQueue.filter(function(x){ return x !== pid; });
+  kkQueue.unshift(pid);
   kkCurrent = null; kkShowing = false;
   var c = courseById(fachId);
   if (c) renderKk(c);
@@ -3996,7 +4044,7 @@ $("kk-practice").addEventListener("click", function(ev){
   if (c) renderKk(c);
   flipEl($("kk-practice"));
 });
-$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; var c = courseById(fachId); if (c) renderKk(c); });
+$("kk-stopx").addEventListener("click", function(){ kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = []; var c = courseById(fachId); if (c) renderKk(c); });
 $("kr-hard").addEventListener("click", function(){ rateKk("hard"); });
 $("kr-mid").addEventListener("click", function(){ rateKk("mid"); });
 $("kr-easy").addEventListener("click", function(){ rateKk("easy"); });
@@ -4018,6 +4066,7 @@ $("kk-delcur").addEventListener("click", function(){
   var body = rawBody("cards", id);
   col("cards").doc(id).delete().then(function(){
     kkQueue = kkQueue.filter(function(x){ return x !== id; });
+    kkBack = kkBack.filter(function(x){ return x !== id; });
     delete kkEasyCnt[id];
     if (kkCurrent === id){ kkCurrent = null; kkShowing = false; }
     var c2 = courseById(fachId);
@@ -4037,6 +4086,7 @@ $("kk-marked").addEventListener("click", function(){
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkEasyCnt = {};
+  kkBack = [];
   kkRequeue = false;
   kkMarkRound = true;
   kkHardRound = false;
@@ -4052,7 +4102,7 @@ $("kk-delall").addEventListener("click", function(){
     var my = kkCardsFor(fachId);
     if (!my.length){ toast("Keine Karten vorhanden."); return; }
     var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
-    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {};
+    kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = [];
     kqCards = [];
     var kqb2 = $("kk-quiz-box"); if (kqb2) kqb2.hidden = true;
     var chain = Promise.resolve(), ok = 0;
@@ -4653,6 +4703,7 @@ $("kk-hard").addEventListener("click", function(){
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkEasyCnt = {};
+  kkBack = [];
   kkRequeue = false;
   kkMarkRound = false;
   kkHardRound = true;
@@ -4884,13 +4935,26 @@ $("plan-form").addEventListener("submit", function(ev){
     reviewDays = avail.slice(avail.length - take);
     avail = avail.slice(0, avail.length - take);
   }
-  var wantDays = parseInt($("pl-days").value, 10) || Math.min(count, avail.length);
-  var D = Math.min(wantDays, avail.length, count);
+  var lecTodos = todos.filter(function(t){ return t.courseId === fachId && t.typ === "Vorlesung"; });
+  var byNum = {}, unnumbered = [], maxNum = 0;
+  lecTodos.forEach(function(t){
+    var m = /(\d+)/.exec(t.title);
+    var num = m ? parseInt(m[1], 10) : 0;
+    if (num > 0 && !byNum[num]){ byNum[num] = t; if (num > maxNum) maxNum = num; }
+    else unnumbered.push(t);
+  });
+  var units = [];
+  for (var un = 1; un <= Math.max(count, maxNum); un++){
+    if (byNum[un]) units.push({ t: byNum[un] });
+    else if (un <= count) units.push({ num: un });
+  }
+  unnumbered.sort(function(a, b){ return a.title.localeCompare(b.title, "de", { numeric: true }); });
+  unnumbered.forEach(function(t){ units.push({ t: t }); });
+  var unitsTotal = units.length;
+  var wantDays = parseInt($("pl-days").value, 10) || Math.min(unitsTotal, avail.length);
+  var D = Math.min(wantDays, avail.length, unitsTotal);
   var chosen = avail.slice(Math.max(0, avail.length - D));
-  var base = Math.floor(count / chosen.length), extra = count % chosen.length;
-  var lecNo = 1;
-  var lecTodos = todos.filter(function(t){ return t.courseId === fachId && t.typ === "Vorlesung"; })
-    .sort(function(a, b){ return a.title.localeCompare(b.title, "de", { numeric: true }); });
+  var base = Math.floor(unitsTotal / chosen.length), extra = unitsTotal % chosen.length;
   var planId = "plan-" + fachId;
   var oldIds = study.filter(function(s){ return s.seriesId === planId; }).map(function(s){ return s.id; });
   var chain = Promise.resolve();
@@ -4901,17 +4965,27 @@ $("plan-form").addEventListener("submit", function(ev){
   chosen.forEach(function(dayIso, ci){
     var n = base + (ci < extra ? 1 : 0);
     if (!n) return;
-    var picks = lecTodos.splice(0, n);
-    var parts = picks.map(function(t){ return t.title; });
-    var rest = n - picks.length;
-    if (rest > 0) parts.push(rest === 1 ? "VL " + (lecNo + picks.length) : "VL " + (lecNo + picks.length) + "–" + (lecNo + n - 1));
+    var picks = units.splice(0, n);
+    var parts = [], runA = 0, runB = 0;
+    var flushRun = function(){
+      if (!runA) return;
+      parts.push(runA === runB ? "VL " + runA : "VL " + runA + "–" + runB);
+      runA = 0;
+    };
+    picks.forEach(function(u){
+      if (u.t){ flushRun(); parts.push(u.t.title.replace(/\s*bearbeiten\s*$/i, "")); }
+      else if (runA && u.num === runB + 1){ runB = u.num; }
+      else { flushRun(); runA = u.num; runB = u.num; }
+    });
+    flushRun();
     var label = parts.join(", ");
     if (label.length > 140) label = label.slice(0, 137) + "…";
-    lecNo += n;
+    var linkIds = [];
+    picks.forEach(function(u){ if (u.t) linkIds.push(u.t.id); });
     var body = {
       title: "Lernplan: " + label + " bearbeiten",
       date: dayIso, time: "", courseId: fachId,
-      linkIds: picks.map(function(t){ return t.id; }),
+      linkIds: linkIds,
       done: false, doneAt: null, seriesId: planId, createdAt: Date.now()
     };
     chain = chain.then(function(){ return col("study").add(body).then(function(){ made++; }, function(){}); });
@@ -4931,7 +5005,7 @@ $("plan-form").addEventListener("submit", function(ev){
   });
   $("pl-status").textContent = "Erstelle Lernplan …";
   chain.then(function(){
-    $("pl-status").textContent = count + " Vorlesungen auf " + made + " Lerntage verteilt"
+    $("pl-status").textContent = unitsTotal + " Vorlesungen auf " + made + " Lerntage verteilt"
       + (reviewDays.length ? ", danach " + reviewDays.length + " Wiederholungstage" : "")
       + " – Klausur am " + fmtShort(examIso)
       + (bufCount ? ", " + bufCount + " Puffertage an den gewählten Wochentagen" : "") + ".";
@@ -4963,7 +5037,7 @@ function renderPrivatTermine(cid){
           return '<li class="todo" draggable="true" data-move="date" data-id="' + esc(e.id) + '" data-coll="events">'
             + '<div class="datebox"><div class="d">' + d.getDate() + '</div><div class="m">' + MON_K[d.getMonth()] + '</div></div>'
             + '<div class="main-c"><div class="t">' + esc(e.title) + '</div>'
-            + '<div class="meta"><span class="rel">' + WTAGE[d.getDay()] + (e.time ? ", " + esc(e.time) + " Uhr" : "") + '</span>'
+            + '<div class="meta"><span class="rel">' + WTAGE[d.getDay()] + (e.time ? ", " + esc(e.time) + (e.timeEnd ? "–" + esc(e.timeEnd) : "") + " Uhr" : "") + '</span>'
             + (e.folder ? '<span class="tag typ">' + esc(e.folder) + '</span>' : '') + '</div></div>'
             + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
             + '<button type="button" class="del" data-coll="events">Löschen</button></li>';
@@ -4975,8 +5049,10 @@ $("ptermin-add").addEventListener("submit", function(ev){
   var title = $("pt-title").value.trim();
   var date = $("pt-date").value;
   if (!title || !date || !plausibleISO(date)) return;
+  var ptTo = $("pt-to").value || "";
+  if (ptTo && (!$("pt-from").value || ptTo <= $("pt-from").value)){ toast("„Bis“ muss nach der Uhrzeit liegen."); $("pt-to").focus(); return; }
   addDoc("events", {
-    title: title, date: date, time: $("pt-from").value || "",
+    title: title, date: date, time: $("pt-from").value || "", timeEnd: ptTo,
     typ: "Termin", courseId: fachId, folder: $("pt-folder").value.trim(),
     createdAt: Date.now()
   }, function(){
@@ -5489,25 +5565,25 @@ function csvCell(s, sep){
   return (/["\n\r]/.test(s) || s.indexOf(sep) >= 0) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 $("csv-btn").addEventListener("click", function(){
-  var rows = [["Subject","Start Date","Start Time","All Day Event","Description"]];
+  var rows = [["Subject","Start Date","Start Time","End Time","All Day Event","Description"]];
   function usDate(s){
     var d = parseISO(s);
     return d ? (String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0") + "/" + d.getFullYear()) : "";
   }
   events.forEach(function(e){
     if (!e.date) return;
-    rows.push([(e.typ === "Klausur" ? "Klausur: " : "") + e.title, usDate(e.date), e.time || "", e.time ? "False" : "True", ""]);
+    rows.push([(e.typ === "Klausur" ? "Klausur: " : "") + e.title, usDate(e.date), e.time || "", (e.time && e.timeEnd) || "", e.time ? "False" : "True", ""]);
   });
   courses.forEach(function(c){
     var ex = c.exam || {};
     [["t1","Klausur " + c.name + " (1. Termin)"],["t2","Klausur " + c.name + " (2. Termin)"],
      ["t1an","Letzte Anmeldung " + c.name + " (1. Termin)"],["t1ab","Letzte Abmeldung " + c.name + " (1. Termin)"],
      ["t2an","Letzte Anmeldung " + c.name + " (2. Termin)"],["t2ab","Letzte Abmeldung " + c.name + " (2. Termin)"]].forEach(function(k){
-      if (ex[k[0]]) rows.push([k[1], usDate(ex[k[0]]), "", "True", ""]);
+      if (ex[k[0]]) rows.push([k[1], usDate(ex[k[0]]), "", "", "True", ""]);
     });
   });
   study.forEach(function(s){
-    if (s.date && !s.done) rows.push(["Lernblock: " + s.title, usDate(s.date), s.time || "", s.time ? "False" : "True", ""]);
+    if (s.date && !s.done) rows.push(["Lernblock: " + s.title, usDate(s.date), s.time || "", "", s.time ? "False" : "True", ""]);
   });
   var csv = rows.map(function(r){ return r.map(csvCell).join(","); }).join("\r\n");
   saveFile("uni-planer-termine-" + iso(today0()) + ".csv", csv, "CSV gespeichert – in Google Kalender über „Importieren“ einlesen.");
