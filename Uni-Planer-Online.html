@@ -795,6 +795,25 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
     <p class="sub" id="wt-line" style="margin:0"></p>
     <div class="pbar"><span id="wt-fill"></span></div>
   </div>
+  <div class="card" style="display:grid; gap:10px; margin-bottom:18px">
+    <div class="fh">Aufgaben</div>
+    <form id="wtodo-add" autocomplete="off" class="frow">
+      <input type="text" id="wtodo-title" maxlength="200" placeholder="z. B. Western Blot auswerten" aria-label="Neue Aufgabe" style="flex:2 1 180px; min-width:0">
+      <input type="date" id="wtodo-due" aria-label="Fällig am" style="flex:1 1 130px">
+      <button class="primary" type="submit" style="flex:none">Hinzufügen</button>
+    </form>
+    <ul class="list" id="wtodo-list"></ul>
+    <p class="sub" id="wtodo-empty" style="margin:0" hidden>Noch keine Arbeits-Aufgaben – sie bleiben hier in der Arbeit-Ansicht und mischen sich nicht unter die Uni-Aufgaben.</p>
+    <details class="donebox" id="wk-donebox" hidden>
+      <summary id="wk-done-sum">Erledigt</summary>
+      <ul class="list" id="wk-done-list"></ul>
+    </details>
+  </div>
+  <div class="card" style="display:grid; gap:10px; margin-bottom:18px">
+    <div class="fh">Brainstorming &amp; Notizen</div>
+    <textarea id="work-notes" rows="5" maxlength="20000" placeholder="Ideen, Protokoll-Notizen, offene Fragen zur Laborarbeit …"></textarea>
+    <p class="sub" id="work-notes-status" style="margin:0">Wird automatisch gespeichert.</p>
+  </div>
   <div id="work-list"></div>
   <div class="empty" id="work-empty" hidden>
     <div class="big">Noch keine Arbeitszeiten</div>
@@ -1177,7 +1196,7 @@ var VOCAB = [
 ];
 var VOK_IV = [1, 3, 7, 14, 30, 60];
 var vocab = [], vokCurrent = null, vokShowing = false, vokPractice = [], vokEndless = false, vokStats = {};
-var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {}, probeDoc = {}, dekoDoc = {};
+var cards = [], customVocab = {}, myVocabDoc = {}, zielDoc = {}, fokusDoc = {}, wgoalsDoc = {}, kkHistDoc = {}, cleanDoc = {}, probeDoc = {}, dekoDoc = {}, workNotesDoc = {};
 var now = new Date();
 var mCursor = new Date(now.getFullYear(), now.getMonth(), 1);
 var wCursor = startOfWeek(now);
@@ -1383,7 +1402,7 @@ function renderSidebar(){
     var tb = $("tab-" + v);
     if (tb) tb.setAttribute("aria-current", String(states[v]));
   });
-  var openAll = todos.filter(function(t){ return !t.done; }).length;
+  var openAll = todos.filter(function(t){ return !t.done && !t.wk; }).length;
   var nn = $("nav-todos-n");
   nn.hidden = !openAll;
   nn.textContent = openAll;
@@ -1444,8 +1463,8 @@ function matchesSearch(t){
   return !!(c && c.name.toLowerCase().indexOf(searchQ) >= 0);
 }
 function renderTodosView(){
-  var open = todos.filter(function(t){ return !t.done && matchesSearch(t); });
-  var done = todos.filter(function(t){ return t.done && matchesSearch(t); });
+  var open = todos.filter(function(t){ return !t.done && !t.wk && matchesSearch(t); });
+  var done = todos.filter(function(t){ return t.done && !t.wk && matchesSearch(t); });
   renderGroups(open, $("todo-groups"), true);
   renderDone(done, "todo-donebox", "todo-done-sum", "todo-done-list", true);
   $("todo-empty").hidden = !(loadedColls.todos && todos.length === 0);
@@ -1458,7 +1477,7 @@ function renderTodosView(){
   renderUpcoming();
   var tbIso = iso(today0()), tmIso = iso(addDays(today0(), 1));
   function dayList(dIso){
-    return todos.filter(function(t){ return !t.done && (t.due === dIso || t.studyDate === dIso); }).sort(byDue);
+    return todos.filter(function(t){ return !t.done && !t.wk && (t.due === dIso || t.studyDate === dIso); }).sort(byDue);
   }
   var tbList = dayList(tbIso), tbLabel = "Aufgaben heute";
   if (!tbList.length){
@@ -1467,7 +1486,7 @@ function renderTodosView(){
   }
   var tbMins = 0;
   tbList.forEach(function(t){ tbMins += t.mins || 0; });
-  var doneToday = todos.some(function(t){ return t.done && (t.due === tbIso || t.studyDate === tbIso); });
+  var doneToday = todos.some(function(t){ return t.done && !t.wk && (t.due === tbIso || t.studyDate === tbIso); });
   var celebrate = (tbLabel === "Aufgaben morgen" && doneToday)
     ? '<p class="sub" style="margin:0 0 10px; color:var(--ok); font-weight:600">Alles für heute erledigt – stark!</p>'
     : "";
@@ -1646,10 +1665,10 @@ function itemsOn(isoDay){
       .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; }),
     study: study.filter(function(s){ return s.date === isoDay; })
       .sort(function(a,b){ return (a.time||"99") < (b.time||"99") ? -1 : 1; }),
-    studyTodos: todos.filter(function(t){ return !t.done && t.studyDate === isoDay; }).sort(byDue),
+    studyTodos: todos.filter(function(t){ return !t.done && !t.wk && t.studyDate === isoDay; }).sort(byDue),
     work: work.filter(function(w){ return w.date === isoDay; })
       .sort(function(a,b){ return (a.from||"99") < (b.from||"99") ? -1 : 1; }),
-    todos: todos.filter(function(t){ return !t.done && t.due === isoDay; }).sort(byDue)
+    todos: todos.filter(function(t){ return !t.done && !t.wk && t.due === isoDay; }).sort(byDue)
   };
 }
 function chipList(isoDay){
@@ -5304,6 +5323,37 @@ $("fach-notes").addEventListener("blur", function(){
   clearTimeout(notesTimer);
   saveNotes();
 });
+$("wtodo-add").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  if (needDb()) return;
+  var title = $("wtodo-title").value.trim();
+  if (!title){ toast("Bitte einen Aufgaben-Titel eintragen."); return; }
+  addDoc("todos", { title: title, due: $("wtodo-due").value || "", typ: "Sonstiges", wk: 1, courseId: "", done: false, doneAt: null, createdAt: Date.now() }, function(){
+    $("wtodo-title").value = ""; $("wtodo-due").value = ""; $("wtodo-title").focus();
+  });
+});
+var workNotesTimer = null;
+function saveWorkNotes(){
+  if (!db || !loadedColls.settings) return;
+  var val = $("work-notes").value;
+  if (val === ((workNotesDoc && typeof workNotesDoc.text === "string") ? workNotesDoc.text : "")){
+    $("work-notes-status").textContent = "Wird automatisch gespeichert.";
+    return;
+  }
+  workNotesDoc = { text: val };
+  db.doc("settings/worknotes").set(workNotesDoc)
+    .then(function(){ $("work-notes-status").textContent = "Gespeichert."; })
+    .catch(function(e){ $("work-notes-status").textContent = "Speichern fehlgeschlagen: " + failMsg(e); });
+}
+$("work-notes").addEventListener("input", function(){
+  $("work-notes-status").textContent = "Speichern …";
+  clearTimeout(workNotesTimer);
+  workNotesTimer = setTimeout(saveWorkNotes, 900);
+});
+$("work-notes").addEventListener("blur", function(){
+  clearTimeout(workNotesTimer);
+  saveWorkNotes();
+});
 
 function repeatDates(startIso, rep, endIso){
   var out = [startIso];
@@ -5425,6 +5475,32 @@ function openShift(){
 }
 function renderLabor(){
   $("work-empty").hidden = !(loadedColls.work && !work.length);
+  var wkOpen = todos.filter(function(t){ return t.wk && !t.done; }).sort(byDue);
+  var wkDone = todos.filter(function(t){ return t.wk && t.done; });
+  $("wtodo-list").innerHTML = wkOpen.map(function(t){
+    var due = parseISO(t.due);
+    var rel = "";
+    var over = false;
+    if (due){
+      var dd = diffDays(due);
+      over = dd < 0;
+      rel = dd < 0 ? (dd === -1 ? "seit gestern überfällig" : (-dd) + " Tage überfällig")
+        : (dd === 0 ? "heute fällig" : (dd === 1 ? "morgen" : "in " + dd + " Tagen"));
+    }
+    return '<li class="todo" data-id="' + esc(t.id) + '" data-coll="todos">'
+      + '<input type="checkbox" class="done-cb" id="wkcb-' + esc(t.id) + '" aria-label="Erledigt">'
+      + (due ? '<div class="datebox"><div class="d">' + due.getDate() + '</div><div class="m">' + MON_K[due.getMonth()] + '</div></div>' : '')
+      + '<div class="main-c"><div class="t">' + esc(t.title) + '</div>'
+      + (rel ? '<div class="meta"><span class="rel' + (over ? " over" : "") + '">' + rel + '</span></div>' : '')
+      + '</div>'
+      + '<button type="button" class="editb" title="Bearbeiten" aria-label="Bearbeiten">✎</button>'
+      + '<button type="button" class="del" data-coll="todos">Löschen</button></li>';
+  }).join("");
+  $("wtodo-empty").hidden = !(loadedColls.todos && !wkOpen.length);
+  renderDone(wkDone, "wk-donebox", "wk-done-sum", "wk-done-list", false, "wkd");
+  var wn = $("work-notes");
+  var wtxt = (workNotesDoc && typeof workNotesDoc.text === "string") ? workNotesDoc.text : "";
+  if (document.activeElement !== wn && wn.value !== wtxt) wn.value = wtxt;
   var tIso = iso(today0());
   var weeks = {};
   work.forEach(function(w){
@@ -5562,7 +5638,7 @@ function armAction(btn, fn, label){
   fn();
 }
 function settingsSnapshot(){
-  return { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc, deko: dekoDoc };
+  return { layout: layoutDoc, design: designDoc, semester: semesterDoc, vokstats: vokStats, myvocab: myVocabDoc, ziel: zielDoc, fokus: fokusDoc, wgoals: wgoalsDoc, kkhist: kkHistDoc, clean: cleanDoc, probe: probeDoc, deko: dekoDoc, worknotes: workNotesDoc };
 }
 function deleteMany(collName, ids, doneMsg){
   if (needDb()) return;
@@ -5866,6 +5942,7 @@ render();
       due: typeof b.due === "string" ? b.due : "", typ: String(b.typ || "Sonstiges"),
       studyDate: typeof b.studyDate === "string" ? b.studyDate : "",
       prio: b.prio ? 1 : 0, mins: typeof b.mins === "number" ? b.mins : 0,
+      wk: b.wk ? 1 : 0,
       done: !!b.done, doneAt: typeof b.doneAt === "number" ? b.doneAt : 0,
       createdAt: typeof b.createdAt === "number" ? b.createdAt : 0
     };
@@ -5928,7 +6005,7 @@ render();
   sub("settings", function(id, b){
     return { id: id, data: b };
   }, function(v){
-    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {}; probeDoc = {}; dekoDoc = {};
+    layoutDoc = {}; designDoc = {}; semesterDoc = {}; vokStats = {}; myVocabDoc = {}; zielDoc = {}; fokusDoc = {}; wgoalsDoc = {}; kkHistDoc = {}; cleanDoc = {}; probeDoc = {}; dekoDoc = {}; workNotesDoc = {};
     v.forEach(function(d){
       if (d.id === "layout") layoutDoc = d.data || {};
       if (d.id === "design") designDoc = d.data || {};
@@ -5941,6 +6018,7 @@ render();
       if (d.id === "kkhist") kkHistDoc = d.data || {};
       if (d.id === "clean") cleanDoc = d.data || {};
       if (d.id === "probe") probeDoc = d.data || {};
+      if (d.id === "worknotes") workNotesDoc = d.data || {};
       if (d.id === "deko") dekoDoc = d.data || {};
     });
     customVocab = {};
