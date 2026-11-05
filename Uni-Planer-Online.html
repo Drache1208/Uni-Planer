@@ -643,7 +643,6 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <button type="button" class="ghost" id="kk-marked" style="flex:none">Markierte üben</button>
       <button type="button" class="ghost" id="kk-hard" style="flex:none">Schwerste zuerst</button>
       <button type="button" class="ghost" id="kk-quiz" style="flex:none">Quiz</button>
-      <button type="button" class="ghost" id="kk-alt" style="flex:none">Altklausur-Fragen</button>
       <button type="button" class="ghost" id="kk-export" style="flex:none">Als Datei speichern</button>
     </div>
     <form id="kk-add" autocomplete="off" style="display:grid; gap:10px">
@@ -668,6 +667,26 @@ button.primary, button.ghost, .nav-btn, .paltab, .jumpbar button, .cell, button.
       <summary style="cursor:pointer; font-weight:600" id="kk-list-sum">Alle Karten</summary>
       <div class="frow" style="margin-top:10px"><button type="button" class="ghost" id="kk-delall" style="flex:none">Alle Karten dieses Fachs löschen</button></div>
       <ul class="list" id="kk-list" style="margin-top:10px"></ul>
+    </details>
+  </div>
+  <div class="card" data-block="altk" style="display:grid; gap:11px; margin-bottom:24px">
+    <div class="fh-row"><div class="fh">Altklausur-Fragen</div><span class="drag-handle" title="Verschieben">⠿</span></div>
+    <p class="sub" id="altk-status" style="margin:0"></p>
+    <div class="frow" id="altk-ctl">
+      <button type="button" class="primary" id="kk-alt" style="flex:none">Üben</button>
+    </div>
+    <details id="altk-imp-det">
+      <summary style="cursor:pointer; font-weight:600">Altklausur-Fragen aus Datei importieren</summary>
+      <div style="display:grid; gap:10px; margin-top:10px">
+        <p class="sub" style="margin:0">Gleiches Format wie bei den Karteikarten: <b>Frage;;Antwort</b> oder zweisprachig <b>Frage;;Antwort;;Question;;Answer</b>, eine Frage pro Zeile. Alle Zeilen dieser Datei werden als Altklausur-Fragen einsortiert (<b>;;ALT</b> am Zeilenende ist erlaubt, aber nicht nötig).</p>
+        <label class="f" for="altk-file">Datei wählen <input type="file" id="altk-file" accept=".txt,.csv,text/plain,text/csv"></label>
+        <p class="sub" id="altk-imp-status" style="margin:0"></p>
+      </div>
+    </details>
+    <details id="altk-list-det">
+      <summary style="cursor:pointer; font-weight:600" id="altk-list-sum">Alle Altklausur-Fragen</summary>
+      <div class="frow" style="margin-top:10px"><button type="button" class="ghost" id="altk-delall" style="flex:none">Alle Altklausur-Fragen dieses Fachs löschen</button></div>
+      <ul class="list" id="altk-list" style="margin-top:10px"></ul>
     </details>
   </div>
   <form class="card" id="grade-form" autocomplete="off" data-block="grade" style="margin-bottom:24px">
@@ -1562,6 +1581,7 @@ function renderFachView(){
   document.querySelector('#view-fach [data-block="grade"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="plan"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="cards"]').hidden = isPrivat;
+  document.querySelector('#view-fach [data-block="altk"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="lectures"]').hidden = isPrivat;
   document.querySelector('#view-fach [data-block="ptermine"]').hidden = !isPrivat;
   if (isPrivat) renderPrivatTermine(c.id);
@@ -3494,7 +3514,7 @@ function renderSearchHits(){
   cards.forEach(function(k){
     if (rows.length < 25 && (hit(k.q) || hit(k.a) || hit(k.qe) || hit(k.ae))){
       var c = courseById(k.courseId);
-      rows.push({ txt: k.q, tag: "Karteikarte", cid: k.courseId, sub: c ? c.name : "" });
+      rows.push({ txt: k.q, tag: k.alt ? "Altklausur" : "Karteikarte", cid: k.courseId, sub: c ? c.name : "" });
     }
   });
   courses.forEach(function(c){
@@ -3536,7 +3556,7 @@ $("kk-export").addEventListener("click", function(){
   var my = kkCardsFor(fachId);
   if (!c || !my.length){ toast("Keine Karten zum Speichern."); return; }
   var enc = function(s2){ return String(s2 || "").replace(/\r?\n/g, "\\n").replace(/[ \t]+/g, " "); };
-  var txt = my.map(function(k){ var ln = enc(k.q) + ";;" + enc(k.a); if (k.qe || k.ae) ln += ";;" + enc(k.qe) + ";;" + enc(k.ae); return ln; }).join("\n");
+  var txt = my.map(function(k){ var ln = enc(k.q) + ";;" + enc(k.a); if (k.qe || k.ae || k.alt) ln += ";;" + enc(k.qe) + ";;" + enc(k.ae); if (k.alt) ln += ";;ALT"; return ln; }).join("\n");
   saveFile("Karteikarten " + c.name.replace(/[\\\/:*?"<>|]/g, "-") + ".txt", txt, "Karten gespeichert – zum Teilen einfach per Import einlesen lassen.");
 });
 
@@ -3604,7 +3624,7 @@ $("kq-stop").addEventListener("click", function(){
   if (c) renderKk(c);
 });
 $("kk-quiz").addEventListener("click", function(){
-  var my = kkCardsFor(fachId);
+  var my = kkPoolFor(fachId);
   if (my.length < 4){ toast("Für das Quiz brauchst du mindestens 4 Karten in diesem Fach."); return; }
   kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = [];
   kqCards = kqShuffle(my.slice()).slice(0, 20);
@@ -3883,18 +3903,21 @@ setTimeout(autoSweep, 25000);
 /* ---- Karteikarten pro Fach ---- */
 var kkMode = false, kkCurrent = null, kkShowing = false, kkQueue = [], kkEasyCnt = {}, kkRequeue = true, kkTotal = 0, kkMarkRound = false, kkHardRound = false, kkAltRound = false, kkBack = [];
 function kkCardsFor(cid){ return cards.filter(function(k){ return k.courseId === cid; }); }
+function kkPoolFor(cid){ return cards.filter(function(k){ return k.courseId === cid && !k.alt; }); }
 function kkDueList(cid){
   var tIso = iso(today0());
-  return kkCardsFor(cid).filter(function(k){ return !k.rating || !k.due || k.due <= tIso; });
+  return kkPoolFor(cid).filter(function(k){ return !k.rating || !k.due || k.due <= tIso; });
 }
 function renderKk(c){
   if (!$("kk-status")) return;
-  var my = kkCardsFor(c.id);
+  var my = kkPoolFor(c.id);
+  var myAll = kkCardsFor(c.id);
+  var altList = kkAltList(c.id);
   var due = kkDueList(c.id);
-  $("kk-status").textContent = kkMode
+  $("kk-status").textContent = (kkMode && !kkAltRound)
     ? (kkRequeue
       ? "Lern-Runde: noch " + kkQueue.length + " Karten – „Kann ich noch nicht“ kommt gleich wieder, „Kann ich“ später nochmal."
-      : (kkAltRound ? "Altklausur-Fragen: noch " : (kkHardRound ? "Schwerste zuerst: noch " : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch "))) + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
+      : (kkHardRound ? "Schwerste zuerst: noch " : (kkMarkRound ? "Markierte Karten: noch " : "Durchgehen: noch ")) + kkQueue.length + " von " + kkTotal + " Karten – jede kommt genau einmal dran.")
     : (my.length
       ? my.length + (my.length === 1 ? " Karte" : " Karten") + " · " + (due.length ? due.length + " zum Lernen offen" : "für heute alles wiederholt")
       : "Lege Frage-Antwort-Karten zu diesem Fach an – sie kommen im gleichen Wiederholungs-Rhythmus dran wie deine Vokabeln.");
@@ -3910,12 +3933,16 @@ function renderKk(c){
   $("kk-hard").textContent = hardN ? "Schwerste zuerst (" + Math.min(hardN, 20) + ")" : "Schwerste zuerst";
   $("kk-hard").disabled = !hardN;
   $("kk-quiz").disabled = my.length < 4;
-  var altN = 0;
-  my.forEach(function(k){ if (k.alt) altN++; });
-  $("kk-alt").textContent = altN ? "Altklausur-Fragen (" + altN + ")" : "Altklausur-Fragen";
-  $("kk-alt").disabled = !altN;
-  $("kk-export").disabled = !my.length;
+  $("kk-alt").textContent = altList.length ? "Üben (" + altList.length + ")" : "Üben";
+  $("kk-alt").disabled = !altList.length;
+  $("kk-export").disabled = !myAll.length;
   $("kk-delall").disabled = !my.length;
+  var as = $("altk-status");
+  if (as) as.textContent = (kkMode && kkAltRound)
+    ? "Altklausur-Runde: noch " + kkQueue.length + " von " + kkTotal + " Fragen – jede kommt genau einmal dran."
+    : (altList.length
+      ? altList.length + (altList.length === 1 ? " Altklausur-Frage" : " Altklausur-Fragen") + " – eigene Sammlung, getrennt von den Karteikarten."
+      : "Noch keine Altklausur-Fragen – unten eine Datei importieren oder beim Karten-Anlegen „Altklausur-Frage“ anhaken.");
   var kc = { easy: 0, mid: 0, hard: 0, neu: 0 };
   my.forEach(function(k){ if (kc[k.rating] !== undefined) kc[k.rating]++; else kc.neu++; });
   $("kk-pbar").hidden = !my.length;
@@ -3942,7 +3969,29 @@ function renderKk(c){
       + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
       + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
   }).join("");
-  var busyKk = kkMode || !!kqCards.length;
+  var altSum = $("altk-list-sum");
+  if (altSum){
+    altSum.textContent = "Alle Altklausur-Fragen · " + altList.length;
+    $("altk-delall").disabled = !altList.length;
+    $("altk-list").innerHTML = altList.slice().sort(function(a,b){ return (b.createdAt||0) - (a.createdAt||0); }).map(function(k){
+      return '<li class="todo" data-id="' + esc(k.id) + '" data-coll="cards">'
+        + '<div class="main-c"><div class="t">' + (k.mark ? "★ " : "") + esc(kkQ(k)) + '</div><div class="meta"><span>' + esc(kkA(k)) + '</span>'
+        + (k.due && k.rating ? '<span>· wieder am ' + fmtShort(k.due) + '</span>' : '')
+        + '</div></div><button type="button" class="del" data-coll="cards">Löschen</button></li>';
+    }).join("");
+  }
+  var busyKk = (kkMode && !kkAltRound) || !!kqCards.length;
+  var altBusy = kkMode && kkAltRound;
+  var aCtl = $("altk-ctl"); if (aCtl) aCtl.hidden = altBusy;
+  var aImp = $("altk-imp-det"); if (aImp) aImp.hidden = altBusy;
+  var aLst = $("altk-list-det"); if (aLst) aLst.hidden = altBusy;
+  var prEl = $("kk-practice");
+  if (prEl){
+    var altBox = document.querySelector('#view-fach [data-block="altk"]');
+    var cardsBox = document.querySelector('#view-fach [data-block="cards"]');
+    if (altBusy && altBox && prEl.parentNode !== altBox) altBox.appendChild(prEl);
+    else if (!altBusy && cardsBox && prEl.parentNode !== cardsBox) cardsBox.insertBefore(prEl, $("kk-status"));
+  }
   $("kk-add").hidden = busyKk;
   var kImp = $("kk-imp-det"); if (kImp) kImp.hidden = busyKk;
   var kLst = $("kk-list-det"); if (kLst) kLst.hidden = busyKk;
@@ -3956,13 +4005,16 @@ function renderKk(c){
   }
   if (!kkMode || !cur){
     if (kkMode && !cur) toast(kkRequeue ? "Runde geschafft – alles sitzt!" : (kkAltRound ? "Alle Altklausur-Fragen durchgegangen!" : (kkHardRound ? "Schwerste Karten durchgearbeitet – stark!" : (kkMarkRound ? "Alle markierten Karten durchgegangen!" : "Alle Karten einmal durchgegangen!"))));
+    var wasAlt = kkMode && kkAltRound;
     kkMode = false;
+    kkAltRound = false;
     $("kk-practice").hidden = true;
     $("kk-ctl").hidden = !!kqCards.length;
+    if (wasAlt){ var cA = courseById(fachId); if (cA){ renderKk(cA); } }
     return;
   }
   $("kk-practice").hidden = false;
-  $("kk-ctl").hidden = true;
+  $("kk-ctl").hidden = !kkAltRound;
   $("kk-prev").disabled = !kkBack.length;
   $("kk-skip").disabled = kkQueue.length <= 1;
   var tIso = iso(today0());
@@ -4033,7 +4085,7 @@ function kkStartLearn(){
   var first = [], repeat = [];
   pool.forEach(function(k){ (k.lastDay === tIso ? repeat : first).push(k); });
   pool = first.concat(repeat);
-  if (!pool.length) pool = kqShuffle(kkCardsFor(fachId).slice());
+  if (!pool.length) pool = kqShuffle(kkPoolFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkMarkRound = false;
@@ -4049,7 +4101,7 @@ function kkStartLearn(){
 }
 $("kk-start").addEventListener("click", kkStartLearn);
 $("kk-shuffle").addEventListener("click", function(){
-  var pool = kqShuffle(kkCardsFor(fachId).slice());
+  var pool = kqShuffle(kkPoolFor(fachId).slice());
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
   kkMarkRound = false;
@@ -4136,7 +4188,7 @@ $("kk-delcur").addEventListener("click", function(){
   }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
 });
 $("kk-marked").addEventListener("click", function(){
-  var pool = kqShuffle(kkCardsFor(fachId).filter(function(k){ return k.mark; }));
+  var pool = kqShuffle(kkPoolFor(fachId).filter(function(k){ return k.mark; }));
   if (!pool.length){ toast("Noch keine markierten Karten – markiere Karten beim Üben mit ☆."); return; }
   kkQueue = pool.map(function(k){ return k.id; });
   kkTotal = kkQueue.length;
@@ -4154,8 +4206,8 @@ $("kk-marked").addEventListener("click", function(){
 $("kk-delall").addEventListener("click", function(){
   if (needDb() || !fachId) return;
   armAction($("kk-delall"), function(){
-    var my = kkCardsFor(fachId);
-    if (!my.length){ toast("Keine Karten vorhanden."); return; }
+    var my = kkPoolFor(fachId);
+    if (!my.length){ toast("Keine Karteikarten vorhanden."); return; }
     var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
     kkMode = false; kkMarkRound = false; kkHardRound = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = [];
     kqCards = [];
@@ -4182,6 +4234,35 @@ $("kk-delall").addEventListener("click", function(){
     });
   });
 });
+$("altk-delall").addEventListener("click", function(){
+  if (needDb() || !fachId) return;
+  armAction($("altk-delall"), function(){
+    var my = kkAltList(fachId);
+    if (!my.length){ toast("Keine Altklausur-Fragen vorhanden."); return; }
+    var bodies = my.map(function(k){ return { id: k.id, body: rawBody("cards", k.id) }; });
+    if (kkAltRound){ kkMode = false; kkAltRound = false; kkCurrent = null; kkShowing = false; kkQueue = []; kkEasyCnt = {}; kkBack = []; }
+    var chain = Promise.resolve(), ok = 0;
+    bodies.forEach(function(it){
+      chain = chain.then(function(){ return col("cards").doc(it.id).delete().then(function(){ ok++; }, function(){}); });
+    });
+    chain.then(function(){
+      var c = courseById(fachId);
+      if (c) renderKk(c);
+      toast(ok + " von " + bodies.length + " Altklausur-Fragen gelöscht.", ok ? { label: "Rückgängig", fn: function(){
+        var ch2 = Promise.resolve(), back = 0;
+        bodies.forEach(function(it){
+          if (!it.body) return;
+          ch2 = ch2.then(function(){ return col("cards").doc(it.id).set(it.body).then(function(){ back++; }, function(){}); });
+        });
+        ch2.then(function(){
+          var c2 = courseById(fachId);
+          if (c2) renderKk(c2);
+          toast(back + " Altklausur-Fragen wiederhergestellt.");
+        });
+      }} : null);
+    });
+  });
+});
 
 /* ---- v60: Lern-Hub ---- */
 function renderLernen(){
@@ -4194,15 +4275,15 @@ function renderLernen(){
   var tot = 0;
   courses.slice().sort(courseOrder).forEach(function(c){
     if ((c.group || "") === "Privat") return;
-    var my = kkCardsFor(c.id);
-    if (!my.length) return;
+    var my = kkPoolFor(c.id);
+    var altN = kkAltList(c.id).length;
+    if (!my.length && !altN) return;
     var due = kkDueList(c.id).length;
     tot += due;
-    var altN = kkAltList(c.id).length;
     rows += '<div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; border-left:4px solid ' + courseColor(c) + '">'
-      + '<span style="flex:1; min-width:140px"><strong>' + esc(c.name) + '</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (due ? due + " Karten offen" : "alles wiederholt") + " · " + my.length + " gesamt" + (altN ? " · " + altN + " Altklausur-Fragen" : "") + "</span></span>"
+      + '<span style="flex:1; min-width:140px"><strong>' + esc(c.name) + '</strong><br><span class="sub" style="margin:0; font-size:12.5px">' + (my.length ? (due ? due + " Karten offen" : "alles wiederholt") + " · " + my.length + " gesamt" : "keine Karteikarten") + (altN ? " · " + altN + " Altklausur-Fragen" : "") + "</span></span>"
       + (altN ? '<button type="button" class="ghost lh-alt" data-course="' + esc(c.id) + '" style="flex:none">🎓 Altklausur</button>' : '')
-      + '<button type="button" class="' + (due ? "primary" : "ghost") + ' lh-go" data-course="' + esc(c.id) + '" style="flex:none">' + (due ? "Lernen" : "Extra-Runde") + '</button></div>';
+      + (my.length ? '<button type="button" class="' + (due ? "primary" : "ghost") + ' lh-go" data-course="' + esc(c.id) + '" style="flex:none">' + (due ? "Lernen" : "Extra-Runde") + '</button>' : '') + '</div>';
   });
   el.innerHTML = rows;
   $("lernen-sub").textContent = (loadedColls.cards && loadedColls.vocab)
@@ -4216,7 +4297,7 @@ document.addEventListener("click", function(ev){
   view = "fach";
   render();
   if (g.classList.contains("lh-alt")) kkStartAlt(); else kkStartLearn();
-  var cb = document.querySelector('#view-fach [data-block="cards"]');
+  var cb = document.querySelector(g.classList.contains("lh-alt") ? '#view-fach [data-block="altk"]' : '#view-fach [data-block="cards"]');
   if (cb){
     if (cb.classList.contains("clpsd")){
       cb.classList.remove("clpsd");
@@ -4249,17 +4330,19 @@ function parseCardsFile(text){
   });
   return out;
 }
-$("kk-file").addEventListener("change", function(){
-  var inp = $("kk-file");
+function wireCardImport(fileId, statusId, forceAlt){
+$(fileId).addEventListener("change", function(){
+  var inp = $(fileId);
   var f = inp.files && inp.files[0];
   if (!f) return;
   if (needDb() || !fachId){ inp.value = ""; return; }
   if (f.size > 1024 * 1024){ toast("Datei zu groß – maximal 1 MB."); inp.value = ""; return; }
-  var st = $("kk-imp-status");
+  var st = $(statusId);
   var fr = new FileReader();
   fr.onerror = function(){ st.textContent = "Datei konnte nicht gelesen werden."; inp.value = ""; };
   fr.onload = function(){
     var pairs = parseCardsFile(fr.result);
+    if (forceAlt) pairs.forEach(function(p){ p.alt = true; });
     if (!pairs.length){ st.textContent = "Keine Karten gefunden – bitte Format Frage;;Antwort prüfen."; inp.value = ""; return; }
     if (pairs.length > 500){ st.textContent = "Zu viele Karten (" + pairs.length + ") – maximal 500 pro Import."; inp.value = ""; return; }
     var have = {};
@@ -4314,6 +4397,9 @@ $("kk-file").addEventListener("change", function(){
   };
   fr.readAsText(f);
 });
+}
+wireCardImport("kk-file", "kk-imp-status", false);
+wireCardImport("altk-file", "altk-imp-status", true);
 
 /* ---- Wochenrückblick ---- */
 function logFokus(mins){
@@ -4751,7 +4837,7 @@ $("wk-export").addEventListener("click", function(){
   saveFile("arbeitszeiten-" + tIso + ".csv", csv, "Arbeitszeiten als CSV gespeichert (Semikolon-Spalten, Excel-tauglich).");
 });
 $("kk-hard").addEventListener("click", function(){
-  var pool = kkCardsFor(fachId).filter(function(k){ return (k.fails || 0) > 0; })
+  var pool = kkPoolFor(fachId).filter(function(k){ return (k.fails || 0) > 0; })
     .sort(function(a, b){ return (b.fails || 0) - (a.fails || 0) || (a.seenAt || 0) - (b.seenAt || 0); })
     .slice(0, 20);
   if (!pool.length){ toast("Noch keine Wackelkandidaten – gezählt wird, wie oft eine Karte „Kann ich noch nicht“ bekommt."); return; }
