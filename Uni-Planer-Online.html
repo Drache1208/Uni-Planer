@@ -1969,7 +1969,10 @@ function openEditor(li, coll, id){
   var it = findIn(collArray(coll), id);
   if (!it) return;
   var f = "";
-  if (coll === "todos"){
+  if (coll === "todos" && it.wk){
+    f = ieText("title", "Aufgabe", it.title, "text", ' maxlength="200"')
+      + ieText("due", "Fällig am", it.due, "date");
+  } else if (coll === "todos"){
     f = ieText("title", "Aufgabe", it.title, "text", ' maxlength="200"')
       + ieCourseSel(it.courseId)
       + ieText("due", "Fällig am", it.due, "date")
@@ -2002,17 +2005,17 @@ function openEditor(li, coll, id){
     return;
   }
   editTarget = { coll: coll, id: id };
-  li.innerHTML = '<div class="item-edit"><div class="frow">' + f + '</div>'
+  li.innerHTML = '<div class="item-edit" data-ecoll="' + esc(coll) + '" data-eid="' + esc(id) + '"><div class="frow">' + f + '</div>'
     + '<div class="frow"><button type="button" class="primary ie-save" style="flex:none">Speichern</button>'
     + '<button type="button" class="ghost ie-cancel" style="flex:none">Abbrechen</button></div></div>';
   var first = li.querySelector("[data-f]");
   if (first) first.focus();
 }
 function saveEditor(btn){
-  if (!editTarget){ render(); return; }
-  if (needDb()) return;
   var cont = btn.closest(".item-edit");
-  var coll = editTarget.coll, id = editTarget.id;
+  if (!cont || !cont.dataset.ecoll){ render(); return; }
+  if (needDb()) return;
+  var coll = cont.dataset.ecoll, id = cont.dataset.eid;
   var patch = {}, bad = "";
   Array.prototype.forEach.call(cont.querySelectorAll("[data-f]"), function(inp){
     var f = inp.dataset.f, v = inp.value;
@@ -2034,6 +2037,8 @@ function saveEditor(btn){
       patch[f] = v;
     }
   });
+  if (!bad && patch.time && patch.timeEnd && patch.timeEnd <= patch.time) bad = "„Bis“ muss nach der Beginn-Uhrzeit liegen.";
+  if (!bad && patch.from && patch.to && patch.to <= patch.from) bad = "„Bis“ muss nach „Von“ liegen.";
   if (bad){ toast(bad); return; }
   editTarget = null;
   col(coll).doc(id).update(patch)
@@ -2077,6 +2082,8 @@ function addDoc(collName, data, after){
 document.addEventListener("click", function(ev){
   var nav = ev.target.closest("[data-nav]");
   if (nav){
+    var aeN = document.activeElement;
+    if (aeN && aeN !== document.body && aeN.blur) aeN.blur();
     var v = nav.dataset.nav;
     if (v === "lernwoche") view = "woche";
     else if (v === "lernmonat") view = "monat";
@@ -2087,7 +2094,7 @@ document.addEventListener("click", function(ev){
   }
 
   var ci = ev.target.closest(".course-item");
-  if (ci){ view = "fach"; fachId = ci.dataset.course; render(); return; }
+  if (ci){ var aeC = document.activeElement; if (aeC && aeC !== document.body && aeC.blur) aeC.blur(); view = "fach"; fachId = ci.dataset.course; render(); return; }
 
   var dbox = ev.target.closest("li.todo .datebox");
   if (dbox){
@@ -2233,14 +2240,16 @@ document.addEventListener("click", function(ev){
           }
         });
       });
+      var evIds = events.filter(function(e3){ return e3.courseId === cid; }).map(function(e3){ return e3.id; });
       col("courses").doc(cid).delete().then(function(){
         casc.forEach(function(it){ col(it.cn).doc(it.id).delete().catch(function(){}); });
-        events.forEach(function(e3){ if (e3.courseId === cid) col("events").doc(e3.id).update({ courseId: "" }).catch(function(){}); });
+        evIds.forEach(function(id3){ col("events").doc(id3).update({ courseId: "" }).catch(function(){}); });
         view = "todos";
         render();
         toast("Fach samt Aufgaben, Karten und Lernblöcken gelöscht.", cBody ? { label: "Rückgängig", fn: function(){
           col("courses").doc(cid).set(cBody).catch(function(e2){ toast("Wiederherstellen fehlgeschlagen: " + failMsg(e2)); });
           casc.forEach(function(it){ col(it.cn).doc(it.id).set(it.body).catch(function(){}); });
+          evIds.forEach(function(id3){ col("events").doc(id3).update({ courseId: cid }).catch(function(){}); });
         }} : null);
       }).catch(function(e){ toast("Löschen fehlgeschlagen: " + failMsg(e)); });
       return;
@@ -4044,14 +4053,16 @@ function rateKk(rating){
   else if (rating === "easy" && k.fails > 0) patch.fails = k.fails - 1;
   Object.keys(patch).forEach(function(f){ k[f] = patch[f]; });
   col("cards").doc(k.id).update(patch).catch(function(e){ toast("Speichern fehlgeschlagen: " + failMsg(e)); });
-  var hd = (kkHistDoc && kkHistDoc.days && typeof kkHistDoc.days === "object") ? kkHistDoc.days : {};
-  var easyN = 0;
-  cards.forEach(function(x){ if (x.courseId === k.courseId && x.rating === "easy") easyN++; });
-  hd[k.courseId + "|" + tIso] = easyN;
-  var hcut = iso(addDays(today0(), -90));
-  Object.keys(hd).forEach(function(hk2){ if ((hk2.split("|")[1] || "") < hcut) delete hd[hk2]; });
-  kkHistDoc = { days: hd };
-  db.doc("settings/kkhist").set(kkHistDoc).catch(function(){});
+  if (loadedColls.settings){
+    var hd = (kkHistDoc && kkHistDoc.days && typeof kkHistDoc.days === "object") ? kkHistDoc.days : {};
+    var easyN = 0;
+    cards.forEach(function(x){ if (x.courseId === k.courseId && !x.alt && x.rating === "easy") easyN++; });
+    hd[k.courseId + "|" + tIso] = easyN;
+    var hcut = iso(addDays(today0(), -90));
+    Object.keys(hd).forEach(function(hk2){ if ((hk2.split("|")[1] || "") < hcut) delete hd[hk2]; });
+    kkHistDoc = { days: hd };
+    db.doc("settings/kkhist").set(kkHistDoc).catch(function(){});
+  }
   if (kkQueue[0] === k.id) kkQueue.shift();
   kkBack.push(k.id);
   if (kkBack.length > 50) kkBack.shift();
@@ -4318,8 +4329,8 @@ function parseCardsFile(text){
     var q = "", a = "", qe = "", ae = "", alt = false;
     if (line.indexOf(";;") > 0){
       var parts = line.split(";;");
+      if (parts.length >= 3 && String(parts[parts.length - 1]).trim().toUpperCase() === "ALT"){ alt = true; parts.pop(); }
       q = parts[0]; a = parts[1] || ""; qe = parts[2] || ""; ae = parts[3] || "";
-      alt = String(parts[4] || "").trim().toUpperCase() === "ALT";
     } else {
       var i = line.indexOf("\t") > 0 ? line.indexOf("\t") : line.indexOf(";");
       if (i <= 0) return;
@@ -4400,6 +4411,28 @@ $(fileId).addEventListener("change", function(){
 }
 wireCardImport("kk-file", "kk-imp-status", false);
 wireCardImport("altk-file", "altk-imp-status", true);
+/* Reparatur: vor v73 landete ;;ALT als 3./4. Feld im qe/ae-Text statt als Altklausur-Marker */
+var altRepairDone = false;
+function kkAltRepair(){
+  if (altRepairDone || !db || !loadedColls.cards) return;
+  altRepairDone = true;
+  var fix = [];
+  cards.forEach(function(k){
+    var qa = String(k.qe || "").trim().toUpperCase() === "ALT";
+    var aa = String(k.ae || "").trim().toUpperCase() === "ALT";
+    if (!qa && !aa) return;
+    var patch = {};
+    if (!k.alt) patch.alt = true;
+    if (qa) patch.qe = "";
+    if (aa) patch.ae = "";
+    fix.push({ id: k.id, patch: patch });
+  });
+  if (!fix.length) return;
+  fix.forEach(function(f2){ col("cards").doc(f2.id).update(f2.patch).catch(function(){}); });
+  toast(fix.length + (fix.length === 1 ? " falsch importierte Karte" : " falsch importierte Karten") + " zu den Altklausur-Fragen verschoben.");
+}
+setTimeout(kkAltRepair, 4500);
+setTimeout(kkAltRepair, 26000);
 
 /* ---- Wochenrückblick ---- */
 function logFokus(mins){
@@ -5321,7 +5354,7 @@ function rateVocab(rating){
     lastDay: tIso,
     seenAt: Date.now()
   };
-  if (vokStats.lastDay !== tIso){
+  if (loadedColls.settings && vokStats.lastDay !== tIso){
     var yIso = iso(addDays(today0(), -1));
     var vd = (vokStats.days && typeof vokStats.days === "object") ? vokStats.days : {};
     vd[tIso] = 1;
@@ -5600,12 +5633,13 @@ function renderLabor(){
   keys.forEach(function(wk){
     var ws = weeks[wk];
     var mon = parseISO(wk), sun = addDays(mon, 6);
-    var sum = 0;
-    ws.forEach(function(w){ sum += workHours(w); });
+    var sum = 0, sumPast = 0;
+    ws.forEach(function(w){ var h9 = workHours(w); sum += h9; if (w.date <= tIso) sumPast += h9; });
     ws.sort(function(a,b){ return (a.date + (a.from || "")) < (b.date + (b.from || "")) ? -1 : 1; });
     var wkInfo = "";
     if (iso(sun) < WORK_CUT) wkInfo = " · zählt als Überstunden";
-    else if (wk >= WORK_CUT) wkInfo = sum >= WORK_TARGET ? " · Soll erfüllt" : " · Soll 8,5 h";
+    else if (wk >= WORK_CUT) wkInfo = sumPast >= WORK_TARGET ? " · Soll erfüllt" : " · Soll 8,5 h";
+    else wkInfo = " · bis 30.11. Überstunden, ab 1.12. Soll 8,5 h";
     html += '<section class="wkgrp"><div class="wk-h"><span>KW ' + isoWeek(mon) + ' · ' + mon.getDate() + '. ' + MON_K[mon.getMonth()] + ' – ' + sun.getDate() + '. ' + MON_K[sun.getMonth()] + '</span><span class="sum">Σ ' + fmtH(sum) + wkInfo + '</span></div><ul class="list">';
     ws.forEach(function(w){
       var d = parseISO(w.date);
@@ -5625,17 +5659,17 @@ function renderLabor(){
   });
   $("work-list").innerHTML = html;
   var thisWeek = iso(startOfWeek(new Date()));
-  var sumWeek = 0, sumMonth = 0, m = new Date().getMonth(), y = new Date().getFullYear();
+  var sumWeek = 0, planWeek = 0, sumMonth = 0, m = new Date().getMonth(), y = new Date().getFullYear();
   work.forEach(function(w){
     var d = parseISO(w.date);
     if (!d) return;
     var h = workHours(w);
-    if (iso(startOfWeek(d)) === thisWeek) sumWeek += h;
+    if (iso(startOfWeek(d)) === thisWeek){ if (w.date <= tIso) sumWeek += h; else planWeek += h; }
     if (d.getMonth() === m && d.getFullYear() === y) sumMonth += h;
   });
   var saldo = workSaldo();
   var afterCut = diffDays(parseISO(WORK_CUT)) <= 0;
-  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + " · Dieser Monat: " + fmtH(sumMonth)
+  $("labor-sub").textContent = "Diese Woche: " + fmtH(sumWeek) + (planWeek ? " (+" + fmtH(planWeek) + " geplant)" : "") + " · Dieser Monat: " + fmtH(sumMonth)
     + " · Überstunden-Konto: " + (saldo >= 0 ? "+" : "−") + fmtH(Math.abs(saldo))
     + (afterCut ? " (Soll 8,5 h/Woche seit 1.12.)" : " (bis 30.11. zählt alles als Überstunden, Soll 8,5 h/Woche ab 1.12.)");
   var openW = openShift();
@@ -5673,8 +5707,10 @@ $("work-add").addEventListener("submit", function(ev){
   var date = $("wk-date").value;
   if (!date) return;
   var wkKind = $("wk-kind").value;
+  var wFrom = wkKind ? "" : ($("wk-from").value || ""), wTo = wkKind ? "" : ($("wk-to").value || "");
+  if (wFrom && wTo && wTo <= wFrom){ toast("„Bis“ muss nach „Von“ liegen."); return; }
   addDoc("work", {
-    date: date, from: wkKind ? "" : ($("wk-from").value || ""), to: wkKind ? "" : ($("wk-to").value || ""),
+    date: date, from: wFrom, to: wTo,
     note: $("wk-note").value.trim(), kind: wkKind, createdAt: Date.now()
   }, function(){
     $("wk-note").value = ""; $("wk-kind").value = "";
@@ -5813,7 +5849,7 @@ $("ics-btn").addEventListener("click", function(){
     });
   });
   study.forEach(function(s){
-    if (s.date && !s.done) addVEv("st-" + s.id, "Lernblock: " + s.title, s.date, s.time || "", "", "");
+    if (s.date && !s.done) addVEv("st-" + s.id, "Lernblock: " + s.title, s.date, s.time || "", s.time ? hmPlus(s.time, 60) : "", "");
   });
   L.push("END:VCALENDAR");
   saveFile("uni-planer-termine-" + iso(today0()) + ".ics", L.join("\r\n") + "\r\n", "Kalenderdatei gespeichert – in Google Kalender über „Einstellungen → Importieren“ einlesen.");
